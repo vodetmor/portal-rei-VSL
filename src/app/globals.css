@@ -4,33 +4,33 @@
 
 @layer base {
   :root {
-    --background: 161 95% 43%; /* Emerald */
-    --foreground: 69 95% 95%; /* Light Yellow for text */
+    --background: 220 10% 10%;
+    --foreground: 69 95% 95%;
 
-    --card: 161 95% 40%; /* Slightly darker Emerald */
+    --card: 220 10% 12%;
     --card-foreground: 69 95% 95%;
 
-    --popover: 161 95% 43%;
+    --popover: 220 10% 10%;
     --popover-foreground: 69 95% 95%;
 
-    --primary: 69 95% 95%; /* Light Yellow */
-    --primary-foreground: 161 95% 15%; /* Dark Emerald for text on primary */
+    --primary: 161 95% 43%; /* Emerald */
+    --primary-foreground: 220 10% 10%; /* Dark background for text on primary */
 
     --secondary: 69 80% 85%; /* Lighter Yellow */
-    --secondary-foreground: 161 95% 10%;
+    --secondary-foreground: 220 10% 10%;
 
-    --muted: 161 50% 30%;
-    --muted-foreground: 161 50% 70%;
+    --muted: 220 10% 15%;
+    --muted-foreground: 0 0% 60%;
 
-    --accent: 69 95% 95%; /* Light Yellow */
-    --accent-foreground: 161 95% 15%;
+    --accent: 161 95% 43%; /* Emerald */
+    --accent-foreground: 69 95% 95%; /* Light Yellow */
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 69 50% 90%;
-    --input: 69 50% 85%;
-    --ring: 69 95% 95%;
+    --border: 220 10% 20%;
+    --input: 220 10% 20%;
+    --ring: 161 95% 43%; /* Emerald */
 
     --radius: 0.5rem;
     --chart-1: 12 76% 61%;
@@ -42,16 +42,16 @@
 
   .dark {
     --background: 220 10% 10%;
-    --foreground: 0 0% 98%;
+    --foreground: 69 95% 95%;
 
     --card: 220 10% 12%;
-    --card-foreground: 0 0% 98%;
+    --card-foreground: 69 95% 95%;
 
     --popover: 220 10% 10%;
-    --popover-foreground: 0 0% 98%;
+    --popover-foreground: 69 95% 95%;
 
     --primary: 161 95% 43%; 
-    --primary-foreground: 0 0% 98%;
+    --primary-foreground: 220 10% 10%;
 
     --secondary: 69 95% 95%;
     --secondary-foreground: 222.2 47.4% 11.2%;
@@ -60,7 +60,7 @@
     --muted-foreground: 0 0% 60%;
 
     --accent: 161 95% 43%;
-    --accent-foreground: 0 0% 98%;
+    --accent-foreground: 69 95% 95%;
 
     --destructive: 0 63% 31%;
     --destructive-foreground: 0 0% 98%;
