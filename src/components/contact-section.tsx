@@ -103,7 +103,7 @@ export function ContactSection() {
                     </a>
                 </Button>
                 <Button size="lg" variant="secondary" className="shimmer-button bg-[#5865F2] hover:bg-[#4f5bda] text-white" onClick={onDiscordClick}>
-                    <Icons.discord className="w-6 h-6 mr-2" />
+                    <Icons.discord className="w-6 h-auto mr-2" />
                     Discord: @hades_god1
                 </Button>
             </div>

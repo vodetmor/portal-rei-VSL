@@ -19,7 +19,7 @@ export function Footer() {
                 <Icons.whatsapp className="w-6 h-6" />
             </Link>
             <Link href="#" aria-label="Discord" className="text-muted-foreground hover:text-primary transition-colors">
-                 <Icons.discord className="w-6 h-6" />
+                 <Icons.discord className="w-6 h-auto" />
             </Link>
         </div>
       </div>
