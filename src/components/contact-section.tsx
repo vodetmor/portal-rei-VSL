@@ -1,42 +1,24 @@
 "use client"
 
-import { zodResolver } from "@hookform/resolvers/zod"
-import { useForm } from "react-hook-form"
-import * as z from "zod"
 import { useRef, useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Button } from "@/components/ui/button"
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { useToast } from "@/hooks/use-toast"
 import { Icons } from "./icons"
-
-const formSchema = z.object({
-  name: z.string().min(2, {
-    message: "O nome deve ter pelo menos 2 caracteres.",
-  }),
-  email: z.string().email({
-    message: "Por favor, insira um email válido.",
-  }),
-  message: z.string().min(10, {
-    message: "A mensagem deve ter pelo menos 10 caracteres.",
-  }).max(500, {
-    message: "A mensagem não pode ter mais de 500 caracteres.",
-  })
-})
+import { Label } from '@/components/ui/label';
 
 export function ContactSection() {
   const { toast } = useToast()
   const [isVisible, setIsVisible] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+  
+  const [formData, setFormData] = useState({
+    name: '',
+    email: '',
+    message: '',
+  });
 
   useEffect(() => {
     const observer = new IntersectionObserver(
@@ -60,23 +42,49 @@ export function ContactSection() {
     };
   }, []);
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      name: "",
-      email: "",
-      message: "",
-    },
-  })
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    setFormData({
+      ...formData,
+      [e.target.name]: e.target.value
+    });
+  };
 
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values)
-    toast({
-      title: "Mensagem Enviada!",
-      description: "Obrigado por entrar em contato. Retornarei em breve.",
-    })
-    form.reset();
-  }
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    
+    const data = new FormData();
+    data.append('name', formData.name);
+    data.append('email', formData.email);
+    data.append('message', formData.message);
+    data.append('_captcha', 'false');
+
+    try {
+      const response = await fetch('https://formsubmit.co/contato.hadess@gmail.com', {
+        method: 'POST',
+        body: data,
+        headers: {
+            'Accept': 'application/json'
+        }
+      });
+
+      if (response.ok) {
+        toast({
+          title: "Mensagem Enviada!",
+          description: "Obrigado por entrar em contato. Retornarei em breve.",
+        });
+        setFormData({ name: '', email: '', message: '' }); // Reset form
+      } else {
+        throw new Error('Network response was not ok.');
+      }
+    } catch (error) {
+      console.error('Submission error:', error);
+      toast({
+        title: "Ocorreu um erro.",
+        description: "Não foi possível enviar sua mensagem. Tente novamente mais tarde.",
+        variant: "destructive"
+      });
+    }
+  };
   
   function onDiscordClick() {
     navigator.clipboard.writeText("@hades_god1");
@@ -109,54 +117,21 @@ export function ContactSection() {
             </div>
           </div>
           <div className="w-full">
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="name"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Nome</FormLabel>
-                      <FormControl>
-                        <Input placeholder="Seu nome completo" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Email</FormLabel>
-                      <FormControl>
-                        <Input placeholder="seu@email.com" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-                <FormField
-                  control={form.control}
-                  name="message"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Mensagem</FormLabel>
-                      <FormControl>
-                        <Textarea
-                          placeholder="Descreva seu projeto ou sua ideia..."
-                          className="min-h-[120px]"
-                          {...field}
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
+            <form onSubmit={handleSubmit} className="space-y-4">
+                <div className="space-y-2">
+                    <Label htmlFor="name">Nome</Label>
+                    <Input id="name" type="text" name="name" placeholder="Seu nome completo" value={formData.name} onChange={handleChange} required />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="email">Email</Label>
+                    <Input id="email" type="email" name="email" placeholder="seu@email.com" value={formData.email} onChange={handleChange} required />
+                </div>
+                 <div className="space-y-2">
+                    <Label htmlFor="message">Mensagem</Label>
+                    <Textarea id="message" name="message" placeholder="Descreva seu projeto ou sua ideia..." className="min-h-[120px]" value={formData.message} onChange={handleChange} required />
+                 </div>
                 <Button type="submit" size="lg" className="w-full shimmer-button">Enviar Mensagem</Button>
-              </form>
-            </Form>
+            </form>
           </div>
         </div>
       </div>
