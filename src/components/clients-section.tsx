@@ -2,15 +2,15 @@
 
 import { useRef, useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { Twitch, Youtube, Twitter, Instagram, Building, Gamepad2 } from "lucide-react";
+import Image from "next/image";
 
 const clients = [
-  { name: "GamerPro", icon: <Gamepad2 className="h-16 w-16" /> },
-  { name: "StreamKing", icon: <Twitch className="h-16 w-16" /> },
-  { name: "TubeMasters", icon: <Youtube className="h-16 w-16" /> },
-  { name: "TweetGurus", icon: <Twitter className="h-16 w-16" /> },
-  { name: "InstaCreators", icon: <Instagram className="h-16 w-16" /> },
-  { name: "BizCorp", icon: <Building className="h-16 w-16" /> },
+  { name: "GamerPro", image: "https://placehold.co/96x96.png", followers: "1.2M", hint: "gaming logo" },
+  { name: "StreamKing", image: "https://placehold.co/96x96.png", followers: "890K", hint: "streaming logo" },
+  { name: "TubeMasters", image: "https://placehold.co/96x96.png", followers: "2.5M", hint: "youtube channel" },
+  { name: "TweetGurus", image: "https://placehold.co/96x96.png", followers: "500K", hint: "twitter profile" },
+  { name: "InstaCreators", image: "https://placehold.co/96x96.png", followers: "3.1M", hint: "instagram profile" },
+  { name: "BizCorp", image: "https://placehold.co/96x96.png", followers: "150K", hint: "corporate logo" },
 ];
 
 export function ClientsSection() {
@@ -55,9 +55,17 @@ export function ClientsSection() {
         >
             <div className="scrolling-carousel">
                 {[...clients, ...clients].map((client, index) => (
-                    <div key={index} className="flex flex-col items-center justify-center gap-2 text-muted-foreground hover:text-primary transition-colors">
-                        {client.icon}
-                        <span className="font-semibold text-sm">{client.name}</span>
+                    <div key={index} className="flex flex-col items-center justify-center gap-2 text-muted-foreground hover:text-primary transition-colors w-32 text-center">
+                        <Image
+                            src={client.image}
+                            alt={`${client.name} logo`}
+                            width={80}
+                            height={80}
+                            className="rounded-full border-2 border-border/50 group-hover:border-primary transition-colors"
+                            data-ai-hint={client.hint}
+                        />
+                        <span className="font-semibold text-sm truncate w-full">{client.name}</span>
+                        <span className="font-mono text-xs text-muted-foreground/80">{client.followers}</span>
                     </div>
                 ))}
             </div>
