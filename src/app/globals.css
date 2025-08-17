@@ -4,33 +4,33 @@
 
 @layer base {
   :root {
-    --background: 69 95% 95%; /* Light Yellow */
-    --foreground: 161 95% 15%; /* Dark Emerald for text */
+    --background: 161 95% 43%; /* Emerald */
+    --foreground: 69 95% 95%; /* Light Yellow for text */
 
-    --card: 69 95% 92%; /* Slightly darker yellow */
-    --card-foreground: 161 95% 15%;
+    --card: 161 95% 40%; /* Slightly darker Emerald */
+    --card-foreground: 69 95% 95%;
 
-    --popover: 69 95% 95%;
-    --popover-foreground: 161 95% 15%;
+    --popover: 161 95% 43%;
+    --popover-foreground: 69 95% 95%;
 
-    --primary: 161 95% 43%; /* Emerald */
-    --primary-foreground: 69 95% 95%; /* Light Yellow for text on primary */
+    --primary: 69 95% 95%; /* Light Yellow */
+    --primary-foreground: 161 95% 15%; /* Dark Emerald for text on primary */
 
-    --secondary: 161 80% 60%; /* Lighter Emerald */
+    --secondary: 69 80% 85%; /* Lighter Yellow */
     --secondary-foreground: 161 95% 10%;
 
-    --muted: 69 60% 85%;
-    --muted-foreground: 69 40% 50%;
+    --muted: 161 50% 30%;
+    --muted-foreground: 161 50% 70%;
 
-    --accent: 161 95% 43%; /* Emerald */
-    --accent-foreground: 69 95% 95%;
+    --accent: 69 95% 95%; /* Light Yellow */
+    --accent-foreground: 161 95% 15%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 98%;
 
-    --border: 161 50% 80%;
-    --input: 161 50% 85%;
-    --ring: 161 95% 43%;
+    --border: 69 50% 90%;
+    --input: 69 50% 85%;
+    --ring: 69 95% 95%;
 
     --radius: 0.5rem;
     --chart-1: 12 76% 61%;
