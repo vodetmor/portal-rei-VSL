@@ -2,10 +2,10 @@ import type { SVGProps } from "react";
 import Image from "next/image";
 
 export const Icons = {
-  whatsapp: (props: { className?: string }) => (
-    <Image src="https://i.imgur.com/YxNIgA5.png" alt="WhatsApp Icon" width={512} height={512} {...props} />
+  whatsapp: ({ className }: { className?: string }) => (
+    <Image src="https://i.imgur.com/YxNIgA5.png" alt="WhatsApp Icon" width={24} height={24} className={className} />
   ),
-  discord: (props: { className?: string }) => (
-     <Image src="https://i.imgur.com/AcP9SrS.png" alt="Discord Icon" width={891} height={633} {...props} />
+  discord: ({ className }: { className?: string }) => (
+     <Image src="https://i.imgur.com/AcP9SrS.png" alt="Discord Icon" width={24} height={24} className={className} objectFit="contain" />
   ),
 };

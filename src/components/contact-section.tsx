@@ -98,12 +98,12 @@ export function ContactSection() {
             <div className="flex flex-col sm:flex-row gap-4 pt-4">
                 <Button asChild size="lg" className="shimmer-button bg-green-500 hover:bg-green-600 text-white">
                     <a href="https://wa.me/5524993078772" target="_blank" rel="noopener noreferrer">
-                        <Icons.whatsapp className="h-6 w-6 mr-2" />
+                        <Icons.whatsapp className="w-6 h-6 mr-2" />
                         WhatsApp
                     </a>
                 </Button>
                 <Button size="lg" variant="secondary" className="shimmer-button bg-[#5865F2] hover:bg-[#4f5bda] text-white" onClick={onDiscordClick}>
-                    <Icons.discord className="h-6 w-6 mr-2" />
+                    <Icons.discord className="w-6 h-6 mr-2" />
                     Discord: @hades_god1
                 </Button>
             </div>

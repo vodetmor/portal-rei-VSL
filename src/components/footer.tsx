@@ -16,10 +16,10 @@ export function Footer() {
         </nav>
         <div className="flex gap-4 items-center">
             <Link href="https://wa.me/5524993078772" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp" className="text-muted-foreground hover:text-primary transition-colors">
-                <Icons.whatsapp className="h-6 w-6" />
+                <Icons.whatsapp className="w-6 h-6" />
             </Link>
             <Link href="#" aria-label="Discord" className="text-muted-foreground hover:text-primary transition-colors">
-                 <Icons.discord className="h-6 w-6" />
+                 <Icons.discord className="w-6 h-6" />
             </Link>
         </div>
       </div>
