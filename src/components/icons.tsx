@@ -8,7 +8,7 @@ export const Icons = {
       <path d="M19.33 4.67A12.06 12.06 0 0 0 12 2a10 10 0 1 0 10 10c0-2.05-.6-3.95-1.67-5.53z" />
     </svg>
   ),
-  discord: (props: Omit<SVGProps<SVGSVGElement>, 'width' | 'height'> & {width?: number | string; height?: number | string; }) => (
-    <Image src="https://i.imgur.com/AcP9SrS.png" alt="Discord Icon" width={24} height={24} {...props} />
+  discord: (props: Omit<SVGProps<SVGSVGElement>, 'width' | 'height'> & {width?: number | string; height?: number | string; className?: string }) => (
+    <Image src="https://i.imgur.com/AcP9SrS.png" alt="Discord Icon" width={24} height={24} className={props.className} />
   ),
 };
