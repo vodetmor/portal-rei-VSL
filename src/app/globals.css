@@ -13,10 +13,10 @@
     --popover: 300 35% 10%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 75 100% 95%;
-    --primary-foreground: 300 35% 10%;
+    --primary: 69 95% 95%; /* Light Yellow: #F8FFE5 */
+    --primary-foreground: 222.2 47.4% 11.2%;
 
-    --secondary: 161 95% 43%;
+    --secondary: 161 95% 43%; /* Emerald: #06D6A0 */
     --secondary-foreground: 0 0% 98%;
 
     --muted: 300 20% 15%;
@@ -50,10 +50,10 @@
     --popover: 300 35% 10%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 75 100% 95%;
-    --primary-foreground: 300 35% 10%;
+    --primary: 69 95% 95%; /* Light Yellow: #F8FFE5 */
+    --primary-foreground: 222.2 47.4% 11.2%;
 
-    --secondary: 161 95% 43%;
+    --secondary: 161 95% 43%; /* Emerald: #06D6A0 */
     --secondary-foreground: 0 0% 98%;
 
     --muted: 300 20% 15%;
