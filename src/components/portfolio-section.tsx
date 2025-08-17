@@ -8,11 +8,11 @@ import Image from "next/image"
 
 const videos = [
   { id: "U_p_C4S2bI4", title: "Highlight Reel 1", type: "16:9" },
-  { id: "gXladzI4D68", title: "Shorts Clip 1", type: "9:16" },
   { id: "wYqNy6h0Wd0", title: "Gameplay Edit", type: "16:9" },
   { id: "S3_eL4Q6nL4", title: "Tutorial Motion", type: "16:9" },
-  { id: "V9dYj4vLxbI", title: "Shorts Clip 2", type: "9:16" },
   { id: "cWGE9g2bKCM", title: "Client Project", type: "16:9" },
+  { id: "gXladzI4D68", title: "Shorts Clip 1", type: "9:16" },
+  { id: "V9dYj4vLxbI", title: "Shorts Clip 2", type: "9:16" },
 ];
 
 function VideoPlayer({ videoId, title, type }: { videoId: string, title: string, type: '16:9' | '9:16' }) {
