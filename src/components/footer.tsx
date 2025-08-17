@@ -15,7 +15,7 @@ export function Footer() {
           </Link>
         </nav>
         <div className="flex gap-4">
-            <Link href="#" aria-label="WhatsApp">
+            <Link href="https://wa.me/5524993078772" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">
                 <Icons.whatsapp className="h-6 w-6 text-muted-foreground hover:text-primary transition-colors" />
             </Link>
             <Link href="#" aria-label="Discord">

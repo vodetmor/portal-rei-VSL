@@ -97,7 +97,7 @@ export function ContactSection() {
             </p>
             <div className="flex flex-col sm:flex-row gap-4 pt-4">
                 <Button asChild size="lg" className="shimmer-button bg-green-500 hover:bg-green-600 text-white">
-                    <a href="https://wa.me/5511999999999" target="_blank" rel="noopener noreferrer">
+                    <a href="https://wa.me/5524993078772" target="_blank" rel="noopener noreferrer">
                         <Icons.whatsapp className="h-6 w-6 mr-2" />
                         WhatsApp
                     </a>
