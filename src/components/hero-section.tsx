@@ -4,6 +4,7 @@ import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { ValorantBackground } from "./valorant-background"
+import { ArrowDown } from "lucide-react"
 
 export function HeroSection() {
   return (
@@ -27,10 +28,11 @@ export function HeroSection() {
             <p className="text-lg md:text-xl lg:text-2xl text-foreground/80 drop-shadow-md">
                 Editor de vídeos que transforma suas jogadas em obras de arte.
             </p>
-            <div className="pt-6">
+            <div className="pt-6 flex flex-col items-center gap-4">
                 <Button asChild size="lg" className="shimmer-button text-lg px-8 py-6">
                     <Link href="#contato">Fale Comigo</Link>
                 </Button>
+                <ArrowDown className="w-8 h-8 text-primary animate-bounce mt-4" />
             </div>
         </div>
       </div>
