@@ -14,12 +14,12 @@ export function Footer() {
             Política de Privacidade
           </Link>
         </nav>
-        <div className="flex gap-4">
-            <Link href="https://wa.me/5524993078772" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp">
-                <Icons.whatsapp className="h-6 w-6 text-muted-foreground hover:text-primary transition-colors" />
+        <div className="flex gap-4 items-center">
+            <Link href="https://wa.me/5524993078772" target="_blank" rel="noopener noreferrer" aria-label="WhatsApp" className="h-6 w-6 text-muted-foreground hover:text-primary transition-colors">
+                <Icons.whatsapp />
             </Link>
-            <Link href="#" aria-label="Discord">
-                <Icons.discord className="h-6 w-6 text-muted-foreground hover:text-primary transition-colors" />
+            <Link href="#" aria-label="Discord" className="h-6 w-6 text-muted-foreground hover:text-primary transition-colors">
+                <Icons.discord />
             </Link>
         </div>
       </div>
