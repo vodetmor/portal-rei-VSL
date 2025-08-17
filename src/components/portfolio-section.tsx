@@ -15,6 +15,9 @@ const videos = [
   { id: "V9dYj4vLxbI", title: "Shorts Clip 2", type: "9:16" },
 ];
 
+const longVideos = videos.filter(v => v.type === '16:9');
+const shortVideos = videos.filter(v => v.type === '9:16');
+
 function VideoPlayer({ videoId, title, type }: { videoId: string, title: string, type: '16:9' | '9:16' }) {
     const [isClicked, setIsClicked] = useState(false);
     const isShort = type === '9:16';
@@ -96,15 +99,28 @@ export function PortfolioSection() {
                     </p>
                 </div>
             </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {videos.map((video, index) => (
-                    <div key={video.id} className={cn(
-                        "transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-primary/20 hover:shadow-2xl",
-                        video.type === '9:16' ? 'sm:col-span-1' : 'sm:col-span-2'
-                    )}>
-                        <VideoPlayer videoId={video.id} title={video.title} type={video.type} />
+            
+            <div className="flex flex-col items-center gap-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 w-full max-w-6xl">
+                    {longVideos.map((video) => (
+                        <div key={video.id} className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-primary/20 hover:shadow-2xl">
+                            <VideoPlayer videoId={video.id} title={video.title} type={video.type} />
+                        </div>
+                    ))}
+                </div>
+                
+                {shortVideos.length > 0 && (
+                    <div className="w-full">
+                        <h3 className="text-2xl font-bold tracking-tighter sm:text-4xl font-headline text-center mb-8 mt-8">Shorts</h3>
+                        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 justify-center">
+                            {shortVideos.map((video) => (
+                                <div key={video.id} className="transition-all duration-300 ease-in-out hover:scale-105 hover:shadow-primary/20 hover:shadow-2xl">
+                                    <VideoPlayer videoId={video.id} title={video.title} type={video.type} />
+                                </div>
+                            ))}
+                        </div>
                     </div>
-                ))}
+                )}
             </div>
       </div>
     </section>
