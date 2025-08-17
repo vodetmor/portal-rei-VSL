@@ -10,7 +10,6 @@ const clients = [
   { name: "TubeMasters", image: "https://placehold.co/96x96.png", followers: "2.5M", hint: "youtube channel" },
   { name: "TweetGurus", image: "https://placehold.co/96x96.png", followers: "500K", hint: "twitter profile" },
   { name: "InstaCreators", image: "https://placehold.co/96x96.png", followers: "3.1M", hint: "instagram profile" },
-  { name: "BizCorp", image: "https://placehold.co/96x96.png", followers: "150K", hint: "corporate logo" },
 ];
 
 export function ClientsSection() {
