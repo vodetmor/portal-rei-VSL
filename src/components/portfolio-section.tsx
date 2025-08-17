@@ -24,6 +24,7 @@ const shortVideos = videos.filter(v => v.type === '9:16');
 
 function VideoPlayer({ videoId, title, type }: { videoId: string, title: string, type: '16:9' | '9:16' }) {
     const [isClicked, setIsClicked] = useState(false);
+    const [imgSrc, setImgSrc] = useState(`https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`);
     const isShort = type === '9:16';
   
     if (isClicked) {
@@ -50,7 +51,10 @@ function VideoPlayer({ videoId, title, type }: { videoId: string, title: string,
         onClick={() => setIsClicked(true)}
       >
         <Image
-          src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`}
+          src={imgSrc}
+          onError={() => {
+            setImgSrc(`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`);
+          }}
           alt={`Thumbnail for ${title}`}
           width={isShort ? 405 : 1280}
           height={isShort ? 720 : 720}
