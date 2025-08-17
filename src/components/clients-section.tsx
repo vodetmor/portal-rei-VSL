@@ -76,7 +76,7 @@ export function ClientsSection() {
         <div className="relative w-full overflow-hidden">
           <div className="flex animate-scroll-slow hover:pause-animation">
             {duplicatedClients.map((client, index) => (
-              <div key={index} className="flex flex-col items-center justify-start flex-shrink-0 w-48 p-4 mx-4">
+              <div key={index} className="flex flex-col items-center justify-start flex-shrink-0 w-48 p-4 mx-4 transition-transform duration-300 ease-in-out hover:scale-110 cursor-pointer">
                   <div className="relative w-32 h-32 mb-4">
                       <Image
                           src={client.imageUrl}
