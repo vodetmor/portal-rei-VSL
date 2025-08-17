@@ -9,6 +9,6 @@ export const Icons = {
     </svg>
   ),
   discord: (props: Omit<SVGProps<SVGSVGElement>, 'width' | 'height'> & {width?: number | string; height?: number | string; className?: string }) => (
-    <Image src="https://i.imgur.com/AcP9SrS.png" alt="Discord Icon" width={24} height={24} className={props.className} />
+    <Image src="https://i.imgur.com/AcP9SrS.png" alt="Discord Icon" width={32} height={24} className={props.className} />
   ),
 };
