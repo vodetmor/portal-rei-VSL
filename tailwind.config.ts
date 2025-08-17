@@ -88,10 +88,15 @@ export default {
             height: '0',
           },
         },
+        'scroll-slow': {
+          from: { transform: 'translateX(0)' },
+          to: { transform: 'translateX(calc(-100% / 3 * 5))' }, // Adjusted for 5 items
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
+        'scroll-slow': 'scroll-slow 40s linear infinite',
       },
     },
   },
