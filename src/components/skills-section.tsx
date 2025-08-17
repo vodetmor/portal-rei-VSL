@@ -1,7 +1,7 @@
 "use client"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Youtube, Layers, Film, Clapperboard, MonitorPlay, Sparkles } from "lucide-react"
+import { Youtube, Layers, Film, Sparkles } from "lucide-react"
 import { useRef, useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 
@@ -20,16 +20,6 @@ const skills = [
     icon: <Film className="h-10 w-10 text-primary" />,
     title: "Edição de Highlights",
     description: "Transformo suas melhores jogadas em clipes impactantes, perfeitos para redes sociais."
-  },
-  {
-    icon: <Clapperboard className="h-10 w-10 text-primary" />,
-    title: "Storytelling Visual",
-    description: "Estruturo narrativas visuais coesas que contam uma história e conectam com o público."
-  },
-   {
-    icon: <MonitorPlay className="h-10 w-10 text-primary" />,
-    title: "Edição de Vlogs",
-    description: "Edição dinâmica e criativa para vlogs, mantendo um ritmo cativante do início ao fim."
   },
   {
     icon: <Sparkles className="h-10 w-10 text-primary" />,
@@ -75,7 +65,7 @@ export function SkillsSection() {
                 </p>
             </div>
         </div>
-        <div className="mx-auto grid max-w-5xl grid-cols-1 gap-6 py-12 sm:grid-cols-2 lg:grid-cols-3">
+        <div className="mx-auto grid max-w-4xl grid-cols-1 gap-8 py-12 sm:grid-cols-2">
           {skills.map((skill, index) => (
             <Card key={index} className="flex flex-col items-center text-center p-6 border-border/50 hover:border-primary/50 hover:bg-card/80 transition-all duration-300 ease-in-out hover:scale-105 shadow-lg hover:shadow-primary/20">
               <CardHeader className="p-0 mb-4">
