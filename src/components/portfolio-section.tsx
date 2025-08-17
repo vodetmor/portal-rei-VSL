@@ -13,6 +13,10 @@ const videos = [
   { id: "cWGE9g2bKCM", title: "Client Project", type: "16:9" },
   { id: "gXladzI4D68", title: "Shorts Clip 1", type: "9:16" },
   { id: "V9dYj4vLxbI", title: "Shorts Clip 2", type: "9:16" },
+  { id: "y73yS1k6A7Y", title: "Shorts Clip 3", type: "9:16" },
+  { id: "x-z6x7y-z6k", title: "Shorts Clip 4", type: "9:16" },
+  { id: "aB1c2D3e4F5", title: "Shorts Clip 5", type: "9:16" },
+  { id: "fG6h7I8j9K0", title: "Shorts Clip 6", type: "9:16" },
 ];
 
 const longVideos = videos.filter(v => v.type === '16:9');
