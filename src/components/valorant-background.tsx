@@ -46,7 +46,7 @@ export function ValorantBackground() {
           left: 50%;
           width: 2px;
           height: 200%;
-          background: linear-gradient(to top, transparent, hsl(var(--primary)), transparent);
+          background: linear-gradient(to top, transparent, hsl(var(--primary) / 0.5), transparent);
           transform-origin: bottom center;
           animation-name: ray-anim;
           animation-timing-function: linear;

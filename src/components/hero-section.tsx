@@ -9,7 +9,7 @@ export function HeroSection() {
   return (
     <section className="relative w-full h-[80vh] min-h-[600px] flex items-center justify-center overflow-hidden">
       <ValorantBackground />
-      <div className="relative z-10 container mx-auto px-4 md:px-6 text-center text-white">
+      <div className="relative z-10 container mx-auto px-4 md:px-6 text-center">
         <div className="max-w-3xl mx-auto flex flex-col items-center space-y-4 animate-fade-in-up">
             <div className="mb-4">
                 <Image
@@ -21,10 +21,10 @@ export function HeroSection() {
                     data-ai-hint="hades logo"
                 />
             </div>
-            <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter uppercase font-headline bg-gradient-to-b from-white to-gray-400 bg-clip-text text-transparent drop-shadow-lg">
+            <h1 className="text-5xl md:text-7xl lg:text-8xl font-black tracking-tighter uppercase font-headline bg-gradient-to-b from-foreground to-muted-foreground bg-clip-text text-transparent drop-shadow-lg">
                 Hades
             </h1>
-            <p className="text-lg md:text-xl lg:text-2xl text-gray-200 drop-shadow-md">
+            <p className="text-lg md:text-xl lg:text-2xl text-foreground/80 drop-shadow-md">
                 Editor de vídeos que transforma suas jogadas em obras de arte.
             </p>
             <div className="pt-6">
