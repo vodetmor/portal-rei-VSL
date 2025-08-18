@@ -67,14 +67,14 @@ export function ClientsSection() {
     }, []);
 
   return (
-    <section id="clientes" className="bg-background">
+    <section id="clientes" className="bg-background py-12 md:py-24">
       <div  ref={ref} className={cn('transition-all duration-1000 ease-out container mx-auto px-4 md:px-6', isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10')}>
         <div className="flex flex-col items-center justify-center space-y-4 text-center mb-12">
             <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl font-headline">Clientes que já trabalhei</h2>
         </div>
         
-        <div className="relative w-full overflow-hidden">
-          <div className="flex animate-scroll-slow hover:pause-animation">
+        <div className="relative w-full overflow-hidden group/carousel">
+          <div className="flex animate-scroll-slow group-hover/carousel:paused">
             {duplicatedClients.map((client, index) => (
               <div key={index} className="flex flex-col items-center justify-start flex-shrink-0 w-48 p-4 mx-4 transition-transform duration-300 ease-in-out hover:scale-110 cursor-pointer">
                   <div className="relative w-32 h-32 mb-4">
