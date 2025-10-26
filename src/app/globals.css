@@ -1,3 +1,56 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300..700&family=Inter:wght@100..900&display=swap');
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 7%; /* #121212 */
+    --foreground: 0 0% 98%; /* #fafafa */
+
+    --card: 0 0% 10%; /* #1a1a1a */
+    --card-foreground: 0 0% 98%; /* #fafafa */
+
+    --popover: 0 0% 7%; /* #121212 */
+    --popover-foreground: 0 0% 98%; /* #fafafa */
+
+    --primary: 180 100% 50%; /* #00ffff - Cyan */
+    --primary-foreground: 0 0% 7%; /* #121212 */
+
+    --secondary: 240 100% 60%; /* #3333ff - Bright Blue */
+    --secondary-foreground: 0 0% 98%; /* #fafafa */
+
+    --muted: 0 0% 15%; /* #262626 */
+    --muted-foreground: 0 0% 64%; /* #a3a3a3 */
+
+    --accent: 270 95% 60%; /* #9542f5 - Purple */
+    --accent-foreground: 0 0% 98%; /* #fafafa */
+
+    --destructive: 0 84% 60%; /* #f84949 */
+    --destructive-foreground: 0 0% 98%; /* #fafafa */
+
+    --border: 0 0% 15%; /* #262626 */
+    --input: 0 0% 15%; /* #262626 */
+    --ring: 180 100% 50%; /* #00ffff - Cyan */
+
+    --radius: 0.5rem;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+.glass-card {
+  @apply bg-white/5 border border-white/10 rounded-lg shadow-lg backdrop-blur-md;
+}
+
+.neon-glow {
+  box-shadow: 0 0 5px theme('colors.primary.DEFAULT'), 0 0 10px theme('colors.primary.DEFAULT / 0.8'), 0 0 20px theme('colors.primary.DEFAULT / 0.6');
+}
