@@ -113,7 +113,7 @@ export function ValidationReport({ report, onReset }: ValidationReportProps) {
       <motion.div variants={itemVariants} className="grid grid-cols-1 gap-6">
         <MagicCard className='cursor-pointer'>
            <CardHeader>
-            <CardTitle className="text-xl tracking-tight">Recomendação Geral</CardTitle>
+            <CardTitle className="text-xl tracking-tight text-center">Recomendação Geral</CardTitle>
           </CardHeader>
           <CardContent className='flex items-center justify-center'>
             <p className='text-muted-foreground px-4 text-center'>
