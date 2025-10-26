@@ -8,16 +8,15 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { z } from 'zod';
 import { generateIdea } from '@/ai/flows/generate-idea-flow';
 import { IdeaDossier } from '@/components/idea-dossier';
-import { z } from 'zod';
-
 
 const GenerateIdeaInputSchema = z.object({
   niche: z.string().describe('A área de interesse ou nicho de mercado para a nova ideia de negócio.'),
   investmentLevel: z.enum(['Baixo', 'Médio', 'Alto']).describe('O nível de capital de investimento inicial disponível (Baixo, Médio, Alto).'),
 });
-export type GenerateIdeaInput = z.infer<typeof GenerateIdeaInputSchema>;
+type GenerateIdeaInput = z.infer<typeof GenerateIdeaInputSchema>;
 
 const GenerateIdeaOutputSchema = z.object({
     ideaSummary: z.object({
@@ -86,9 +85,7 @@ export default function GeneratePage() {
   };
 
   return (
-    <main className="flex min-h-screen w-full flex-col items-center bg-grid-small-white/[0.05] p-4 md:p-8">
-      <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-background [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)]"></div>
-
+    <main className="flex min-h-screen w-full flex-col items-center p-4 md:p-8">
       <div className="w-full max-w-4xl z-10">
         <motion.div {...fadeInUp}>
           <Link href="/" className="flex items-center text-muted-foreground hover:text-foreground transition-colors">
@@ -106,7 +103,7 @@ export default function GeneratePage() {
             transition={{ duration: 0.5 }}
             className="mt-8 text-center"
           >
-            <h1 className="text-4xl md:text-5xl font-bold font-space-grotesk bg-clip-text text-transparent bg-gradient-to-b from-neutral-50 to-neutral-400">
+            <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
               Gere uma Ideia de Negócio
             </h1>
             <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
@@ -179,8 +176,8 @@ export default function GeneratePage() {
             exit={{ opacity: 0 }}
             className="text-center mt-16"
           >
-            <LoaderCircle className="h-16 w-16 text-primary-foreground/50 animate-spin mx-auto" />
-            <h2 className="mt-4 text-2xl font-space-grotesk text-foreground">Criando Dossiê da Ideia...</h2>
+            <LoaderCircle className="h-16 w-16 text-primary animate-spin mx-auto" />
+            <h2 className="mt-4 text-2xl font-bold tracking-tight text-foreground">Criando Dossiê da Ideia...</h2>
             <p className="text-muted-foreground">A IA está pesquisando tendências e formulando um plano. Isso pode levar alguns segundos.</p>
            </motion.div>
         )}

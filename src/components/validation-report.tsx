@@ -53,22 +53,22 @@ export function ValidationReport({ report, onReset }: ValidationReportProps) {
     { name: 'Viability', value: report.viabilityScore },
     { name: 'Remaining', value: 100 - report.viabilityScore },
   ];
-  const COLORS = ['#00ffff', '#262626'];
+  const COLORS = ['hsl(var(--primary))', 'hsl(var(--muted))'];
 
   return (
     <motion.div variants={containerVariants} initial="hidden" animate="visible" className="space-y-8">
       <motion.div variants={itemVariants} className="text-center">
-        <h1 className="text-4xl md:text-5xl font-bold font-space-grotesk text-neutral-100">Relatório de Validação</h1>
-        <p className="mt-2 text-lg text-neutral-300">Análise gerada por DexAI</p>
+        <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-foreground">Relatório de Validação</h1>
+        <p className="mt-2 text-lg text-muted-foreground">Análise gerada por DexAI</p>
       </motion.div>
 
       <motion.div
         variants={itemVariants}
         className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center"
       >
-        <Card className="glass-card">
+        <Card>
           <CardHeader>
-            <CardTitle className="text-xl font-space-grotesk">Pontuação de Viabilidade</CardTitle>
+            <CardTitle className="text-xl tracking-tight">Pontuação de Viabilidade</CardTitle>
           </CardHeader>
           <CardContent className="h-40">
             <ResponsiveContainer width="100%" height="100%">
@@ -91,13 +91,13 @@ export function ValidationReport({ report, onReset }: ValidationReportProps) {
                 </Pie>
               </PieChart>
             </ResponsiveContainer>
-            <p className="text-4xl font-bold font-space-grotesk text-primary -translate-y-28">{report.viabilityScore}%</p>
+            <p className="text-4xl font-bold text-primary -translate-y-28">{report.viabilityScore}%</p>
           </CardContent>
         </Card>
         
-        <Card className="glass-card">
+        <Card>
            <CardHeader>
-            <CardTitle className="text-xl font-space-grotesk">Saturação de Mercado</CardTitle>
+            <CardTitle className="text-xl tracking-tight">Saturação de Mercado</CardTitle>
           </CardHeader>
           <CardContent className='flex items-center justify-center h-40'>
              <Badge className={`text-2xl px-6 py-3 ${saturationColors[report.marketSaturation]}`}>
@@ -106,12 +106,12 @@ export function ValidationReport({ report, onReset }: ValidationReportProps) {
           </CardContent>
         </Card>
 
-        <Card className="glass-card">
+        <Card>
            <CardHeader>
-            <CardTitle className="text-xl font-space-grotesk">Recomendação Geral</CardTitle>
+            <CardTitle className="text-xl tracking-tight">Recomendação Geral</CardTitle>
           </CardHeader>
           <CardContent className='flex items-center justify-center h-40'>
-            <p className='text-neutral-300 px-4'>
+            <p className='text-muted-foreground px-4'>
                 {report.overallRecommendation}
             </p>
           </CardContent>
@@ -134,18 +134,18 @@ export function ValidationReport({ report, onReset }: ValidationReportProps) {
 
 function AnalysisCard({ icon, title, analysis, recommendations }: {icon: React.ReactNode, title: string, analysis: string, recommendations: string[]}) {
     return (
-        <Card className="glass-card h-full">
+        <Card className="h-full">
           <CardHeader>
             <div className="flex items-center gap-4">
               {icon}
-              <CardTitle className="text-2xl font-space-grotesk">{title}</CardTitle>
+              <CardTitle className="text-2xl tracking-tight">{title}</CardTitle>
             </div>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-neutral-300">{analysis}</p>
+            <p className="text-muted-foreground">{analysis}</p>
             <div>
-                <h4 className='font-semibold text-neutral-100 mb-2'>Recomendações:</h4>
-                <ul className='list-disc list-inside space-y-1 text-neutral-300'>
+                <h4 className='font-semibold text-foreground mb-2'>Recomendações:</h4>
+                <ul className='list-disc list-inside space-y-1 text-muted-foreground'>
                     {recommendations.map((rec, index) => <li key={index}>{rec}</li>)}
                 </ul>
             </div>
