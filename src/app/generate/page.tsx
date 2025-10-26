@@ -86,12 +86,12 @@ export default function GeneratePage() {
   };
 
   return (
-    <main className="flex min-h-screen w-full flex-col items-center bg-grid-small-white/[0.2] p-4 md:p-8">
+    <main className="flex min-h-screen w-full flex-col items-center bg-grid-small-white/[0.05] p-4 md:p-8">
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-background [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)]"></div>
 
       <div className="w-full max-w-4xl z-10">
         <motion.div {...fadeInUp}>
-          <Link href="/" className="flex items-center text-neutral-300 hover:text-accent transition-colors">
+          <Link href="/" className="flex items-center text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Voltar
           </Link>
@@ -109,13 +109,13 @@ export default function GeneratePage() {
             <h1 className="text-4xl md:text-5xl font-bold font-space-grotesk bg-clip-text text-transparent bg-gradient-to-b from-neutral-50 to-neutral-400">
               Gere uma Ideia de Negócio
             </h1>
-            <p className="mt-4 text-lg text-neutral-300 max-w-2xl mx-auto">
+            <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
               Defina um nicho e um nível de investimento. A IA criará um conceito de negócio inovador para você.
             </p>
 
             <div className="mt-8 max-w-2xl mx-auto text-left space-y-6">
               <div>
-                <Label htmlFor="niche" className="text-lg font-semibold text-neutral-200">
+                <Label htmlFor="niche" className="text-lg font-semibold text-foreground">
                   Nicho de Mercado
                 </Label>
                 <Input
@@ -129,7 +129,7 @@ export default function GeneratePage() {
               </div>
 
               <div>
-                <Label className="text-lg font-semibold text-neutral-200">Nível de Investimento</Label>
+                <Label className="text-lg font-semibold text-foreground">Nível de Investimento</Label>
                 <RadioGroup
                   value={investmentLevel}
                   onValueChange={(value: 'Baixo' | 'Médio' | 'Alto') => setInvestmentLevel(value)}
@@ -140,7 +140,7 @@ export default function GeneratePage() {
                     <Label
                       key={level}
                       htmlFor={`level-${level}`}
-                      className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent/20 hover:text-accent-foreground [&:has([data-state=checked])]:border-accent"
+                      className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent/80 hover:text-accent-foreground [&:has([data-state=checked])]:border-primary"
                     >
                       <RadioGroupItem value={level} id={`level-${level}`} className="sr-only" />
                       <span className="text-lg font-semibold">{level}</span>
@@ -153,7 +153,7 @@ export default function GeneratePage() {
                 onClick={handleGeneration}
                 disabled={loading}
                 size="lg"
-                className="mt-4 w-full text-lg font-semibold bg-accent text-accent-foreground hover:bg-accent/90"
+                className="mt-4 w-full text-lg font-semibold"
               >
                 {loading ? (
                   <>
@@ -179,9 +179,9 @@ export default function GeneratePage() {
             exit={{ opacity: 0 }}
             className="text-center mt-16"
           >
-            <LoaderCircle className="h-16 w-16 text-accent animate-spin mx-auto" />
-            <h2 className="mt-4 text-2xl font-space-grotesk text-neutral-200">Criando Dossiê da Ideia...</h2>
-            <p className="text-neutral-400">A IA está pesquisando tendências e formulando um plano. Isso pode levar alguns segundos.</p>
+            <LoaderCircle className="h-16 w-16 text-primary-foreground/50 animate-spin mx-auto" />
+            <h2 className="mt-4 text-2xl font-space-grotesk text-foreground">Criando Dossiê da Ideia...</h2>
+            <p className="text-muted-foreground">A IA está pesquisando tendências e formulando um plano. Isso pode levar alguns segundos.</p>
            </motion.div>
         )}
 

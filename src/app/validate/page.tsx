@@ -54,12 +54,12 @@ export default function ValidatePage() {
   };
 
   return (
-    <main className="flex min-h-screen w-full flex-col items-center bg-grid-small-white/[0.2] p-4 md:p-8">
+    <main className="flex min-h-screen w-full flex-col items-center bg-grid-small-white/[0.05] p-4 md:p-8">
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-background [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)]"></div>
 
       <div className="w-full max-w-4xl z-10">
         <motion.div {...fadeInUp}>
-          <Link href="/" className="flex items-center text-neutral-300 hover:text-primary transition-colors">
+          <Link href="/" className="flex items-center text-muted-foreground hover:text-foreground transition-colors">
             <ArrowLeft className="mr-2 h-4 w-4" />
             Voltar
           </Link>
@@ -77,7 +77,7 @@ export default function ValidatePage() {
             <h1 className="text-4xl md:text-5xl font-bold font-space-grotesk bg-clip-text text-transparent bg-gradient-to-b from-neutral-50 to-neutral-400">
               Valide sua Ideia de Negócio
             </h1>
-            <p className="mt-4 text-lg text-neutral-300 max-w-2xl mx-auto">
+            <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
               Descreva seu conceito de negócio abaixo. A IA irá fornecer uma análise completa sobre a viabilidade, mercado e monetização.
             </p>
 
@@ -116,9 +116,9 @@ export default function ValidatePage() {
             exit={{ opacity: 0 }}
             className="text-center mt-16"
           >
-            <LoaderCircle className="h-16 w-16 text-primary animate-spin mx-auto" />
-            <h2 className="mt-4 text-2xl font-space-grotesk text-neutral-200">Gerando Relatório...</h2>
-            <p className="text-neutral-400">Isso pode levar alguns segundos.</p>
+            <LoaderCircle className="h-16 w-16 text-primary-foreground/50 animate-spin mx-auto" />
+            <h2 className="mt-4 text-2xl font-space-grotesk text-foreground">Gerando Relatório...</h2>
+            <p className="text-muted-foreground">Isso pode levar alguns segundos.</p>
            </motion.div>
         )}
 

@@ -8,13 +8,13 @@ export default function Home() {
   const cardVariants = {
     hover: {
       y: -10,
-      boxShadow: '0px 20px 30px hsla(var(--primary) / 0.2)',
+      boxShadow: '0px 20px 30px hsla(var(--secondary) / 0.2)',
       transition: { type: 'spring', stiffness: 300 },
     },
   };
 
   return (
-    <main className="flex min-h-screen w-full flex-col items-center justify-center bg-grid-small-white/[0.2] p-4 md:p-8">
+    <main className="flex min-h-screen w-full flex-col items-center justify-center bg-grid-small-white/[0.05] p-4 md:p-8">
       <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-background [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)]"></div>
       
       <motion.div 
@@ -26,7 +26,7 @@ export default function Home() {
         <h1 className="text-5xl md:text-7xl font-bold font-space-grotesk bg-clip-text text-transparent bg-gradient-to-b from-neutral-50 to-neutral-400 bg-opacity-50">
           DexAI
         </h1>
-        <p className="mt-4 text-lg md:text-xl text-neutral-300 max-w-2xl mx-auto">
+        <p className="mt-4 text-lg md:text-xl text-muted-foreground max-w-2xl mx-auto">
           Your AI co-pilot for turning brilliant concepts into data-driven, viable businesses.
         </p>
       </motion.div>
@@ -37,15 +37,15 @@ export default function Home() {
             <Card className="glass-card cursor-pointer h-full group">
               <CardHeader>
                 <div className="flex items-center gap-4">
-                  <BrainCircuit className="h-10 w-10 text-primary" />
+                  <BrainCircuit className="h-10 w-10 text-secondary-foreground" />
                   <CardTitle className="text-2xl font-space-grotesk">Validate Idea</CardTitle>
                 </div>
               </CardHeader>
               <CardContent>
-                <CardDescription className="text-base text-neutral-300">
+                <CardDescription className="text-base text-muted-foreground">
                   Have a business idea? Get an instant, AI-powered analysis of its viability, market saturation, and monetization models.
                 </CardDescription>
-                <div className="mt-6 flex items-center justify-end text-sm font-semibold text-primary group-hover:translate-x-1 transition-transform">
+                <div className="mt-6 flex items-center justify-end text-sm font-semibold text-secondary-foreground group-hover:translate-x-1 transition-transform">
                   Analyze Idea <ArrowRight className="ml-2 h-4 w-4" />
                 </div>
               </CardContent>
@@ -58,15 +58,15 @@ export default function Home() {
             <Card className="glass-card cursor-pointer h-full group">
               <CardHeader>
                 <div className="flex items-center gap-4">
-                  <Lightbulb className="h-10 w-10 text-accent" />
+                  <Lightbulb className="h-10 w-10 text-secondary-foreground" />
                   <CardTitle className="text-2xl font-space-grotesk">Generate Idea</CardTitle>
                 </div>
               </CardHeader>
               <CardContent>
-                <CardDescription className="text-base text-neutral-300">
+                <CardDescription className="text-base text-muted-foreground">
                   Define a niche and investment level. Our AI will generate a novel business concept based on real-time market trends.
                 </CardDescription>
-                <div className="mt-6 flex items-center justify-end text-sm font-semibold text-accent group-hover:translate-x-1 transition-transform">
+                <div className="mt-6 flex items-center justify-end text-sm font-semibold text-secondary-foreground group-hover:translate-x-1 transition-transform">
                   Generate with AI <ArrowRight className="ml-2 h-4 w-4" />
                 </div>
               </CardContent>
