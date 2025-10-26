@@ -94,6 +94,10 @@ const config = {
           '50%': { 'background-position': '100%', opacity: '1' },
           '100%': { 'background-position': '200%', opacity: '0.6' },
         },
+        'background-pan': {
+          '0%': { backgroundPosition: '0% 0%' },
+          '100%': { backgroundPosition: '-100% 0%' },
+        }
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
@@ -101,6 +105,7 @@ const config = {
         'aurora': 'aurora 60s linear infinite',
         rainbow: "rainbow var(--speed, 2s) infinite linear",
         'white-glow': "white-glow 3s infinite linear",
+        'background-pan': 'background-pan 30s linear infinite',
       },
     },
   },
