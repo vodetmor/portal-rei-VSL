@@ -8,7 +8,7 @@ export default function Home() {
   const cardVariants = {
     hover: {
       y: -10,
-      boxShadow: '0px 20px 30px rgba(0, 255, 255, 0.2)',
+      boxShadow: '0px 20px 30px hsla(var(--primary) / 0.2)',
       transition: { type: 'spring', stiffness: 300 },
     },
   };
@@ -58,7 +58,7 @@ export default function Home() {
             <Card className="glass-card cursor-pointer h-full group">
               <CardHeader>
                 <div className="flex items-center gap-4">
-                  <Lightbulb className="h-10 w-10 text-secondary" />
+                  <Lightbulb className="h-10 w-10 text-accent" />
                   <CardTitle className="text-2xl font-space-grotesk">Generate Idea</CardTitle>
                 </div>
               </CardHeader>
@@ -66,7 +66,7 @@ export default function Home() {
                 <CardDescription className="text-base text-neutral-300">
                   Define a niche and investment level. Our AI will generate a novel business concept based on real-time market trends.
                 </CardDescription>
-                <div className="mt-6 flex items-center justify-end text-sm font-semibold text-secondary group-hover:translate-x-1 transition-transform">
+                <div className="mt-6 flex items-center justify-end text-sm font-semibold text-accent group-hover:translate-x-1 transition-transform">
                   Generate with AI <ArrowRight className="ml-2 h-4 w-4" />
                 </div>
               </CardContent>
