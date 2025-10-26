@@ -120,14 +120,15 @@ export default function GeneratePage() {
                   disabled={loading}
                 >
                   {['Baixo', 'Médio', 'Alto'].map((level) => (
-                    <Label
-                      key={level}
-                      htmlFor={`level-${level}`}
-                      className="flex flex-col items-center justify-center rounded-md border-2 border-subtle-border bg-black/20 p-4 hover:bg-white/10 hover:text-white [&:has([data-state=checked])]:border-primary-cyan"
-                    >
-                      <RadioGroupItem value={level} id={`level-${level}`} className="sr-only" />
-                      <span className="text-lg font-semibold">{level}</span>
-                    </Label>
+                    <motion.div key={level} whileTap={{ scale: 0.95 }}>
+                      <Label
+                        htmlFor={`level-${level}`}
+                        className="cursor-pointer flex flex-col items-center justify-center rounded-md border-2 border-subtle-border bg-black/20 p-4 hover:bg-white/10 [&:has([data-state=checked])]:border-primary-cyan"
+                      >
+                        <RadioGroupItem value={level} id={`level-${level}`} className="sr-only" />
+                        <span className="text-lg font-semibold">{level}</span>
+                      </Label>
+                    </motion.div>
                   ))}
                 </RadioGroup>
               </div>
