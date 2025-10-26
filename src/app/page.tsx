@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import BlurText from '@/components/ui/blur-text';
 import { RainbowButton } from '@/components/ui/rainbow-button';
+import { WhiteGlowButton } from '@/components/ui/white-glow-button';
 
 export default function Home() {
   const containerVariants = {
@@ -64,11 +65,11 @@ export default function Home() {
               Gerar Ideia com IA
             </RainbowButton>
           </Link>
-          <Button asChild size="lg" variant="outline" className="text-white border-white/30 hover:bg-white/10 hover:text-white transition-transform hover:scale-105">
-            <Link href="/validate">
+          <Link href="/validate">
+            <WhiteGlowButton>
               Validar minha Ideia
-            </Link>
-          </Button>
+            </WhiteGlowButton>
+          </Link>
         </motion.div>
       </motion.section>
     </div>
