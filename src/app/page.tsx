@@ -5,6 +5,7 @@ import BlurText from '@/components/ui/blur-text';
 import { RainbowButton } from '@/components/ui/rainbow-button';
 import { WhiteGlowButton } from '@/components/ui/white-glow-button';
 import { PricingSection } from '@/components/pricing-section';
+import { TextShimmer } from '@/components/ui/text-shimmer';
 
 export default function Home() {
   const containerVariants = {
@@ -49,12 +50,13 @@ export default function Home() {
           animateBy="words"
         />
 
-        <motion.p
-          variants={itemVariants}
-          className="max-w-2xl text-lg text-light-gray opacity-90"
-        >
-          Valide e gere ideias de negócios inovadoras com o poder da inteligência artificial. Reduza riscos, economize tempo e comece com o pé direito.
-        </motion.p>
+        <motion.div variants={itemVariants}>
+          <TextShimmer
+            className='text-lg max-w-2xl [--base-color:theme(colors.zinc.400)] dark:[--base-color:theme(colors.zinc.400)] [--base-gradient-color:theme(colors.white)]'
+          >
+            Valide e gere ideias de negócios inovadoras com o poder da inteligência artificial. Reduza riscos, economize tempo e comece com o pé direito.
+          </TextShimmer>
+        </motion.div>
 
         <motion.div
           variants={itemVariants}
