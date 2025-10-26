@@ -1,0 +1,139 @@
+'use client';
+import { useState } from 'react';
+import Link from 'next/link';
+import { ArrowLeft, LoaderCircle } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { Textarea } from '@/components/ui/textarea';
+import { Button } from '@/components/ui/button';
+import { useToast } from '@/hooks/use-toast';
+import {
+  ValidateIdeaInput,
+  validateIdea,
+  ValidateIdeaOutput,
+} from '@/ai/flows/validate-idea-flow';
+import { ValidationReport } from '@/components/validation-report';
+
+export default function ValidatePage() {
+  const [idea, setIdea] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [report, setReport] = useState<ValidateIdeaOutput | null>(null);
+  const { toast } = useToast();
+
+  const handleAnalysis = async () => {
+    if (idea.trim().length < 20) {
+      toast({
+        variant: 'destructive',
+        title: 'Ideia muito curta!',
+        description: 'Por favor, descreva sua ideia com mais detalhes para uma análise precisa.',
+      });
+      return;
+    }
+    setLoading(true);
+    setReport(null);
+    try {
+      const input: ValidateIdeaInput = { ideaDescription: idea };
+      const result = await validateIdea(input);
+      setReport(result);
+    } catch (error) {
+      console.error(error);
+      toast({
+        variant: 'destructive',
+        title: 'Erro na Análise',
+        description:
+          'Não foi possível analisar sua ideia. Verifique sua conexão ou tente novamente mais tarde.',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fadeInUp = {
+    initial: { opacity: 0, y: 20 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: 0.5 },
+  };
+
+  return (
+    <main className="flex min-h-screen w-full flex-col items-center bg-grid-small-white/[0.2] p-4 md:p-8">
+      <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-background [mask-image:radial-gradient(ellipse_at_center,transparent_20%,black)]"></div>
+
+      <div className="w-full max-w-4xl z-10">
+        <motion.div {...fadeInUp}>
+          <Link href="/" className="flex items-center text-neutral-300 hover:text-primary transition-colors">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Voltar
+          </Link>
+        </motion.div>
+
+        {!report && (
+          <motion.div
+            key="form"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+            className="mt-8 text-center"
+          >
+            <h1 className="text-4xl md:text-5xl font-bold font-space-grotesk bg-clip-text text-transparent bg-gradient-to-b from-neutral-50 to-neutral-400">
+              Valide sua Ideia de Negócio
+            </h1>
+            <p className="mt-4 text-lg text-neutral-300 max-w-2xl mx-auto">
+              Descreva seu conceito de negócio abaixo. A IA irá fornecer uma análise completa sobre a viabilidade, mercado e monetização.
+            </p>
+
+            <div className="mt-8 max-w-2xl mx-auto">
+              <Textarea
+                value={idea}
+                onChange={(e) => setIdea(e.target.value)}
+                placeholder="Ex: Uma plataforma de IA que cria planos de treino personalizados para atletas amadores, conectando-os com nutricionistas..."
+                className="min-h-[150px] text-base"
+                disabled={loading}
+              />
+              <Button
+                onClick={handleAnalysis}
+                disabled={loading}
+                size="lg"
+                className="mt-4 w-full text-lg font-semibold"
+              >
+                {loading ? (
+                  <>
+                    <LoaderCircle className="mr-2 h-5 w-5 animate-spin" />
+                    Analisando...
+                  </>
+                ) : (
+                  'Analisar Ideia com IA'
+                )}
+              </Button>
+            </div>
+          </motion.div>
+        )}
+
+        {loading && !report && (
+           <motion.div
+            key="loader"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="text-center mt-16"
+          >
+            <LoaderCircle className="h-16 w-16 text-primary animate-spin mx-auto" />
+            <h2 className="mt-4 text-2xl font-space-grotesk text-neutral-200">Gerando Relatório...</h2>
+            <p className="text-neutral-400">Isso pode levar alguns segundos.</p>
+           </motion.div>
+        )}
+
+        {report && (
+          <motion.div
+            key="report"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.8 }}
+            className="mt-8"
+          >
+             <ValidationReport report={report} onReset={() => setReport(null)} />
+          </motion.div>
+        )}
+      </div>
+    </main>
+  );
+}
