@@ -27,7 +27,7 @@ const ValidateIdeaOutputSchema = z.object({
     analysis: z.string().describe('Análise sobre o que seria um Produto Mínimo Viável (MVP) para esta ideia.'),
     featureRecommendations: z.array(z.string()).describe('Recomendações de funcionalidades essenciais para o MVP.'),
   }),
-  overallRecommendation: z.string().describe('Um parágrafo final com a recomendação geral e o veredito do especialista em startups.'),
+  overallRecommendation: z.string().describe("Um parágrafo curto e direto com a recomendação geral e o veredito. Ex: 'A ideia é promissora, mas requer validação de mercado.' ou 'Alto risco, mercado saturado. Recomendo pivotar.'"),
 });
 export type ValidateIdeaOutput = z.infer<typeof ValidateIdeaOutputSchema>;
 
@@ -46,6 +46,7 @@ Sua tarefa é analisar a ideia de negócio fornecida pelo usuário de forma crí
 Avalie todos os aspectos e forneça uma análise detalhada.
 A pontuação de viabilidade deve refletir uma combinação de inovação, potencial de mercado, clareza do problema resolvido e escalabilidade.
 Seja honesto e direto em sua análise. O objetivo é ajudar o empreendedor a tomar a melhor decisão, seja ela seguir em frente, pivotar ou abandonar a ideia.
+IMPORTANTE: A 'overallRecommendation' deve ser um resumo muito curto e acionável, com no máximo 2-3 frases.
 Retorne sua análise estritamente no formato JSON solicitado.`,
         prompt: `Analise a seguinte ideia de negócio: ${input.ideaDescription}`,
       });

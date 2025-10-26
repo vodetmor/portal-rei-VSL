@@ -111,7 +111,7 @@ export function ValidationReport({ report, onReset }: ValidationReportProps) {
            <CardHeader>
             <CardTitle className="text-xl tracking-tight">Recomendação Geral</CardTitle>
           </CardHeader>
-          <CardContent className='flex items-center justify-center h-40'>
+          <CardContent className='flex items-center justify-center min-h-[10rem]'>
             <p className='text-muted-foreground px-4 text-center'>
                 {report.overallRecommendation}
             </p>
