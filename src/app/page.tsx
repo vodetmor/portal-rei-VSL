@@ -10,7 +10,6 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { Globe } from '@/components/ui/globe';
-import Beams from '@/components/ui/beams';
 
 export default function Home() {
   const title = "Seu Co-Piloto de IA para Startups";
@@ -18,18 +17,6 @@ export default function Home() {
   return (
     <main className="flex min-h-screen flex-col items-center">
       <section className="relative flex w-full flex-col items-center justify-center min-h-screen overflow-hidden px-4 text-center">
-        <div className="absolute top-0 left-0 w-full h-full">
-            <Beams
-              beamWidth={2}
-              beamHeight={15}
-              beamNumber={12}
-              lightColor="#14F7FF"
-              speed={2}
-              noiseIntensity={1.75}
-              scale={0.2}
-              rotation={0}
-            />
-        </div>
         
         <motion.div
           initial={{ opacity: 0, y: -20 }}
