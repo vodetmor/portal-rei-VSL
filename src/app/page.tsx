@@ -10,18 +10,7 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { Globe } from '@/components/ui/globe';
-
-const AuroraBackground = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div
-    className={`absolute inset-0 -z-10 transition-transform duration-300 ease-in-out ${className}`}
-    style={{
-      backgroundImage: 'radial-gradient(125% 125% at 50% 10%, #000 40%, #14F7FF 100%)',
-      opacity: 0.1,
-      filter: 'blur(40px)',
-    }}
-    {...props}
-  />
-);
+import Beams from '@/components/ui/beams';
 
 export default function Home() {
   const title = "Seu Co-Piloto de IA para Startups";
@@ -29,12 +18,24 @@ export default function Home() {
   return (
     <main className="flex min-h-screen flex-col items-center">
       <section className="relative flex w-full flex-col items-center justify-center min-h-screen overflow-hidden px-4 text-center">
-        <AuroraBackground />
+        <div className="absolute top-0 left-0 w-full h-full">
+            <Beams
+              beamWidth={2}
+              beamHeight={15}
+              beamNumber={12}
+              lightColor="#14F7FF"
+              speed={2}
+              noiseIntensity={1.75}
+              scale={0.2}
+              rotation={0}
+            />
+        </div>
         
         <motion.div
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.5 }}
+          className="z-10"
         >
           <h1 className="text-5xl md:text-7xl font-bold max-w-4xl tracking-tighter text-zinc-50">
             {title.split("").map((char, index) => (
@@ -55,7 +56,7 @@ export default function Home() {
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 1.5 }}
-          className="mt-6 text-lg text-zinc-400 max-w-2xl"
+          className="mt-6 text-lg text-zinc-400 max-w-2xl z-10"
         >
           Valide e gere ideias de negócios inovadoras com o poder da
           inteligência artificial. Reduza riscos, economize tempo e
@@ -66,7 +67,7 @@ export default function Home() {
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ type: 'spring', stiffness: 150, damping: 50, delay: 1.8 }}
-          className="mt-8 flex flex-col sm:flex-row gap-4"
+          className="mt-8 flex flex-col sm:flex-row gap-4 z-10"
         >
           <Link href="/generate" passHref>
             <Button size="lg" className="w-full sm:w-auto text-lg font-semibold px-8 py-3 bg-primary-cyan text-black rounded-full hover:scale-105 transition-transform hover:bg-primary-cyan/90">
