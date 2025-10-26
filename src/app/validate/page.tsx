@@ -1,10 +1,8 @@
 'use client';
 import { useState } from 'react';
-import Link from 'next/link';
-import { ArrowLeft, LoaderCircle, Sparkles } from 'lucide-react';
+import { LoaderCircle, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Textarea } from '@/components/ui/textarea';
-import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import {
   ValidateIdeaInput,
@@ -12,6 +10,7 @@ import {
   ValidateIdeaOutput,
 } from '@/ai/flows/validate-idea-flow';
 import { ValidationReport } from '@/components/validation-report';
+import { NeonButton } from '@/components/ui/neon-button';
 
 export default function ValidatePage() {
   const [idea, setIdea] = useState('');
@@ -47,16 +46,9 @@ export default function ValidatePage() {
     }
   };
 
-  const fadeInUp = {
-    initial: { opacity: 0, y: 20 },
-    animate: { opacity: 1, y: 0 },
-    transition: { duration: 0.5 },
-  };
-
   return (
     <main className="flex min-h-screen w-full flex-col items-center p-4 md:p-8 pt-24 md:pt-32">
       <div className="w-full max-w-4xl z-10">
-
         {!report && (
           <motion.div
             key="form"
@@ -80,40 +72,30 @@ export default function ValidatePage() {
                 className="min-h-[150px] text-base bg-black/20 border-subtle-border rounded-lg"
                 disabled={loading}
               />
-              <Button
+              <NeonButton
                 onClick={handleAnalysis}
                 disabled={loading}
                 size="lg"
-                className="mt-6 w-full text-lg font-semibold px-8 py-3 bg-primary-green text-black rounded-full hover:scale-105 transition-transform hover:bg-primary-green/90"
+                className="mt-6 w-full text-lg font-semibold text-white transition-transform hover:scale-105"
               >
                 {loading ? (
-                  <>
+                  <span className="flex items-center justify-center">
                     <LoaderCircle className="mr-2 h-5 w-5 animate-spin" />
                     Analisando...
-                  </>
+                  </span>
                 ) : (
-                  <>
+                  <span className="flex items-center justify-center">
                     <Sparkles className="mr-2 h-5 w-5" />
                     Analisar Ideia com IA
-                  </>
+                  </span>
                 )}
-              </Button>
+              </NeonButton>
             </div>
           </motion.div>
         )}
 
         {loading && !report && (
-           <motion.div
-            key="loader"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="text-center mt-16"
-          >
-            <LoaderCircle className="h-16 w-16 text-primary-cyan animate-spin mx-auto" />
-            <h2 className="mt-4 text-2xl font-bold tracking-tight text-white">Gerando Relatório...</h2>
-            <p className="text-zinc-400">Isso pode levar alguns segundos.</p>
-           </motion.div>
+           <div className="text-center mt-16" />
         )}
 
         {report && (
