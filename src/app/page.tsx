@@ -23,6 +23,7 @@ export default function Home() {
       transition: {
         type: 'spring',
         stiffness: 100,
+        delay: 0.5,
       },
     },
   };
@@ -46,17 +47,7 @@ export default function Home() {
           variants={itemVariants}
           className="text-5xl md:text-7xl font-bold max-w-4xl tracking-tighter text-zinc-50 mb-6"
         >
-           {title.split("").map((char, index) => (
-            <motion.span
-              key={index}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.5 + index * 0.05 }}
-              className="inline-block"
-            >
-              {char}
-            </motion.span>
-          ))}
+          {title}
         </motion.h1>
 
         <motion.p
