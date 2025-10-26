@@ -1,10 +1,9 @@
 import type {Metadata} from 'next';
 import './globals.css';
-import { Toaster } from "@/components/ui/toaster"
 
 export const metadata: Metadata = {
-  title: 'Portfólio Hades',
-  description: 'Editor de vídeos profissional. Edição para YouTube, Motion Graphics e mais.',
+  title: 'Hello World',
+  description: 'Hello World page.',
 };
 
 export default function RootLayout({
@@ -13,11 +12,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR" className="dark">
-      <head />
-      <body className="font-body antialiased">
+    <html lang="en">
+      <body>
         {children}
-        <Toaster />
       </body>
     </html>
   );
