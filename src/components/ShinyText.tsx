@@ -4,9 +4,11 @@ const ShinyText = ({ text, disabled = false, speed = 5, className = '' }: { text
   const animationDuration = `${speed}s`;
 
   return (
-    <div className={`shiny-text ${disabled ? 'disabled' : ''} ${className}`} style={{ animationDuration }}>
-      {text}
-    </div>
+    <span className={`inline-block ${className}`}>
+      <span className={`shiny-text`} style={{ animationDuration }}>
+        {text}
+      </span>
+    </span>
   );
 };
 

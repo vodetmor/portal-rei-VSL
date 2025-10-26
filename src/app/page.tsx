@@ -36,13 +36,13 @@ export default function Home() {
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.5 }}
-          className="text-5xl md:text-7xl font-bold max-w-4xl tracking-tighter"
         >
-          <ShinyText 
-            text={title}
-            speed={5}
-            className='custom-class' 
-          />
+          <h1 className="text-5xl md:text-7xl font-bold max-w-4xl tracking-tighter text-zinc-300">
+            <ShinyText 
+              text={title}
+              speed={5}
+            />
+          </h1>
         </motion.div>
 
         <motion.p
