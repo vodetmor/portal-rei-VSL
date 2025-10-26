@@ -12,8 +12,8 @@
     --card-foreground: 0 0% 98%;
     --popover: 240 10% 3.9%;
     --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
+    --primary: 182 100% 55%;
+    --primary-foreground: 240 10% 3.9%;
     --secondary: 0 0% 14.9%;
     --secondary-foreground: 0 0% 98%;
     --muted: 0 0% 14.9%;
@@ -35,8 +35,8 @@
     --card-foreground: 0 0% 98%;
     --popover: 240 10% 3.9%;
     --popover-foreground: 0 0% 98%;
-    --primary: 0 0% 98%;
-    --primary-foreground: 0 0% 9%;
+    --primary: 182 100% 55%;
+    --primary-foreground: 240 10% 3.9%;
     --secondary: 0 0% 14.9%;
     --secondary-foreground: 0 0% 98%;
     --muted: 0 0% 14.9%;
@@ -60,6 +60,36 @@
     font-feature-settings: 'rlig' 1, 'calt' 1;
   }
 }
+
+/* ShinyText CSS */
+.shiny-text {
+  color: #b5b5b5a4; /* Adjust this color to change intensity/style */
+  background: linear-gradient(
+    120deg,
+    rgba(255, 255, 255, 0) 40%,
+    rgba(255, 255, 255, 0.8) 50%,
+    rgba(255, 255, 255, 0) 60%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  display: inline-block;
+  animation: shine 5s linear infinite;
+}
+
+@keyframes shine {
+  0% {
+    background-position: 100%;
+  }
+  100% {
+    background-position: -100%;
+  }
+}
+
+.shiny-text.disabled {
+  animation: none;
+}
+
 
 /* Animações do Magic UI */
 @keyframes fade-in {

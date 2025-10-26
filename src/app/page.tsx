@@ -2,7 +2,7 @@
 import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
 import Link from 'next/link';
-import { ArrowRight, Check, CheckCircle } from 'lucide-react';
+import { ArrowRight } from 'lucide-react';
 import {
   Accordion,
   AccordionContent,
@@ -10,6 +10,7 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { Globe } from '@/components/ui/globe';
+import ShinyText from '@/components/ShinyText';
 
 const AuroraBackground = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
@@ -25,48 +26,24 @@ const AuroraBackground = ({ className, ...props }: React.HTMLAttributes<HTMLDivE
 
 export default function Home() {
   const title = "Seu Co-Piloto de IA para Startups";
-  const words = title.split(" ");
-
-  const containerVariants = {
-    hidden: {},
-    visible: {
-      transition: {
-        staggerChildren: 0.08,
-      },
-    },
-  };
-
-  const letterVariants = {
-    hidden: { opacity: 0, y: 20, filter: 'blur(10px)' },
-    visible: {
-      opacity: 1,
-      y: 0,
-      filter: 'blur(0px)',
-      transition: { type: 'spring', damping: 12, stiffness: 200 },
-    },
-  };
 
   return (
     <main className="flex min-h-screen flex-col items-center">
       <section className="relative flex w-full flex-col items-center justify-center min-h-screen overflow-hidden px-4 text-center">
         <AuroraBackground />
         
-        <motion.h1
-          variants={containerVariants}
-          initial="hidden"
-          animate="visible"
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 1, delay: 0.5 }}
           className="text-5xl md:text-7xl font-bold max-w-4xl tracking-tighter"
         >
-          {words.map((word, wordIndex) => (
-            <span key={wordIndex} className="inline-block mr-3 md:mr-4">
-              {word.split('').map((letter, letterIndex) => (
-                <motion.span key={letterIndex} variants={letterVariants} className="inline-block">
-                  {letter}
-                </motion.span>
-              ))}
-            </span>
-          ))}
-        </motion.h1>
+          <ShinyText 
+            text={title}
+            speed={5}
+            className='custom-class' 
+          />
+        </motion.div>
 
         <motion.p
           initial={{ opacity: 0, y: 20 }}
