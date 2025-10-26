@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import BlurText from '@/components/ui/blur-text';
+import { RainbowButton } from '@/components/ui/rainbow-button';
 
 export default function Home() {
   const containerVariants = {
@@ -58,11 +59,11 @@ export default function Home() {
           variants={itemVariants}
           className="mt-10 flex flex-col items-center gap-4 sm:flex-row"
         >
-          <Button asChild size="lg" className="bg-primary-cyan text-black font-bold hover:bg-primary-cyan/90 transition-transform hover:scale-105">
-            <Link href="/generate">
+          <Link href="/generate">
+            <RainbowButton>
               Gerar Ideia com IA
-            </Link>
-          </Button>
+            </RainbowButton>
+          </Link>
           <Button asChild size="lg" variant="outline" className="text-white border-white/30 hover:bg-white/10 hover:text-white transition-transform hover:scale-105">
             <Link href="/validate">
               Validar minha Ideia
