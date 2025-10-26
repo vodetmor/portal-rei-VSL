@@ -36,9 +36,9 @@ const itemVariants = {
 };
 
 const saturationColors: Record<string, string> = {
-  'Baixa': 'border-green-500/50 text-green-400',
-  'Média': 'border-yellow-500/50 text-yellow-400',
-  'Alta': 'border-red-500/50 text-red-400',
+  'Baixa': 'border-green-500/50 text-black bg-green-500/20',
+  'Média': 'border-yellow-500/50 text-black bg-yellow-500/20',
+  'Alta': 'border-red-500/50 text-black bg-red-500/20',
 };
 
 const iconMapping = {
@@ -65,21 +65,21 @@ export function ValidationReport({ report, onReset }: ValidationReportProps) {
 
       <motion.div
         variants={itemVariants}
-        className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center"
+        className="grid grid-cols-1 md:grid-cols-2 gap-6 text-center"
       >
         <MagicCard className='cursor-pointer'>
           <CardHeader>
             <CardTitle className="text-xl tracking-tight">Pontuação de Viabilidade</CardTitle>
           </CardHeader>
-          <CardContent className="h-40">
+          <CardContent className="h-48 relative">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={viabilityData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={50}
-                  outerRadius={70}
+                  innerRadius={60}
+                  outerRadius={80}
                   startAngle={90}
                   endAngle={450}
                   paddingAngle={0}
@@ -92,7 +92,9 @@ export function ValidationReport({ report, onReset }: ValidationReportProps) {
                 </Pie>
               </PieChart>
             </ResponsiveContainer>
-            <p className="text-4xl font-bold text-primary -translate-y-28">{report.viabilityScore}%</p>
+            <div className="absolute inset-0 flex items-center justify-center">
+                <p className="text-4xl font-bold text-primary">{report.viabilityScore}%</p>
+            </div>
           </CardContent>
         </MagicCard>
         
@@ -100,18 +102,20 @@ export function ValidationReport({ report, onReset }: ValidationReportProps) {
            <CardHeader>
             <CardTitle className="text-xl tracking-tight">Saturação de Mercado</CardTitle>
           </CardHeader>
-          <CardContent className='flex items-center justify-center h-40'>
+          <CardContent className='flex items-center justify-center h-48'>
              <Badge className={`text-2xl px-6 py-3 ${saturationColors[report.marketSaturation]}`}>
                 {report.marketSaturation}
             </Badge>
           </CardContent>
         </MagicCard>
+      </motion.div>
 
+      <motion.div variants={itemVariants} className="grid grid-cols-1 gap-6">
         <MagicCard className='cursor-pointer'>
            <CardHeader>
             <CardTitle className="text-xl tracking-tight">Recomendação Geral</CardTitle>
           </CardHeader>
-          <CardContent className='flex items-center justify-center min-h-[10rem]'>
+          <CardContent className='flex items-center justify-center'>
             <p className='text-muted-foreground px-4 text-center'>
                 {report.overallRecommendation}
             </p>
