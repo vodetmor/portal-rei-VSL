@@ -11,11 +11,11 @@ export function Header() {
       animate={{ y: 0, opacity: 1 }}
       transition={{ type: 'spring', stiffness: 150, damping: 50, delay: 0.6 }}
       className={cn(
-        'fixed top-4 md:top-8 left-1/2 z-50 -translate-x-1/2 rounded-full border border-subtle-border bg-transparent p-2 shadow-lg',
+        'fixed top-4 md:top-8 left-1/2 z-50 -translate-x-1/2 rounded-full border border-subtle-border shadow-lg',
         'glass-effect' // Apply the glass effect
       )}
     >
-      <div className="flex items-center gap-2 px-4">
+      <div className="flex items-center gap-2 px-4 p-2">
         <Link href="/" className="text-lg font-bold text-white">
           DexAI
         </Link>
