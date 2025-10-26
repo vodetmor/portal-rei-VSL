@@ -65,7 +65,7 @@
     font-feature-settings: 'rlig' 1, 'calt' 1;
   }
   .glass-effect {
-    @apply backdrop-blur-md bg-black/50;
+    @apply backdrop-blur-md;
   }
 }
 
