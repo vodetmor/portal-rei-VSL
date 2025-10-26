@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { VariantProps, cva } from 'class-variance-authority';
 
 const neonButtonVariants = cva(
-  'relative group border text-foreground mx-auto text-center rounded-full',
+  'relative group inline-flex items-center justify-center border text-foreground mx-auto text-center rounded-full',
   {
     variants: {
       variant: {

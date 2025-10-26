@@ -139,15 +139,15 @@ export default function GeneratePage() {
                 className="mt-4 w-full text-lg font-semibold text-white transition-transform hover:scale-105"
               >
                 {loading ? (
-                  <>
+                  <span className="flex items-center">
                     <LoaderCircle className="mr-2 h-5 w-5 animate-spin" />
                     Gerando...
-                  </>
+                  </span>
                 ) : (
-                  <>
+                  <span className="flex items-center">
                     <Sparkles className="mr-2 h-5 w-5" />
                     Gerar Ideia com IA
-                  </>
+                  </span>
                 )}
               </NeonButton>
             </div>
