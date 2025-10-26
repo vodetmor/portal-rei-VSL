@@ -2,6 +2,7 @@
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import BlurText from '@/components/ui/blur-text';
 
 export default function Home() {
   const containerVariants = {
@@ -23,13 +24,10 @@ export default function Home() {
       transition: {
         type: 'spring',
         stiffness: 100,
-        delay: 0.5,
       },
     },
   };
   
-  const title = "Seu Co-Piloto de IA para Startups";
-
   return (
     <div className="relative w-full min-h-screen overflow-hidden bg-dark-bg flex items-center justify-center">
       <div
@@ -43,12 +41,11 @@ export default function Home() {
         animate="visible"
         className="relative z-10 flex w-full flex-col items-center justify-center px-4 text-center"
       >
-        <motion.h1
-          variants={itemVariants}
+        <BlurText
+          text="Seu Co-Piloto de IA para Startups"
           className="text-5xl md:text-7xl font-bold max-w-4xl tracking-tighter text-zinc-50 mb-6"
-        >
-          {title}
-        </motion.h1>
+          animateBy="words"
+        />
 
         <motion.p
           variants={itemVariants}
