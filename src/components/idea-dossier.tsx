@@ -7,6 +7,7 @@ import type { GenerateIdeaOutput } from '@/app/generate/page';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 import { MagicCard } from './ui/magic-card';
+import { RainbowButton } from './ui/rainbow-button';
 
 interface IdeaDossierProps {
   dossier: GenerateIdeaOutput;
@@ -123,7 +124,7 @@ export function IdeaDossier({ dossier, onReset }: IdeaDossierProps) {
       </motion.div>
 
       <motion.div variants={itemVariants} className='text-center'>
-        <Button onClick={onReset} size='lg' variant="ghost" className="text-primary hover:bg-primary/10 hover:text-primary">Gerar outra ideia</Button>
+        <RainbowButton onClick={onReset} className="text-white">Gerar outra ideia</RainbowButton>
       </motion.div>
     </motion.div>
   );
