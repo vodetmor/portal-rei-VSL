@@ -3,13 +3,13 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
-export const GenerateIdeaInputSchema = z.object({
+const GenerateIdeaInputSchema = z.object({
   niche: z.string().describe('A área de interesse ou nicho de mercado para a nova ideia de negócio.'),
   investmentLevel: z.enum(['Baixo', 'Médio', 'Alto']).describe('O nível de capital de investimento inicial disponível (Baixo, Médio, Alto).'),
 });
-export type GenerateIdeaInput = z.infer<typeof GenerateIdeaInputSchema>;
+type GenerateIdeaInput = z.infer<typeof GenerateIdeaInputSchema>;
 
-export const GenerateIdeaOutputSchema = z.object({
+const GenerateIdeaOutputSchema = z.object({
     ideaSummary: z.object({
         name: z.string().describe('Um nome criativo e curto para o negócio.'),
         description: z.string().describe('Uma descrição concisa e atraente da ideia de negócio (1-2 frases).'),
@@ -31,7 +31,7 @@ export const GenerateIdeaOutputSchema = z.object({
         featureRecommendations: z.array(z.string()).describe('Recomendações de funcionalidades essenciais para o MVP.'),
     })
 });
-export type GenerateIdeaOutput = z.infer<typeof GenerateIdeaOutputSchema>;
+type GenerateIdeaOutput = z.infer<typeof GenerateIdeaOutputSchema>;
 
 
 const generateIdeaFlow = ai.defineFlow(
@@ -67,6 +67,6 @@ Retorne sua análise estritamente no formato JSON solicitado.`,
 );
 
 
-export async function generateIdea(input: GenerateIdeaInput): Promise<GenerateIdeaOutput> {
+export async function generateIdea(input: any): Promise<any> {
   return generateIdeaFlow(input);
 }

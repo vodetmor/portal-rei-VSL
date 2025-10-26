@@ -8,8 +8,41 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { GenerateIdeaInput, generateIdea, GenerateIdeaOutput } from '@/ai/flows/generate-idea-flow';
+import { generateIdea } from '@/ai/flows/generate-idea-flow';
 import { IdeaDossier } from '@/components/idea-dossier';
+import { z } from 'zod';
+
+
+const GenerateIdeaInputSchema = z.object({
+  niche: z.string().describe('A área de interesse ou nicho de mercado para a nova ideia de negócio.'),
+  investmentLevel: z.enum(['Baixo', 'Médio', 'Alto']).describe('O nível de capital de investimento inicial disponível (Baixo, Médio, Alto).'),
+});
+export type GenerateIdeaInput = z.infer<typeof GenerateIdeaInputSchema>;
+
+const GenerateIdeaOutputSchema = z.object({
+    ideaSummary: z.object({
+        name: z.string().describe('Um nome criativo e curto para o negócio.'),
+        description: z.string().describe('Uma descrição concisa e atraente da ideia de negócio (1-2 frases).'),
+        potentialScore: z.number().min(0).max(100).describe('Uma pontuação de 0 a 100 representando o potencial de sucesso da ideia.'),
+    }),
+    projections: z.object({
+        analysis: z.string().describe('Uma análise sobre a tendência de interesse no nicho, justificando o potencial da ideia.'),
+        interestTrend: z.array(z.object({
+            month: z.string(),
+            interest: z.number().min(0).max(100),
+        })).describe('Uma série de dados mensais simulando a tendência de interesse no mercado nos últimos 6 meses.'),
+    }),
+    strategy: z.object({
+        analysis: z.string().describe('Análise de estratégias de go-to-market, marketing e métricas de sucesso (KPIs), adaptadas ao nível de investimento.'),
+        recommendations: z.array(z.string()).describe('Recomendações estratégicas e acionáveis.'),
+    }),
+    mvp: z.object({
+        analysis: z.string().describe('Análise do que seria um Produto Mínimo Viável (MVP) e os custos estimados, adaptados ao nível de investimento.'),
+        featureRecommendations: z.array(z.string()).describe('Recomendações de funcionalidades essenciais para o MVP.'),
+    })
+});
+export type GenerateIdeaOutput = z.infer<typeof GenerateIdeaOutputSchema>;
+
 
 export default function GeneratePage() {
   const [niche, setNiche] = useState('');

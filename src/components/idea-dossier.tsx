@@ -3,7 +3,7 @@ import { BarChart, Bot, CheckCircle, ChevronRight, DraftingCompass, LineChart, T
 import { motion } from 'framer-motion';
 import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import type { GenerateIdeaOutput } from '@/ai/flows/generate-idea-flow';
+import type { GenerateIdeaOutput } from '@/app/generate/page';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
 
