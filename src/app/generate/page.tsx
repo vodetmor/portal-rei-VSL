@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { generateIdea } from '@/ai/flows/generate-idea-flow';
 import { IdeaDossier } from '@/components/idea-dossier';
 import { NeonButton } from '@/components/ui/neon-button';
+import { cn } from '@/lib/utils';
 
 const GenerateIdeaInputSchema = z.object({
   niche: z.string().describe('A área de interesse ou nicho de mercado para a nova ideia de negócio.'),
@@ -123,10 +124,12 @@ export default function GeneratePage() {
                     <motion.div key={level} whileTap={{ scale: 0.95 }}>
                       <Label
                         htmlFor={`level-${level}`}
-                        className="cursor-pointer flex flex-col items-center justify-center rounded-md border-2 border-subtle-border bg-black/20 p-4 hover:bg-white/10 [&:has([data-state=checked])]:border-primary-cyan"
+                        className="group relative cursor-pointer flex flex-col items-center justify-center rounded-full border border-subtle-border bg-black/20 p-4 text-white hover:bg-white/5 [&:has([data-state=checked])]:border-white"
                       >
+                         <span className={cn("absolute h-px opacity-0 group-hover:opacity-100 transition-all duration-500 ease-in-out inset-x-0 inset-y-0 bg-gradient-to-r w-3/4 mx-auto from-transparent via-white to-transparent hidden", true && "block")} />
                         <RadioGroupItem value={level} id={`level-${level}`} className="sr-only" />
                         <span className="text-lg font-semibold">{level}</span>
+                        <span className={cn("absolute group-hover:opacity-30 transition-all duration-500 ease-in-out inset-x-0 h-px -bottom-px bg-gradient-to-r w-3/4 mx-auto from-transparent via-white to-transparent hidden", true && "block")} />
                       </Label>
                     </motion.div>
                   ))}
