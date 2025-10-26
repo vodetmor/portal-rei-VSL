@@ -67,8 +67,8 @@ export default function Home() {
               Gerar Ideia com IA
             </RainbowButton>
           </Link>
-          <Link href="/validate">
-            <WhiteGlowButton>
+          <Link href="/validate" legacyBehavior passHref>
+            <WhiteGlowButton asChild>
               Validar minha Ideia
             </WhiteGlowButton>
           </Link>

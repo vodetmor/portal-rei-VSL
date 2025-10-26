@@ -1,16 +1,20 @@
 import React from 'react';
-
+import { Slot } from "@radix-ui/react-slot"
 import { cn } from '@/lib/utils';
-interface WhiteGlowButtonProps
-  extends React.ButtonHTMLAttributes<HTMLButtonElement> {}
+
+interface WhiteGlowButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
+  asChild?: boolean;
+}
 
 export function WhiteGlowButton({
   children,
   className,
+  asChild = false,
   ...props
 }: WhiteGlowButtonProps) {
+  const Comp = asChild ? Slot : "button"
   return (
-    <button
+    <Comp
       className={cn(
         'group relative inline-flex h-11 cursor-pointer items-center justify-center rounded-xl border-0 bg-[length:200%] px-8 py-2 font-medium text-white transition-colors [background-clip:padding-box,border-box,border-box] [background-origin:border-box] [border:calc(0.08*1rem)_solid_transparent] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50',
         // dark mode colors
@@ -20,6 +24,6 @@ export function WhiteGlowButton({
       {...props}
     >
       {children}
-    </button>
+    </Comp>
   );
 }
