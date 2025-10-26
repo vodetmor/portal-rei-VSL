@@ -1,15 +1,16 @@
+
 'use client';
 import { useState } from 'react';
 import { LoaderCircle, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { z } from 'zod';
 import { generateIdea } from '@/ai/flows/generate-idea-flow';
 import { IdeaDossier } from '@/components/idea-dossier';
+import { NeonButton } from '@/components/ui/neon-button';
 
 const GenerateIdeaInputSchema = z.object({
   niche: z.string().describe('A área de interesse ou nicho de mercado para a nova ideia de negócio.'),
@@ -131,11 +132,11 @@ export default function GeneratePage() {
                 </RadioGroup>
               </div>
 
-              <Button
+              <NeonButton
                 onClick={handleGeneration}
                 disabled={loading}
                 size="lg"
-                className="mt-4 w-full text-lg font-semibold px-8 py-3 bg-primary-cyan text-black rounded-full hover:scale-105 transition-transform hover:bg-primary-cyan/90"
+                className="mt-4 w-full text-lg font-semibold text-white transition-transform hover:scale-105"
               >
                 {loading ? (
                   <>
@@ -148,7 +149,7 @@ export default function GeneratePage() {
                     Gerar Ideia com IA
                   </>
                 )}
-              </Button>
+              </NeonButton>
             </div>
           </motion.div>
         )}
@@ -182,4 +183,3 @@ export default function GeneratePage() {
     </main>
   );
 }
-
