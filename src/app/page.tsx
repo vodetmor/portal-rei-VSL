@@ -10,7 +10,6 @@ import {
   AccordionTrigger,
 } from '@/components/ui/accordion';
 import { Globe } from '@/components/ui/globe';
-import ShinyText from '@/components/ShinyText';
 
 const AuroraBackground = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
   <div
@@ -37,11 +36,18 @@ export default function Home() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 1, delay: 0.5 }}
         >
-          <h1 className="text-5xl md:text-7xl font-bold max-w-4xl tracking-tighter text-zinc-300">
-            <ShinyText 
-              text={title}
-              speed={5}
-            />
+          <h1 className="text-5xl md:text-7xl font-bold max-w-4xl tracking-tighter text-zinc-50">
+            {title.split("").map((char, index) => (
+              <motion.span
+                key={index}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.5, delay: 0.5 + index * 0.05 }}
+                style={{ display: 'inline-block' }}
+              >
+                {char === " " ? "\u00A0" : char}
+              </motion.span>
+            ))}
           </h1>
         </motion.div>
 
