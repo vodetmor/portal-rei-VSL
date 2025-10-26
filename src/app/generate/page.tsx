@@ -1,7 +1,6 @@
 'use client';
 import { useState } from 'react';
-import Link from 'next/link';
-import { ArrowLeft, LoaderCircle, Sparkles } from 'lucide-react';
+import { LoaderCircle, Sparkles } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -78,41 +77,27 @@ export default function GeneratePage() {
     }
   };
 
-  const fadeInUp = {
-    initial: { opacity: 0, y: 20 },
-    animate: { opacity: 1, y: 0 },
-    transition: { duration: 0.5 },
-  };
-
   return (
-    <main className="flex min-h-screen w-full flex-col items-center p-4 md:p-8">
+    <main className="flex min-h-screen w-full flex-col items-center p-4 md:p-8 pt-24 md:pt-32">
       <div className="w-full max-w-4xl z-10">
-        <motion.div {...fadeInUp}>
-          <Link href="/" className="flex items-center text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Voltar
-          </Link>
-        </motion.div>
-
         {!dossier && (
           <motion.div
             key="form"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
             className="mt-8 text-center"
           >
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
               Gere uma Ideia de Negócio
             </h1>
-            <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
+            <p className="mt-4 text-lg text-zinc-400 max-w-2xl mx-auto">
               Defina um nicho e um nível de investimento. A IA criará um conceito de negócio inovador para você.
             </p>
 
             <div className="mt-8 max-w-2xl mx-auto text-left space-y-6">
               <div>
-                <Label htmlFor="niche" className="text-lg font-semibold text-foreground">
+                <Label htmlFor="niche" className="text-lg font-semibold text-white">
                   Nicho de Mercado
                 </Label>
                 <Input
@@ -120,13 +105,13 @@ export default function GeneratePage() {
                   value={niche}
                   onChange={(e) => setNiche(e.target.value)}
                   placeholder="Ex: IA para pets, Fintech para Geração Z, Edtech para crianças"
-                  className="mt-2 text-base"
+                  className="mt-2 text-base bg-black/20 border-subtle-border rounded-lg"
                   disabled={loading}
                 />
               </div>
 
               <div>
-                <Label className="text-lg font-semibold text-foreground">Nível de Investimento</Label>
+                <Label className="text-lg font-semibold text-white">Nível de Investimento</Label>
                 <RadioGroup
                   value={investmentLevel}
                   onValueChange={(value: 'Baixo' | 'Médio' | 'Alto') => setInvestmentLevel(value)}
@@ -137,7 +122,7 @@ export default function GeneratePage() {
                     <Label
                       key={level}
                       htmlFor={`level-${level}`}
-                      className="flex flex-col items-center justify-center rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent/80 hover:text-accent-foreground [&:has([data-state=checked])]:border-primary"
+                      className="flex flex-col items-center justify-center rounded-md border-2 border-subtle-border bg-black/20 p-4 hover:bg-white/10 hover:text-white [&:has([data-state=checked])]:border-primary-cyan"
                     >
                       <RadioGroupItem value={level} id={`level-${level}`} className="sr-only" />
                       <span className="text-lg font-semibold">{level}</span>
@@ -150,7 +135,7 @@ export default function GeneratePage() {
                 onClick={handleGeneration}
                 disabled={loading}
                 size="lg"
-                className="mt-4 w-full text-lg font-semibold"
+                className="mt-4 w-full text-lg font-semibold px-8 py-3 bg-primary-cyan text-black rounded-full hover:scale-105 transition-transform hover:bg-primary-cyan/90"
               >
                 {loading ? (
                   <>
@@ -176,9 +161,9 @@ export default function GeneratePage() {
             exit={{ opacity: 0 }}
             className="text-center mt-16"
           >
-            <LoaderCircle className="h-16 w-16 text-primary animate-spin mx-auto" />
-            <h2 className="mt-4 text-2xl font-bold tracking-tight text-foreground">Criando Dossiê da Ideia...</h2>
-            <p className="text-muted-foreground">A IA está pesquisando tendências e formulando um plano. Isso pode levar alguns segundos.</p>
+            <LoaderCircle className="h-16 w-16 text-primary-cyan animate-spin mx-auto" />
+            <h2 className="mt-4 text-2xl font-bold tracking-tight text-white">Criando Dossiê da Ideia...</h2>
+            <p className="text-zinc-400">A IA está pesquisando tendências e formulando um plano. Isso pode levar alguns segundos.</p>
            </motion.div>
         )}
 
@@ -197,3 +182,4 @@ export default function GeneratePage() {
     </main>
   );
 }
+

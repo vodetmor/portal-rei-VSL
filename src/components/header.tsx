@@ -1,0 +1,26 @@
+'use client';
+import { motion } from 'framer-motion';
+import Link from 'next/link';
+
+export function Header() {
+  return (
+    <motion.nav
+      initial={{ y: -100, opacity: 0 }}
+      animate={{ y: 0, opacity: 1 }}
+      transition={{ type: 'spring', stiffness: 150, damping: 50, delay: 0.6 }}
+      className="fixed top-4 md:top-8 left-1/2 z-50 -translate-x-1/2 rounded-full border border-subtle-border bg-black/50 p-2 shadow-lg backdrop-blur-md"
+    >
+      <div className="flex items-center gap-2 px-4">
+        <Link href="/" className="text-lg font-bold text-white">
+          DexAI
+        </Link>
+        <Link href="/generate" className="text-white/80 hover:text-white transition-colors ml-4">
+          Gerar Ideia
+        </Link>
+        <Link href="/validate" className="text-white/80 hover:text-white transition-colors">
+          Validar Ideia
+        </Link>
+      </div>
+    </motion.nav>
+  );
+}

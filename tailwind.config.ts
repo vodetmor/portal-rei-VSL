@@ -15,10 +15,15 @@ const config = {
     },
     extend: {
       fontFamily: {
-        sans: ['var(--font-inter)', ...fontFamily.sans],
-        'space-grotesk': ['var(--font-space-grotesk)', ...fontFamily.sans],
+        sans: ['var(--font-inter-tight)', ...fontFamily.sans],
       },
       colors: {
+        'dark-bg': '#0C0C0D',
+        'primary-cyan': '#14F7FF',
+        'primary-green': '#37FF9F',
+        'subtle-border': 'rgba(255, 255, 255, 0.1)',
+        'light-gray': '#ADB0B7',
+        'medium-gray': '#777D87',
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
@@ -67,10 +72,19 @@ const config = {
           from: { height: 'var(--radix-accordion-content-height)' },
           to: { height: '0' },
         },
+        aurora: {
+          from: {
+            backgroundPosition: '50% 50%, 50% 50%',
+          },
+          to: {
+            backgroundPosition: '350% 50%, 350% 50%',
+          },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
+        'aurora': 'aurora 60s linear infinite',
       },
     },
   },

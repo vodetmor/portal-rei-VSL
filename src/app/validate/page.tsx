@@ -54,28 +54,21 @@ export default function ValidatePage() {
   };
 
   return (
-    <main className="flex min-h-screen w-full flex-col items-center p-4 md:p-8">
+    <main className="flex min-h-screen w-full flex-col items-center p-4 md:p-8 pt-24 md:pt-32">
       <div className="w-full max-w-4xl z-10">
-        <motion.div {...fadeInUp}>
-          <Link href="/" className="flex items-center text-muted-foreground hover:text-foreground transition-colors">
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Voltar
-          </Link>
-        </motion.div>
 
         {!report && (
           <motion.div
             key="form"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5 }}
             className="mt-8 text-center"
           >
             <h1 className="text-4xl md:text-5xl font-bold tracking-tight">
               Valide sua Ideia de Negócio
             </h1>
-            <p className="mt-4 text-lg text-muted-foreground max-w-2xl mx-auto">
+            <p className="mt-4 text-lg text-zinc-400 max-w-2xl mx-auto">
               Descreva seu conceito de negócio abaixo. A IA irá fornecer uma análise completa sobre a viabilidade, mercado e monetização.
             </p>
 
@@ -84,14 +77,14 @@ export default function ValidatePage() {
                 value={idea}
                 onChange={(e) => setIdea(e.target.value)}
                 placeholder="Ex: Uma plataforma de IA que cria planos de treino personalizados para atletas amadores, conectando-os com nutricionistas..."
-                className="min-h-[150px] text-base"
+                className="min-h-[150px] text-base bg-black/20 border-subtle-border rounded-lg"
                 disabled={loading}
               />
               <Button
                 onClick={handleAnalysis}
                 disabled={loading}
                 size="lg"
-                className="mt-4 w-full text-lg font-semibold"
+                className="mt-6 w-full text-lg font-semibold px-8 py-3 bg-primary-green text-black rounded-full hover:scale-105 transition-transform hover:bg-primary-green/90"
               >
                 {loading ? (
                   <>
@@ -117,9 +110,9 @@ export default function ValidatePage() {
             exit={{ opacity: 0 }}
             className="text-center mt-16"
           >
-            <LoaderCircle className="h-16 w-16 text-primary animate-spin mx-auto" />
-            <h2 className="mt-4 text-2xl font-bold tracking-tight text-foreground">Gerando Relatório...</h2>
-            <p className="text-muted-foreground">Isso pode levar alguns segundos.</p>
+            <LoaderCircle className="h-16 w-16 text-primary-cyan animate-spin mx-auto" />
+            <h2 className="mt-4 text-2xl font-bold tracking-tight text-white">Gerando Relatório...</h2>
+            <p className="text-zinc-400">Isso pode levar alguns segundos.</p>
            </motion.div>
         )}
 
