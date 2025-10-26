@@ -1,138 +1,87 @@
 'use client';
-import { Button } from '@/components/ui/button';
 import { motion } from 'framer-motion';
+import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from '@/components/ui/accordion';
-import { Globe } from '@/components/ui/globe';
 
 export default function Home() {
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    visible: {
+      opacity: 1,
+      transition: {
+        staggerChildren: 0.2,
+        delayChildren: 0.3,
+      },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { y: 20, opacity: 0 },
+    visible: {
+      y: 0,
+      opacity: 1,
+      transition: {
+        type: 'spring',
+        stiffness: 100,
+      },
+    },
+  };
+  
   const title = "Seu Co-Piloto de IA para Startups";
 
   return (
-    <main className="flex min-h-screen flex-col items-center">
-      <section className="relative flex w-full flex-col items-center justify-center min-h-screen overflow-hidden px-4 text-center">
-        
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 0.5 }}
-          className="z-10"
-        >
-          <h1 className="text-5xl md:text-7xl font-bold max-w-4xl tracking-tighter text-zinc-50">
-            {title.split("").map((char, index) => (
-              <motion.span
-                key={index}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: 0.5 + index * 0.05 }}
-                style={{ display: 'inline-block' }}
-              >
-                {char === " " ? "\u00A0" : char}
-              </motion.span>
-            ))}
-          </h1>
-        </motion.div>
-
-        <motion.p
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 1, delay: 1.5 }}
-          className="mt-6 text-lg text-zinc-400 max-w-2xl z-10"
-        >
-          Valide e gere ideias de negócios inovadoras com o poder da
-          inteligência artificial. Reduza riscos, economize tempo e
-          comece com o pé direito.
-        </motion.p>
-        
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ type: 'spring', stiffness: 150, damping: 50, delay: 1.8 }}
-          className="mt-8 flex flex-col sm:flex-row gap-4 z-10"
-        >
-          <Link href="/generate" passHref>
-            <Button size="lg" className="w-full sm:w-auto text-lg font-semibold px-8 py-3 bg-primary-cyan text-black rounded-full hover:scale-105 transition-transform hover:bg-primary-cyan/90">
-              Gerar Ideia com IA
-            </Button>
-          </Link>
-          <Link href="/validate" passHref>
-            <Button size="lg" variant="outline" className="w-full sm:w-auto text-lg font-semibold text-white bg-transparent border-subtle-border rounded-full hover:scale-105 hover:bg-white/10 transition-all">
-              Validar minha Ideia
-            </Button>
-          </Link>
-        </motion.div>
-      </section>
+    <div className="relative w-full min-h-screen overflow-hidden bg-dark-bg flex items-center justify-center">
+      <div
+        className="absolute inset-0 z-0 h-full w-full bg-[linear-gradient(to_right,#14F7FF_1px,transparent_1px),linear-gradient(to_bottom,#14F7FF_1px,transparent_1px)] bg-[size:100px_100px] 
+                   [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_110%)]"
+      ></div>
 
       <motion.section
-        initial={{ opacity: 0, y: 30 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, ease: "easeInOut" }}
-        className="relative flex h-[550px] w-full flex-col items-center justify-center overflow-hidden"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+        className="relative z-10 flex w-full flex-col items-center justify-center px-4 text-center"
       >
-        <div className="relative flex h-full w-full items-center justify-center">
-            <Globe />
-        </div>
-        <div className="pointer-events-none absolute inset-0 h-full bg-[radial-gradient(circle_at_50%_200%,rgba(0,0,0,0.2),rgba(255,255,255,0))]" />
+        <motion.h1
+          variants={itemVariants}
+          className="text-5xl md:text-7xl font-bold max-w-4xl tracking-tighter text-zinc-50 mb-6"
+        >
+           {title.split("").map((char, index) => (
+            <motion.span
+              key={index}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.5 + index * 0.05 }}
+              className="inline-block"
+            >
+              {char}
+            </motion.span>
+          ))}
+        </motion.h1>
+
+        <motion.p
+          variants={itemVariants}
+          className="max-w-2xl text-lg text-light-gray opacity-90"
+        >
+          Valide e gere ideias de negócios inovadoras com o poder da inteligência artificial. Reduza riscos, economize tempo e comece com o pé direito.
+        </motion.p>
+
+        <motion.div
+          variants={itemVariants}
+          className="mt-10 flex flex-col items-center gap-4 sm:flex-row"
+        >
+          <Button asChild size="lg" className="bg-primary-cyan text-black font-bold hover:bg-primary-cyan/90 transition-transform hover:scale-105">
+            <Link href="/generate">
+              Gerar Ideia com IA
+            </Link>
+          </Button>
+          <Button asChild size="lg" variant="outline" className="text-white border-white/30 hover:bg-white/10 hover:text-white transition-transform hover:scale-105">
+            <Link href="/validate">
+              Validar minha Ideia
+            </Link>
+          </Button>
+        </motion.div>
       </motion.section>
-
-      <motion.section 
-        initial={{ opacity: 0, y: 30 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, ease: "easeInOut" }}
-        className="w-full max-w-4xl py-24 px-4"
-      >
-        <h2 className="text-4xl font-bold text-center mb-12">Perguntas Frequentes</h2>
-         <Accordion type="single" collapsible className="w-full">
-          <AccordionItem value="item-1">
-            <AccordionTrigger className='text-lg'>Como o DexAI valida uma ideia?</AccordionTrigger>
-            <AccordionContent className='text-base text-zinc-400'>
-              Nossa IA analisa sua ideia com base em vários fatores,
-              incluindo potencial de mercado, saturação, público-alvo e
-              modelos de monetização para fornecer uma pontuação de
-              viabilidade e insights detalhados.
-            </AccordionContent>
-          </AccordionItem>
-          <AccordionItem value="item-2">
-            <AccordionTrigger className='text-lg'>De onde vêm os dados para a geração de ideias?</AccordionTrigger>
-            <AccordionContent className='text-base text-zinc-400'>
-              A IA utiliza uma combinação de seu vasto conhecimento e
-              análise de tendências de mercado para gerar ideias que são
-              relevantes e possuem alto potencial de sucesso.
-            </AccordionContent>
-          </AccordionItem>
-          <AccordionItem value="item-3">
-            <AccordionTrigger className='text-lg'>O DexAI é gratuito?</AccordionTrigger>
-            <AccordionContent className='text-base text-zinc-400'>
-              Sim, o DexAI é totalmente gratuito para usar. Nosso
-              objetivo é ajudar empreendedores a dar os primeiros
-              passos com mais segurança.
-            </AccordionContent>
-          </AccordionItem>
-        </Accordion>
-      </motion.section>
-
-       <motion.section 
-        initial={{ opacity: 0, y: 30 }}
-        whileInView={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.8, ease: "easeInOut" }}
-        className="w-full text-center py-32 px-4"
-      >
-         <h2 className="text-4xl md:text-5xl font-bold mb-4">Pronto para começar?</h2>
-         <p className="text-lg text-zinc-400 max-w-2xl mx-auto mb-8">Dê o primeiro passo para construir uma startup de sucesso hoje mesmo.</p>
-         <Link href="/generate" passHref>
-            <Button size="lg" className="text-lg font-semibold px-8 py-3 bg-primary-green text-black rounded-full hover:scale-105 transition-transform hover:bg-primary-green/90">
-              Gerar Minha Primeira Ideia
-              <ArrowRight className="ml-2 h-5 w-5" />
-            </Button>
-          </Link>
-       </motion.section>
-
-    </main>
+    </div>
   );
 }
