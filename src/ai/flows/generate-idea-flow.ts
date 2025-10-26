@@ -40,9 +40,8 @@ const generateIdeaFlow = ai.defineFlow(
         inputSchema: GenerateIdeaInputSchema,
         outputSchema: GenerateIdeaOutputSchema,
     }, async (input) => {
-        const prompt = ai.definePrompt({
-            name: 'generateIdeaPrompt',
-            input: { schema: GenerateIdeaInputSchema },
+        const prompt = await ai.generate({
+            model: 'gemini-1.5-flash-latest',
             output: { schema: GenerateIdeaOutputSchema },
             system: `Você é DexAI, um especialista em inovação e estratégia de negócios que gera novas ideias de startups.
 Sua tarefa é criar um conceito de negócio detalhado e acionável com base no nicho e no nível de investimento fornecidos pelo usuário.
@@ -58,7 +57,7 @@ Retorne sua análise estritamente no formato JSON solicitado.`,
             prompt: `Gere uma nova ideia de negócio para o nicho de "${input.niche}" com um nível de investimento "${input.investmentLevel}".`,
           });
         
-          const { output } = await prompt(input);
+          const { output } = prompt;
           if (!output) {
             throw new Error('A IA não conseguiu gerar uma ideia válida.');
           }

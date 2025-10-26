@@ -39,20 +39,19 @@ const validateIdeaFlow = ai.defineFlow(
     outputSchema: ValidateIdeaOutputSchema,
   },
   async (input) => {
-    const prompt = ai.definePrompt({
-      name: 'validateIdeaPrompt',
-      input: { schema: ValidateIdeaInputSchema },
-      output: { schema: ValidateIdeaOutputSchema },
-      system: `Você é DexAI, um especialista em startups e capital de risco com décadas de experiência em análise de novos negócios.
+    const prompt = await ai.generate({
+        model: 'gemini-1.5-flash-latest',
+        output: { schema: ValidateIdeaOutputSchema },
+        system: `Você é DexAI, um especialista em startups e capital de risco com décadas de experiência em análise de novos negócios.
 Sua tarefa é analisar a ideia de negócio fornecida pelo usuário de forma crítica, objetiva e construtiva.
 Avalie todos os aspectos e forneça uma análise detalhada.
 A pontuação de viabilidade deve refletir uma combinação de inovação, potencial de mercado, clareza do problema resolvido e escalabilidade.
 Seja honesto e direto em sua análise. O objetivo é ajudar o empreendedor a tomar a melhor decisão, seja ela seguir em frente, pivotar ou abandonar a ideia.
 Retorne sua análise estritamente no formato JSON solicitado.`,
-      prompt: `Analise a seguinte ideia de negócio: {{{ideaDescription}}}`,
-    });
+        prompt: `Analise a seguinte ideia de negócio: ${input.ideaDescription}`,
+      });
 
-    const { output } = await prompt(input);
+    const { output } = prompt;
     if (!output) {
       throw new Error('A análise da IA não retornou um resultado válido.');
     }
