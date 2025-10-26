@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import { Inter_Tight } from 'next/font/google';
 import './globals.css';
-import '@/components/ui/magic-card.css';
 import { Toaster } from '@/components/ui/toaster';
 import { cn } from '@/lib/utils';
 import { Header } from '@/components/header';
