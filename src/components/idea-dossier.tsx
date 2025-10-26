@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import type { GenerateIdeaOutput } from '@/app/generate/page';
 import { Button } from './ui/button';
 import { Badge } from './ui/badge';
+import { MagicCard } from './ui/magic-card';
 
 interface IdeaDossierProps {
   dossier: GenerateIdeaOutput;
@@ -52,7 +53,7 @@ export function IdeaDossier({ dossier, onReset }: IdeaDossierProps) {
         variants={itemVariants}
         className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center"
       >
-        <Card>
+        <MagicCard className="cursor-pointer [mask-image:radial-gradient(50%_50%_at_50%_50%,white_40%,transparent_100%)]">
           <CardHeader>
             <CardTitle className="text-xl tracking-tight">Potencial da Ideia</CardTitle>
           </CardHeader>
@@ -74,9 +75,9 @@ export function IdeaDossier({ dossier, onReset }: IdeaDossierProps) {
                 </div>
             </div>
           </CardContent>
-        </Card>
+        </MagicCard>
         
-        <Card className="md:col-span-2">
+        <MagicCard className="md:col-span-2 cursor-pointer [mask-image:radial-gradient(50%_50%_at_50%_50%,white_40%,transparent_100%)]">
            <CardHeader>
             <CardTitle className="text-xl tracking-tight flex items-center gap-2"><TrendingUp/> Tendência de Interesse</CardTitle>
             <CardDescription>{dossier.projections.analysis}</CardDescription>
@@ -104,7 +105,7 @@ export function IdeaDossier({ dossier, onReset }: IdeaDossierProps) {
                 </AreaChart>
             </ResponsiveContainer>
           </CardContent>
-        </Card>
+        </MagicCard>
       </motion.div>
 
       <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -131,7 +132,7 @@ export function IdeaDossier({ dossier, onReset }: IdeaDossierProps) {
 
 function AnalysisCard({ icon, title, analysis, recommendations }: {icon: React.ReactNode, title: string, analysis: string, recommendations: string[]}) {
     return (
-        <Card className="h-full">
+        <MagicCard className="h-full cursor-pointer [mask-image:radial-gradient(50%_50%_at_50%_50%,white_40%,transparent_100%)]">
           <CardHeader>
             <div className="flex items-center gap-4">
               {icon}
@@ -152,6 +153,6 @@ function AnalysisCard({ icon, title, analysis, recommendations }: {icon: React.R
                 </ul>
             </div>
           </CardContent>
-        </Card>
+        </MagicCard>
     )
 }
