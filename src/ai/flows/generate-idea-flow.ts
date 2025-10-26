@@ -34,12 +34,17 @@ export const GenerateIdeaOutputSchema = z.object({
 export type GenerateIdeaOutput = z.infer<typeof GenerateIdeaOutputSchema>;
 
 
-export async function generateIdea(input: GenerateIdeaInput): Promise<GenerateIdeaOutput> {
-  const prompt = ai.definePrompt({
-    name: 'generateIdeaPrompt',
-    input: { schema: GenerateIdeaInputSchema },
-    output: { schema: GenerateIdeaOutputSchema },
-    system: `Você é DexAI, um especialista em inovação e estratégia de negócios que gera novas ideias de startups.
+const generateIdeaFlow = ai.defineFlow(
+    {
+        name: 'generateIdeaFlow',
+        inputSchema: GenerateIdeaInputSchema,
+        outputSchema: GenerateIdeaOutputSchema,
+    }, async (input) => {
+        const prompt = ai.definePrompt({
+            name: 'generateIdeaPrompt',
+            input: { schema: GenerateIdeaInputSchema },
+            output: { schema: GenerateIdeaOutputSchema },
+            system: `Você é DexAI, um especialista em inovação e estratégia de negócios que gera novas ideias de startups.
 Sua tarefa é criar um conceito de negócio detalhado e acionável com base no nicho e no nível de investimento fornecidos pelo usuário.
 
 PONTO CRÍTICO: Todas as suas sugestões de custos, ferramentas, estratégias de marketing e escopo do MVP devem ser estritamente adaptadas ao Nível de Investimento fornecido (${input.investmentLevel}).
@@ -50,12 +55,18 @@ PONTO CRÍTICO: Todas as suas sugestões de custos, ferramentas, estratégias de
 Analise tendências atuais para garantir que a ideia seja relevante.
 Gere dados simulados para o gráfico de tendência de interesse que pareçam realistas e justifiquem a análise.
 Retorne sua análise estritamente no formato JSON solicitado.`,
-    prompt: `Gere uma nova ideia de negócio para o nicho de "${input.niche}" com um nível de investimento "${input.investmentLevel}".`,
-  });
+            prompt: `Gere uma nova ideia de negócio para o nicho de "${input.niche}" com um nível de investimento "${input.investmentLevel}".`,
+          });
+        
+          const { output } = await prompt(input);
+          if (!output) {
+            throw new Error('A IA não conseguiu gerar uma ideia válida.');
+          }
+          return output;
+    }
+);
 
-  const { output } = await prompt(input);
-  if (!output) {
-    throw new Error('A IA não conseguiu gerar uma ideia válida.');
-  }
-  return output;
+
+export async function generateIdea(input: GenerateIdeaInput): Promise<GenerateIdeaOutput> {
+  return generateIdeaFlow(input);
 }

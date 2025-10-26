@@ -3,12 +3,12 @@
 import { ai } from '@/ai/genkit';
 import { z } from 'genkit';
 
-export const ValidateIdeaInputSchema = z.object({
+const ValidateIdeaInputSchema = z.object({
   ideaDescription: z.string().describe('A descrição detalhada da ideia de negócio a ser validada.'),
 });
 export type ValidateIdeaInput = z.infer<typeof ValidateIdeaInputSchema>;
 
-export const ValidateIdeaOutputSchema = z.object({
+const ValidateIdeaOutputSchema = z.object({
   viabilityScore: z.number().min(0).max(100).describe('Uma pontuação de 0 a 100 representando a viabilidade geral da ideia.'),
   marketSaturation: z.enum(['Baixa', 'Média', 'Alta']).describe('O nível de saturação do mercado para esta ideia.'),
   targetAudience: z.object({
@@ -32,23 +32,35 @@ export const ValidateIdeaOutputSchema = z.object({
 export type ValidateIdeaOutput = z.infer<typeof ValidateIdeaOutputSchema>;
 
 
-export async function validateIdea(input: ValidateIdeaInput): Promise<ValidateIdeaOutput> {
-  const prompt = ai.definePrompt({
-    name: 'validateIdeaPrompt',
-    input: { schema: ValidateIdeaInputSchema },
-    output: { schema: ValidateIdeaOutputSchema },
-    system: `Você é DexAI, um especialista em startups e capital de risco com décadas de experiência em análise de novos negócios.
+const validateIdeaFlow = ai.defineFlow(
+  {
+    name: 'validateIdeaFlow',
+    inputSchema: ValidateIdeaInputSchema,
+    outputSchema: ValidateIdeaOutputSchema,
+  },
+  async (input) => {
+    const prompt = ai.definePrompt({
+      name: 'validateIdeaPrompt',
+      input: { schema: ValidateIdeaInputSchema },
+      output: { schema: ValidateIdeaOutputSchema },
+      system: `Você é DexAI, um especialista em startups e capital de risco com décadas de experiência em análise de novos negócios.
 Sua tarefa é analisar a ideia de negócio fornecida pelo usuário de forma crítica, objetiva e construtiva.
 Avalie todos os aspectos e forneça uma análise detalhada.
 A pontuação de viabilidade deve refletir uma combinação de inovação, potencial de mercado, clareza do problema resolvido e escalabilidade.
 Seja honesto e direto em sua análise. O objetivo é ajudar o empreendedor a tomar a melhor decisão, seja ela seguir em frente, pivotar ou abandonar a ideia.
 Retorne sua análise estritamente no formato JSON solicitado.`,
-    prompt: `Analise a seguinte ideia de negócio: {{{ideaDescription}}}`,
-  });
+      prompt: `Analise a seguinte ideia de negócio: {{{ideaDescription}}}`,
+    });
 
-  const { output } = await prompt(input);
-  if (!output) {
-    throw new Error('A análise da IA não retornou um resultado válido.');
+    const { output } = await prompt(input);
+    if (!output) {
+      throw new Error('A análise da IA não retornou um resultado válido.');
+    }
+    return output;
   }
-  return output;
+);
+
+
+export async function validateIdea(input: ValidateIdeaInput): Promise<ValidateIdeaOutput> {
+  return await validateIdeaFlow(input);
 }
