@@ -69,5 +69,10 @@
     "postcss": "^8",
     "tailwindcss": "^3.4.1",
     "typescript": "^5"
+  },
+  "resolutions": {
+    "@react-three/fiber/react-reconciler": "0.29.3",
+    "@types/react": "18.3.1",
+    "react-reconciler": "0.29.3"
   }
 }
