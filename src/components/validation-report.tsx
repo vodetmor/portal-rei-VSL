@@ -1,11 +1,12 @@
 'use client';
-import { BarChart, Briefcase, DollarSign, Lightbulb, Target, Users } from 'lucide-react';
+import { Briefcase, CheckCircle, DollarSign, Lightbulb, Target, Users } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { PieChart, Pie, Cell, ResponsiveContainer } from 'recharts';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import type { ValidateIdeaOutput } from '@/ai/flows/validate-idea-flow';
-import { Button } from './ui/button';
+import { MagicCard } from './ui/magic-card';
+import { RainbowButton } from './ui/rainbow-button';
 
 interface ValidationReportProps {
   report: ValidateIdeaOutput;
@@ -66,7 +67,7 @@ export function ValidationReport({ report, onReset }: ValidationReportProps) {
         variants={itemVariants}
         className="grid grid-cols-1 md:grid-cols-3 gap-6 text-center"
       >
-        <Card>
+        <MagicCard className='cursor-pointer'>
           <CardHeader>
             <CardTitle className="text-xl tracking-tight">Pontuação de Viabilidade</CardTitle>
           </CardHeader>
@@ -93,9 +94,9 @@ export function ValidationReport({ report, onReset }: ValidationReportProps) {
             </ResponsiveContainer>
             <p className="text-4xl font-bold text-primary -translate-y-28">{report.viabilityScore}%</p>
           </CardContent>
-        </Card>
+        </MagicCard>
         
-        <Card>
+        <MagicCard className='cursor-pointer'>
            <CardHeader>
             <CardTitle className="text-xl tracking-tight">Saturação de Mercado</CardTitle>
           </CardHeader>
@@ -104,18 +105,18 @@ export function ValidationReport({ report, onReset }: ValidationReportProps) {
                 {report.marketSaturation}
             </Badge>
           </CardContent>
-        </Card>
+        </MagicCard>
 
-        <Card>
+        <MagicCard className='cursor-pointer'>
            <CardHeader>
             <CardTitle className="text-xl tracking-tight">Recomendação Geral</CardTitle>
           </CardHeader>
           <CardContent className='flex items-center justify-center h-40'>
-            <p className='text-muted-foreground px-4'>
+            <p className='text-muted-foreground px-4 text-center'>
                 {report.overallRecommendation}
             </p>
           </CardContent>
-        </Card>
+        </MagicCard>
       </motion.div>
 
       <motion.div variants={itemVariants} className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -125,7 +126,7 @@ export function ValidationReport({ report, onReset }: ValidationReportProps) {
         <AnalysisCard icon={iconMapping.mvp} title="Plano de MVP" analysis={report.mvp.analysis} recommendations={report.mvp.featureRecommendations} />
       </motion.div>
       <motion.div variants={itemVariants} className='text-center'>
-        <Button onClick={onReset} size='lg'>Analisar outra ideia</Button>
+        <RainbowButton onClick={onReset} className="text-white">Analisar outra ideia</RainbowButton>
       </motion.div>
     </motion.div>
   );
@@ -134,7 +135,7 @@ export function ValidationReport({ report, onReset }: ValidationReportProps) {
 
 function AnalysisCard({ icon, title, analysis, recommendations }: {icon: React.ReactNode, title: string, analysis: string, recommendations: string[]}) {
     return (
-        <Card className="h-full">
+        <MagicCard className="h-full cursor-pointer">
           <CardHeader>
             <div className="flex items-center gap-4">
               {icon}
@@ -145,11 +146,16 @@ function AnalysisCard({ icon, title, analysis, recommendations }: {icon: React.R
             <p className="text-muted-foreground">{analysis}</p>
             <div>
                 <h4 className='font-semibold text-foreground mb-2'>Recomendações:</h4>
-                <ul className='list-disc list-inside space-y-1 text-muted-foreground'>
-                    {recommendations.map((rec, index) => <li key={index}>{rec}</li>)}
+                <ul className='space-y-2 text-muted-foreground'>
+                    {recommendations.map((rec, index) => (
+                        <li key={index} className="flex items-start gap-2">
+                           <CheckCircle className="h-5 w-5 mt-0.5 text-primary shrink-0"/> 
+                           <span>{rec}</span>
+                        </li>
+                    ))}
                 </ul>
             </div>
           </CardContent>
-        </Card>
+        </MagicCard>
     )
 }
