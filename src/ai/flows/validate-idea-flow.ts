@@ -40,7 +40,6 @@ const validateIdeaFlow = ai.defineFlow(
   },
   async (input) => {
     const prompt = await ai.generate({
-        model: 'gemini-1.5-flash-latest',
         output: { schema: ValidateIdeaOutputSchema },
         system: `Você é DexAI, um especialista em startups e capital de risco com décadas de experiência em análise de novos negócios.
 Sua tarefa é analisar a ideia de negócio fornecida pelo usuário de forma crítica, objetiva e construtiva.

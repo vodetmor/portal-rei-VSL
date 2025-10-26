@@ -41,7 +41,6 @@ const generateIdeaFlow = ai.defineFlow(
         outputSchema: GenerateIdeaOutputSchema,
     }, async (input) => {
         const prompt = await ai.generate({
-            model: 'gemini-1.5-flash-latest',
             output: { schema: GenerateIdeaOutputSchema },
             system: `Você é DexAI, um especialista em inovação e estratégia de negócios que gera novas ideias de startups.
 Sua tarefa é criar um conceito de negócio detalhado e acionável com base no nicho e no nível de investimento fornecidos pelo usuário.
