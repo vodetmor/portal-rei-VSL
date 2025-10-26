@@ -36,7 +36,7 @@ const itemVariants = {
 };
 
 const saturationColors: Record<string, string> = {
-  'Baixa': 'border-green-500/50 text-black bg-green-500/20',
+  'Baixa': 'border-primary/50 text-foreground bg-primary/20',
   'Média': 'border-yellow-500/50 text-black bg-yellow-500/20',
   'Alta': 'border-red-500/50 text-black bg-red-500/20',
 };
