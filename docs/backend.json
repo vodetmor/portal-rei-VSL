@@ -1,0 +1,122 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "User Profile",
+      "description": "Represents a user's profile information.",
+      "type": "object",
+      "properties": {
+        "displayName": {
+          "type": "string",
+          "description": "The user's display name."
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "description": "The user's email address."
+        },
+        "photoURL": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL of the user's profile picture."
+        },
+        "role": {
+          "type": "string",
+          "description": "The user's role.",
+          "enum": ["user", "admin"]
+        }
+      },
+      "required": ["displayName", "email", "role"]
+    },
+    "Course": {
+      "title": "Course",
+      "description": "Represents a course containing modules and lessons.",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "The title of the course."
+        },
+        "description": {
+          "type": "string",
+          "description": "A brief description of the course."
+        },
+        "thumbnailUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL of the course thumbnail image."
+        },
+        "isFeatured": {
+          "type": "boolean",
+          "description": "Indicates if the course is featured."
+        }
+      },
+      "required": ["title", "description"]
+    },
+    "Module": {
+      "title": "Module",
+      "description": "Represents a module within a course.",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "The title of the module."
+        },
+        "order": {
+          "type": "number",
+          "description": "The order of the module within the course."
+        }
+      },
+      "required": ["title", "order"]
+    },
+    "Lesson": {
+      "title": "Lesson",
+      "description": "Represents a lesson (video) within a module.",
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "The title of the lesson."
+        },
+        "description": {
+            "type": "string",
+            "description": "A short description of the lesson."
+        },
+        "videoUrl": {
+          "type": "string",
+          "format": "uri",
+          "description": "URL of the lesson video file in Firebase Storage."
+        },
+        "duration": {
+          "type": "number",
+          "description": "Duration of the video in seconds."
+        },
+        "order": {
+          "type": "number",
+          "description": "The order of the lesson within the module."
+        }
+      },
+      "required": ["title", "videoUrl", "duration", "order"]
+    }
+  },
+  "auth": {
+    "providers": ["google.com"]
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Stores public profile information for each user."
+    },
+    "/courses/{courseId}": {
+      "schema": { "$ref": "#/entities/Course" },
+      "description": "Stores all available courses."
+    },
+    "/courses/{courseId}/modules/{moduleId}": {
+      "schema": { "$ref": "#/entities/Module" },
+      "description": "Stores modules for a specific course."
+    },
+    "/courses/{courseId}/modules/{moduleId}/lessons/{lessonId}": {
+        "schema": { "$ref": "#/entities/Lesson" },
+        "description": "Stores lessons for a specific module."
+    }
+  }
+}
