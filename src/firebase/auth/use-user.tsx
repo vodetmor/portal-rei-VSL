@@ -16,9 +16,12 @@ export function useUser(): UserState {
 
   useEffect(() => {
     if (!auth) {
-      // Auth might not be initialized yet.
+      // If auth is not available, it might be because Firebase hasn't initialized yet,
+      // or the config is missing. In any case, we are not authenticated.
+      setLoading(false);
       return;
     }
+
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
       setLoading(false);
