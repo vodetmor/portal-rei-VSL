@@ -1,8 +1,9 @@
 'use client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { useAuth, useUser } from '@/firebase';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { useAuth, useUser, useFirestore } from '@/firebase';
+import { createUserWithEmailAndPassword } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
@@ -13,21 +14,22 @@ import { Input } from '@/components/ui/input';
 import { AuthButton } from '@/components/ui/auth-button';
 import Link from 'next/link';
 
-const loginSchema = z.object({
+const registerSchema = z.object({
   email: z.string().email({ message: 'Por favor, insira um email válido.' }),
-  password: z.string().min(1, { message: 'A senha não pode estar em branco.' }),
+  password: z.string().min(6, { message: 'A senha deve ter pelo menos 6 caracteres.' }),
 });
 
-type LoginFormValues = z.infer<typeof loginSchema>;
+type RegisterFormValues = z.infer<typeof registerSchema>;
 
-export default function LoginPage() {
+export default function RegisterPage() {
   const auth = useAuth();
+  const firestore = useFirestore();
   const { user, loading } = useUser();
   const router = useRouter();
   const [authError, setAuthError] = useState<string | null>(null);
 
-  const form = useForm<LoginFormValues>({
-    resolver: zodResolver(loginSchema),
+  const form = useForm<RegisterFormValues>({
+    resolver: zodResolver(registerSchema),
     defaultValues: {
       email: '',
       password: '',
@@ -40,27 +42,28 @@ export default function LoginPage() {
     }
   }, [user, loading, router]);
 
-  const onSubmit = async (data: LoginFormValues) => {
-    if (!auth) return;
+  const onSubmit = async (data: RegisterFormValues) => {
+    if (!auth || !firestore) return;
     setAuthError(null);
     try {
-      await signInWithEmailAndPassword(auth, data.email, data.password);
+      const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+      const newUser = userCredential.user;
+
+      // Create a user profile in Firestore
+      await setDoc(doc(firestore, 'users', newUser.uid), {
+        email: newUser.email,
+        displayName: newUser.email?.split('@')[0] || 'Novo Usuário',
+        photoURL: '',
+        role: 'user', // Default role
+      });
+
       router.push('/dashboard');
     } catch (error: any) {
-      console.error('Error signing in', error);
-      switch (error.code) {
-        case 'auth/user-not-found':
-          setAuthError('Nenhum usuário encontrado com este email.');
-          break;
-        case 'auth/wrong-password':
-          setAuthError('Senha incorreta. Por favor, tente novamente.');
-          break;
-        case 'auth/invalid-credential':
-            setAuthError('Credenciais inválidas. Verifique seu e-mail e senha.');
-            break;
-        default:
-          setAuthError('Ocorreu um erro ao fazer login. Tente novamente mais tarde.');
-          break;
+      console.error('Error signing up', error);
+      if (error.code === 'auth/email-already-in-use') {
+        setAuthError('Este email já está em uso. Tente fazer login.');
+      } else {
+        setAuthError('Ocorreu um erro ao criar a conta. Tente novamente mais tarde.');
       }
     }
   };
@@ -73,8 +76,8 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Acessar Plataforma</CardTitle>
-          <CardDescription>Faça login para acessar a área de membros.</CardDescription>
+          <CardTitle className="text-2xl">Criar Conta</CardTitle>
+          <CardDescription>Junte-se à nossa comunidade de criadores de VSLs.</CardDescription>
         </CardHeader>
         <CardContent>
           <Form {...form}>
@@ -99,7 +102,7 @@ export default function LoginPage() {
                   <FormItem>
                     <FormLabel>Senha</FormLabel>
                     <FormControl>
-                      <Input type="password" placeholder="Sua senha" {...field} />
+                      <Input type="password" placeholder="Crie uma senha forte" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
@@ -107,14 +110,14 @@ export default function LoginPage() {
               />
               {authError && <p className="text-sm font-medium text-destructive">{authError}</p>}
               <AuthButton type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? 'Entrando...' : 'Entrar'}
+                {form.formState.isSubmitting ? 'Criando conta...' : 'Criar Conta'}
               </AuthButton>
             </form>
           </Form>
           <div className="mt-4 text-center text-sm">
-            Não tem uma conta?{' '}
-            <Link href="/register" className="underline">
-              Cadastre-se
+            Já tem uma conta?{' '}
+            <Link href="/login" className="underline">
+              Faça login
             </Link>
           </div>
         </CardContent>
