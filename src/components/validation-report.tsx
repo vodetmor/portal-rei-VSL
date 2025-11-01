@@ -36,7 +36,7 @@ const itemVariants = {
 };
 
 const saturationColors: Record<string, string> = {
-  'Baixa': 'border-primary/50 text-foreground bg-primary/20',
+  'Baixa': 'border-blue-500/50 text-foreground bg-blue-900/50',
   'Média': 'border-yellow-500/50 text-black bg-yellow-500/20',
   'Alta': 'border-red-500/50 text-black bg-red-500/20',
 };
@@ -71,15 +71,15 @@ export function ValidationReport({ report, onReset }: ValidationReportProps) {
           <CardHeader>
             <CardTitle className="text-xl tracking-tight">Pontuação de Viabilidade</CardTitle>
           </CardHeader>
-          <CardContent className="h-48 relative">
+          <CardContent className="h-auto aspect-square relative">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={viabilityData}
                   cx="50%"
                   cy="50%"
-                  innerRadius={60}
-                  outerRadius={80}
+                  innerRadius={'60%'}
+                  outerRadius={'80%'}
                   startAngle={90}
                   endAngle={450}
                   paddingAngle={0}
@@ -102,14 +102,14 @@ export function ValidationReport({ report, onReset }: ValidationReportProps) {
            <CardHeader>
             <CardTitle className="text-xl tracking-tight">Saturação de Mercado</CardTitle>
           </CardHeader>
-          <CardContent className='flex items-center justify-center h-48'>
+          <CardContent className='flex items-center justify-center h-auto aspect-square'>
              <Badge className={`text-2xl px-6 py-3 ${saturationColors[report.marketSaturation]}`}>
                 {report.marketSaturation}
             </Badge>
           </CardContent>
         </MagicCard>
       </motion.div>
-
+      
       <motion.div variants={itemVariants} className="grid grid-cols-1 gap-6">
         <MagicCard className='cursor-pointer'>
            <CardHeader>
