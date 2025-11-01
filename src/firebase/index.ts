@@ -20,6 +20,11 @@ export function initializeFirebase(): {
   auth: Auth;
   firestore: Firestore;
 } {
+  // Return early if the config is not provided
+  if (!firebaseConfig.apiKey) {
+    throw new Error('Firebase config is not provided. Please set the environment variables.');
+  }
+
   const apps = getApps();
   const app = apps.length > 0 ? apps[0] : initializeApp(firebaseConfig);
   const auth = getAuth(app);
