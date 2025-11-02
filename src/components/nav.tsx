@@ -13,9 +13,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Bell, Home, Menu, ShieldCheck, Edit } from 'lucide-react';
+import { Home, Menu, ShieldCheck, Edit, Save } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
+import { useEditMode } from '@/context/EditModeContext';
 
 export function Nav() {
   const { user, loading } = useUser();
@@ -24,6 +25,8 @@ export function Nav() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const { isEditMode, toggleEditMode } = useEditMode();
+
 
   useEffect(() => {
     const handleScroll = () => {
@@ -63,6 +66,16 @@ export function Nav() {
       auth.signOut();
     }
   };
+  
+  const handleEditClick = () => {
+    toggleEditMode();
+    // In the future, this could also save the changes.
+    // For now, it just toggles the mode.
+    if(isEditMode) {
+      console.log("Saving changes...");
+      // Here you would add logic to save to Firestore.
+    }
+  }
 
   const navLinks = (
     <>
@@ -73,8 +86,9 @@ export function Nav() {
             <ShieldCheck className="h-4 w-4" />
             Painel Admin
           </Link>
-          <Button variant="outline" size="sm" className="w-full justify-start mt-2">
-            <Edit className="mr-2 h-4 w-4" /> Editar Layout
+          <Button variant="outline" size="sm" className="w-full justify-start mt-2" onClick={handleEditClick}>
+            {isEditMode ? <Save className="mr-2 h-4 w-4" /> : <Edit className="mr-2 h-4 w-4" />}
+            {isEditMode ? 'Salvar Alterações' : 'Editar Layout'}
           </Button>
         </>
       )}
@@ -98,8 +112,9 @@ export function Nav() {
             <>
               {isAdmin && (
                 <div className="hidden md:flex items-center gap-2">
-                   <Button variant="outline" size="sm">
-                      <Edit className="mr-2 h-4 w-4" /> Editar Layout
+                   <Button variant="outline" size="sm" onClick={handleEditClick}>
+                      {isEditMode ? <Save className="mr-2 h-4 w-4" /> : <Edit className="mr-2 h-4 w-4" />}
+                      {isEditMode ? 'Salvar Alterações' : 'Editar Layout'}
                   </Button>
                 </div>
               )}

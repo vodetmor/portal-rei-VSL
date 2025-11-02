@@ -11,6 +11,9 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { Trophy } from 'lucide-react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
+import { useEditMode } from '@/context/EditModeContext';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 
 interface Course extends DocumentData {
   id: string;
@@ -27,6 +30,12 @@ export default function DashboardPage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const { isEditMode } = useEditMode();
+  
+  // State for editable content
+  const [heroTitle, setHeroTitle] = useState("Seu Reinado <span class='text-primary'>começa aqui</span>.");
+  const [heroSubtitle, setHeroSubtitle] = useState("No Rei da VSL, cada copy se torna uma conversão poderosa.");
+
 
   useEffect(() => {
     if (!userLoading && !user) {
@@ -103,12 +112,31 @@ export default function DashboardPage() {
           <div className="absolute inset-0 bg-black/70" />
         </div>
         <div className="relative z-10 mx-auto flex max-w-4xl flex-col items-start px-4 text-left">
-          <h1 className="text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl">
-            <span className="text-primary">Seu Reinado</span> começa aqui.
-          </h1>
-          <p className="mt-4 max-w-2xl text-lg text-muted-foreground md:text-xl">
-            No Rei da VSL, cada copy se torna uma conversão poderosa.
-          </p>
+          {isEditMode ? (
+            <Input
+              type="text"
+              value={heroTitle.replace(/<[^>]+>/g, '')} // Remove HTML for editing
+              onChange={(e) => setHeroTitle(e.target.value)}
+              className="w-full text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl bg-transparent border-dashed"
+            />
+          ) : (
+            <h1 className="text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl"
+                dangerouslySetInnerHTML={{ __html: heroTitle }}
+            />
+          )}
+
+          {isEditMode ? (
+             <Textarea
+                value={heroSubtitle}
+                onChange={(e) => setHeroSubtitle(e.target.value)}
+                className="mt-4 max-w-2xl text-lg text-muted-foreground md:text-xl bg-transparent border-dashed"
+              />
+          ) : (
+            <p className="mt-4 max-w-2xl text-lg text-muted-foreground md:text-xl">
+              {heroSubtitle}
+            </p>
+          )}
+
           <Button asChild size="lg" className="mt-8">
             <Link href="#">Começar Agora</Link>
           </Button>
