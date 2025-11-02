@@ -58,8 +58,6 @@ function DashboardClientPage() {
   const [tempHeroTitle, setTempHeroTitle] = useState(layoutData.heroTitle);
   const [tempHeroSubtitle, setTempHeroSubtitle] = useState(layoutData.heroSubtitle);
   const [tempHeroImage, setTempHeroImage] = useState(layoutData.heroImage);
-  const [heroAlignment, setHeroAlignment] = useState<'left' | 'center' | 'right'>('left');
-
   
   const [heroImageFile, setHeroImageFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -107,10 +105,6 @@ function DashboardClientPage() {
   };
   
   
-  const handleAlignment = (alignment: 'left' | 'center' | 'right') => {
-    setHeroAlignment(alignment);
-  };
-
   const enterEditMode = () => {
     setTempHeroTitle(layoutData.heroTitle);
     setTempHeroSubtitle(layoutData.heroSubtitle);
@@ -342,19 +336,14 @@ function DashboardClientPage() {
     );
   }
   
-  const heroContainerClasses = cn("relative z-10 mx-auto flex max-w-4xl flex-col px-4 pt-24");
+  const heroContainerClasses = cn("relative z-10 mx-auto flex max-w-4xl flex-col items-start px-4 pt-24 text-left");
 
   return (
       <div className="w-full">
         {/* Hero Section */}
         <section className={cn(
           "relative flex h-[60vh] min-h-[500px] w-full flex-col justify-center",
-          isEditMode && "border-2 border-dashed border-primary/50",
-          {
-            'items-start': heroAlignment === 'left',
-            'items-center': heroAlignment === 'center',
-            'items-end': heroAlignment === 'right',
-          }
+          isEditMode && "border-2 border-dashed border-primary/50"
         )}>
           {layoutData.isLoading ? <Skeleton className="absolute inset-0 z-0" /> : (
               <div className="absolute inset-0 z-0">
@@ -381,12 +370,7 @@ function DashboardClientPage() {
                   onInput={(e) => setTempHeroTitle(e.currentTarget.innerHTML)}
                   className={cn(
                     "text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl",
-                    isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2",
-                     {
-                        'text-left': heroAlignment === 'left',
-                        'text-center': heroAlignment === 'center',
-                        'text-right': heroAlignment === 'right',
-                    }
+                    isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
                   )}
                   dangerouslySetInnerHTML={{ __html: isEditMode ? tempHeroTitle : layoutData.heroTitle }}
                 />
@@ -398,9 +382,6 @@ function DashboardClientPage() {
                       { label: "Italic", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
                       { label: "Underline", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
                       { label: "Color", icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor') },
-                      { label: "Left", icon: <AlignLeft className="size-4" />, onClick: () => handleAlignment('left') },
-                      { label: "Center", icon: <AlignCenter className="size-4" />, onClick: () => handleAlignment('center') },
-                      { label: "Right", icon: <AlignRight className="size-4" />, onClick: () => handleAlignment('right') },
                     ]}
                   />
                 )}
@@ -416,12 +397,7 @@ function DashboardClientPage() {
                   onInput={(e) => setTempHeroSubtitle(e.currentTarget.innerHTML)}
                   className={cn(
                     "mt-4 max-w-2xl text-lg text-muted-foreground md:text-xl",
-                    isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2",
-                     {
-                        'text-left': heroAlignment === 'left',
-                        'text-center': heroAlignment === 'center',
-                        'text-right': heroAlignment === 'right',
-                    }
+                    isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
                   )}
                   dangerouslySetInnerHTML={{ __html: isEditMode ? tempHeroSubtitle : layoutData.heroSubtitle }}
                 />
@@ -438,11 +414,7 @@ function DashboardClientPage() {
                 )}
               </div>
 
-            <div className={cn("mt-8 w-full", {
-                'text-left': heroAlignment === 'left',
-                'text-center': heroAlignment === 'center',
-                'text-right': heroAlignment === 'right',
-            })}>
+            <div className="mt-8 w-full">
               <Button asChild size="lg" variant="default" className="bg-primary hover:bg-primary/90 text-primary-foreground">
                 <Link href="#">Assistir Agora</Link>
               </Button>
