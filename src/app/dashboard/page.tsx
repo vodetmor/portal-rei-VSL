@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback, useContext, useRef } from 'react';
 import { CourseCard } from '@/components/course-card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { doc, getDoc, collection, getDocs, setDoc, deleteDoc, type DocumentData } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, setDoc, deleteDoc, type DocumentData, updateDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { useLayout } from '@/context/layout-context';
 import { ActionToolbar } from '@/components/ui/action-toolbar';
@@ -15,22 +15,9 @@ import Link from 'next/link';
 import { Plus, Pencil, Save, X, Trophy, Gem, Crown, Star, type LucideIcon, Upload, Link2, Trash2, ChevronDown, AlignCenter, AlignLeft, AlignRight, Bold, Italic, Underline, Palette } from 'lucide-react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { useToast } from '@/hooks/use-toast';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger
-} from "@/components/ui/alert-dialog"
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { EditCourseModal } from '@/components/admin/edit-course-modal';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
 
@@ -63,8 +50,6 @@ function DashboardClientPage() {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   
-  const [courseToEdit, setCourseToEdit] = useState<Course | null>(null);
-
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [activeEditor, setActiveEditor] = useState<string | null>(null);
@@ -253,6 +238,21 @@ function DashboardClientPage() {
     }
   };
 
+  const handleCourseUpdate = async (courseId: string, data: Partial<Course>) => {
+    if (!firestore) return;
+
+    const courseRef = doc(firestore, 'courses', courseId);
+    try {
+      await updateDoc(courseRef, data);
+      toast({ title: 'Curso atualizado!' });
+      // Refresh local state
+      setCourses(courses.map(c => c.id === courseId ? { ...c, ...data } : c));
+    } catch (error) {
+      console.error('Error updating course:', error);
+      toast({ variant: 'destructive', title: 'Erro ao atualizar curso.' });
+    }
+  };
+
 
   const fetchCourses = useCallback(async () => {
     if (!firestore) return;
@@ -289,10 +289,6 @@ function DashboardClientPage() {
         description: "Não foi possível excluir o curso. Verifique as permissões."
       });
     }
-  };
-
-  const handleEdit = (course: Course) => {
-    setCourseToEdit(course);
   };
 
 
@@ -511,10 +507,9 @@ function DashboardClientPage() {
 
         </section>
 
-        {/* Members Area Section */}
+        {/* All Courses Section */}
         <section className="container mx-auto px-4 py-16 md:px-8 space-y-12">
           
-          {/* All Courses Carousel */}
            <div>
             <div className="flex justify-between items-center mb-4">
                 <h2 className="text-2xl font-bold text-white">Todos os Cursos</h2>
@@ -543,7 +538,8 @@ function DashboardClientPage() {
                           course={course}
                           priority={index < 4}
                           isAdmin={isAdmin}
-                          onEdit={handleEdit}
+                          isEditing={isEditMode}
+                          onUpdate={handleCourseUpdate}
                           onDelete={handleConfirmDelete}
                         />
                     </CarouselItem>
@@ -556,14 +552,6 @@ function DashboardClientPage() {
           </div>
         </section>
 
-        {courseToEdit && (
-            <EditCourseModal
-                isOpen={!!courseToEdit}
-                onClose={() => setCourseToEdit(null)}
-                course={courseToEdit}
-                onCourseUpdate={fetchCourses}
-            />
-        )}
       </div>
   );
 }

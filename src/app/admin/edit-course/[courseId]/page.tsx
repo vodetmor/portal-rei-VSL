@@ -31,7 +31,6 @@ interface Module {
 interface Course extends DocumentData {
   id: string;
   title: string;
-  description: string;
   modules: Module[];
 }
 
@@ -274,5 +273,3 @@ export default function EditCoursePage() {
         </AdminGuard>
     )
 }
-
-    
