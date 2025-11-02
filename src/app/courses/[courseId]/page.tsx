@@ -97,86 +97,75 @@ export default function CoursePlayerPage() {
   const fetchCourseAndAccess = useCallback(async () => {
     if (!firestore || !courseId) return;
     setLoading(true);
-    try {
-      // Fetch course
-      const courseRef = doc(firestore, 'courses', courseId);
-      const courseSnap = await getDoc(courseRef);
 
-      if (courseSnap.exists()) {
-        const courseData = { id: courseSnap.id, ...courseSnap.data() } as Course;
-        setCourse(courseData);
-        setTempTitle(courseData.title);
-        setTempDescription(courseData.description);
-        setTempHeroImageDesktop(courseData.heroImageUrlDesktop || DEFAULT_HERO_IMAGE_DESKTOP);
-        setTempHeroImageMobile(courseData.heroImageUrlMobile || DEFAULT_HERO_IMAGE_MOBILE);
-        setHeroImageUrlInputDesktop(courseData.heroImageUrlDesktop || '');
-        setHeroImageUrlInputMobile(courseData.heroImageUrlMobile || '');
-      } else {
-        toast({ variant: "destructive", title: "Erro", description: "Curso não encontrado."});
-        router.push('/dashboard');
-        return;
-      }
-      
-      // Fetch user access only if a user is logged in
-      if (user) {
-        const accessRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId);
-        const accessSnap = await getDoc(accessRef);
-        if (accessSnap.exists()) {
-          const accessData = accessSnap.data();
-          // Firestore Timestamps need to be converted to JS Dates then to ISO strings
-          const grantedAtDate = accessData.grantedAt.toDate();
-          setCourseAccessInfo({ grantedAt: grantedAtDate.toISOString() });
-        } else {
-          // If not admin and no access record, they shouldn't be here
-          const userDoc = await getDoc(doc(firestore, 'users', user.uid));
-          const isUserAdmin = userDoc.exists() && userDoc.data().role === 'admin';
-          if (!isUserAdmin) {
-            toast({ variant: "destructive", title: "Acesso Negado", description: "Você não tem acesso a este curso."});
-            router.push('/dashboard');
-          }
-        }
-      } else if (!isAdmin) { // If no user and not admin, deny access
-        toast({ variant: "destructive", title: "Acesso Negado", description: "Você precisa estar logado para acessar este curso."});
-        router.push('/login');
-      }
-
-    } catch (error) {
-      console.error('Error fetching course or access:', error);
-      toast({ variant: "destructive", title: "Erro de Permissão", description: "Ocorreu um erro ao carregar o curso."});
-    } finally {
-      setLoading(false);
-    }
-  }, [firestore, courseId, toast, router, user, isAdmin]);
-
-  useEffect(() => {
-    const checkAdmin = async () => {
-      if (user && firestore) {
+    let isUserAdmin = false;
+    // Step 1: Determine if the current user is an admin.
+    if (user && firestore) {
         if (user.email === 'admin@reidavsl.com') {
-          setIsAdmin(true);
-          return;
+            isUserAdmin = true;
+        } else {
+            const userDocRef = doc(firestore, 'users', user.uid);
+            try {
+                const userDoc = await getDoc(userDocRef);
+                if (userDoc.exists() && userDoc.data().role === 'admin') {
+                    isUserAdmin = true;
+                }
+            } catch (error) {
+                // Non-blocking, as a user might not have permission to read their own doc
+                // in some edge cases, but the logic below will handle it.
+                console.warn("Could not verify admin status:", error);
+            }
         }
-        const userDocRef = doc(firestore, 'users', user.uid);
-        try {
-          const userDoc = await getDoc(userDocRef);
-          if (userDoc.exists() && userDoc.data().role === 'admin') {
-            setIsAdmin(true);
-          } else {
-            setIsAdmin(false);
-          }
-        } catch (error) {
-           const permissionError = new FirestorePermissionError({
-             path: userDocRef.path,
-             operation: 'get',
-           });
-           errorEmitter.emit('permission-error', permissionError);
-           setIsAdmin(false);
+    }
+    setIsAdmin(isUserAdmin);
+
+    try {
+        // Step 2: Fetch the course data. This is allowed for everyone by security rules.
+        const courseRef = doc(firestore, 'courses', courseId);
+        const courseSnap = await getDoc(courseRef);
+
+        if (courseSnap.exists()) {
+            const courseData = { id: courseSnap.id, ...courseSnap.data() } as Course;
+            setCourse(courseData);
+            setTempTitle(courseData.title);
+            setTempDescription(courseData.description);
+            setTempHeroImageDesktop(courseData.heroImageUrlDesktop || DEFAULT_HERO_IMAGE_DESKTOP);
+            setTempHeroImageMobile(courseData.heroImageUrlMobile || DEFAULT_HERO_IMAGE_MOBILE);
+            setHeroImageUrlInputDesktop(courseData.heroImageUrlDesktop || '');
+            setHeroImageUrlInputMobile(courseData.heroImageUrlMobile || '');
+        } else {
+            toast({ variant: "destructive", title: "Erro", description: "Curso não encontrado."});
+            router.push('/dashboard');
+            return;
         }
-      } else {
-        setIsAdmin(false);
-      }
-    };
-    checkAdmin();
-  }, [user, firestore]);
+
+        // Step 3: Check for access if the user is not an admin.
+        if (isUserAdmin) {
+            setCourseAccessInfo({ grantedAt: new Date().toISOString() }); // Admins have implicit access.
+        } else if (user) {
+            const accessRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId);
+            const accessSnap = await getDoc(accessRef);
+            if (accessSnap.exists()) {
+                const accessData = accessSnap.data();
+                const grantedAtDate = accessData.grantedAt.toDate();
+                setCourseAccessInfo({ grantedAt: grantedAtDate.toISOString() });
+            } else {
+                // Not an admin and no access record, so deny access.
+                toast({ variant: "destructive", title: "Acesso Negado", description: "Você não tem acesso a este curso."});
+                router.push('/dashboard');
+            }
+        } else {
+            // Not an admin and not logged in.
+            toast({ variant: "destructive", title: "Acesso Negado", description: "Você precisa estar logado para ver este curso."});
+            router.push('/login');
+        }
+    } catch (error) {
+        console.error('Error fetching course or access:', error);
+        toast({ variant: "destructive", title: "Erro", description: "Ocorreu um erro ao carregar o curso."});
+    } finally {
+        setLoading(false);
+    }
+  }, [firestore, courseId, user, router, toast]);
 
   useEffect(() => {
     // We can fetch course data regardless of user, but access logic depends on user
@@ -332,7 +321,7 @@ export default function CoursePlayerPage() {
   if (!course) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p>Curso não encontrado ou você não tem permissão para acessá-lo.</p>
+        <p>Carregando curso ou verificando permissões...</p>
       </div>
     );
   }
@@ -566,3 +555,5 @@ function TrophyIcon(props: React.SVGProps<SVGSVGElement>) {
     </svg>
   )
 }
+
+    
