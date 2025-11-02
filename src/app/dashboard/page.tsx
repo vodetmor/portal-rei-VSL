@@ -29,6 +29,9 @@ interface Course extends DocumentData {
 const DEFAULT_HERO_TITLE = "Seu Reinado <span class='text-primary'>começa aqui</span>.";
 const DEFAULT_HERO_SUBTITLE = "No Rei da VSL, cada copy se torna uma conversão poderosa.";
 const DEFAULT_HERO_IMAGE = "https://picsum.photos/seed/hero-bg/1920/1080";
+const DEFAULT_MEMBERS_TITLE = "Área de Membros Premium";
+const DEFAULT_MEMBERS_SUBTITLE = "Rei da VSL ®";
+
 
 export default function DashboardPage() {
   const { user, loading: userLoading } = useUser();
@@ -46,6 +49,9 @@ export default function DashboardPage() {
   const [heroTitle, setHeroTitle] = useState(DEFAULT_HERO_TITLE);
   const [heroSubtitle, setHeroSubtitle] = useState(DEFAULT_HERO_SUBTITLE);
   const [heroImage, setHeroImage] = useState(DEFAULT_HERO_IMAGE);
+  const [membersTitle, setMembersTitle] = useState(DEFAULT_MEMBERS_TITLE);
+  const [membersSubtitle, setMembersSubtitle] = useState(DEFAULT_MEMBERS_SUBTITLE);
+
   const [isUploading, setIsUploading] = useState(false);
   const [contentLoading, setContentLoading] = useState(true);
 
@@ -61,12 +67,13 @@ export default function DashboardPage() {
       title: heroTitle,
       subtitle: heroSubtitle,
       imageUrl: heroImage,
+      membersTitle: membersTitle,
+      membersSubtitle: membersSubtitle,
     };
     
     // Use a non-blocking write and catch permission errors
     setDoc(layoutRef, dataToSave, { merge: true })
       .catch((error) => {
-        console.error("Error saving layout:", error); // Keep console error for debugging, but emit specific error.
         const permissionError = new FirestorePermissionError({
           path: layoutRef.path,
           operation: 'write', // 'write' covers create and update with merge
@@ -77,7 +84,7 @@ export default function DashboardPage() {
         throw permissionError;
       });
 
-  }, [firestore, heroTitle, heroSubtitle, heroImage, toast]);
+  }, [firestore, heroTitle, heroSubtitle, heroImage, membersTitle, membersSubtitle, toast]);
 
   useEffect(() => {
     // Register the save handler if the user is an admin
@@ -105,11 +112,15 @@ export default function DashboardPage() {
           setHeroTitle(data.title || DEFAULT_HERO_TITLE);
           setHeroSubtitle(data.subtitle || DEFAULT_HERO_SUBTITLE);
           setHeroImage(data.imageUrl || DEFAULT_HERO_IMAGE);
+          setMembersTitle(data.membersTitle || DEFAULT_MEMBERS_TITLE);
+          setMembersSubtitle(data.membersSubtitle || DEFAULT_MEMBERS_SUBTITLE);
         } else {
           // Use defaults if doc doesn't exist
           setHeroTitle(DEFAULT_HERO_TITLE);
           setHeroSubtitle(DEFAULT_HERO_SUBTITLE);
           setHeroImage(DEFAULT_HERO_IMAGE);
+          setMembersTitle(DEFAULT_MEMBERS_TITLE);
+          setMembersSubtitle(DEFAULT_MEMBERS_SUBTITLE);
         }
       } catch (error) {
          console.error("Error fetching layout:", error);
@@ -117,6 +128,8 @@ export default function DashboardPage() {
          setHeroTitle(DEFAULT_HERO_TITLE);
          setHeroSubtitle(DEFAULT_HERO_SUBTITLE);
          setHeroImage(DEFAULT_HERO_IMAGE);
+         setMembersTitle(DEFAULT_MEMBERS_TITLE);
+         setMembersSubtitle(DEFAULT_MEMBERS_SUBTITLE);
       } finally {
         setContentLoading(false);
       }
@@ -330,11 +343,29 @@ export default function DashboardPage() {
       {/* Members Area Section */}
       <section className="container mx-auto px-4 py-16 md:px-8">
         <div className="mb-8">
-          <h2 className="flex items-center gap-3 text-2xl font-bold text-white">
-            <Trophy className="h-7 w-7 text-primary" />
-            Área de Membros Premium
-          </h2>
-          <p className="text-muted-foreground">Rei da VSL ®</p>
+            <div className="flex items-center gap-3 text-2xl font-bold text-white" data-editable={isEditMode}>
+                <Trophy className="h-7 w-7 text-primary" />
+                {isEditMode ? (
+                    <Input 
+                        value={membersTitle}
+                        onChange={(e) => setMembersTitle(e.target.value)}
+                        className="text-2xl font-bold text-white bg-transparent border-dashed p-0 h-auto"
+                    />
+                ) : (
+                    <h2>{membersTitle}</h2>
+                )}
+            </div>
+             <div className="text-muted-foreground" data-editable={isEditMode}>
+                {isEditMode ? (
+                     <Input 
+                        value={membersSubtitle}
+                        onChange={(e) => setMembersSubtitle(e.target.value)}
+                        className="text-base text-muted-foreground bg-transparent border-dashed p-0 h-auto"
+                    />
+                ) : (
+                    <p>{membersSubtitle}</p>
+                )}
+             </div>
         </div>
         
         {loading ? (
@@ -377,3 +408,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
