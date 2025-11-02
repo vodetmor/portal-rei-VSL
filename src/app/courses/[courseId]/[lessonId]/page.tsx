@@ -11,7 +11,7 @@ import { ptBR } from 'date-fns/locale';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { CheckCircle, Circle, Lock, ArrowLeft, ArrowRight, X, Download, Link2, FileText, Check, ThumbsUp, ThumbsDown, MessageSquare, CornerUpLeft, Send, Heart, MoreVertical, Pin, Trash2 } from 'lucide-react';
+import { CheckCircle, Circle, Lock, ArrowLeft, ArrowRight, X, Download, Link2, FileText, Check, ThumbsUp, ThumbsDown, MessageSquare, CornerUpLeft, Send, Heart, MoreVertical, Pin, Trash2, Menu } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
@@ -131,7 +131,7 @@ export default function LessonPage() {
   const [courseAccessInfo, setCourseAccessInfo] = useState<CourseAccessInfo | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const reactionsQuery = useMemoFirebase(() => {
     if (!firestore || !courseId || !lessonId) return null;
@@ -351,9 +351,15 @@ export default function LessonPage() {
 
   return (
     <div className="flex min-h-screen bg-black text-white pt-20">
+      {isSidebarOpen && (
+          <div 
+              onClick={() => setIsSidebarOpen(false)}
+              className="md:hidden fixed inset-0 bg-black/60 z-30"
+          ></div>
+      )}
       <aside className={cn(
-        "bg-background h-[calc(100vh-5rem)] flex-col transition-all duration-300 ease-in-out fixed top-20 left-0 z-20 hidden md:flex",
-        isSidebarOpen ? "w-80" : "w-0 overflow-hidden"
+        "bg-background h-[calc(100vh-5rem)] flex-col transition-transform duration-300 ease-in-out fixed top-20 left-0 z-40 w-80 md:w-80 flex",
+        isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
       )}>
         <div className="flex items-center justify-between p-4 border-b border-r border-border h-20">
           <Link href={`/courses/${courseId}`} className="text-sm font-semibold hover:text-primary">
@@ -408,16 +414,12 @@ export default function LessonPage() {
 
       <main className={cn(
         "flex-1 flex flex-col transition-all duration-300 ease-in-out",
-        isSidebarOpen ? "md:ml-80" : "md:ml-0"
+        "md:ml-80"
       )}>
         <header className={cn("flex items-center justify-between p-4 bg-background/80 backdrop-blur-sm z-10 border-b border-border h-20 shrink-0")}>
            <div className="flex items-center gap-4">
-                <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="hidden md:flex">
-                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M3 12H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M3 6H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                        <path d="M3 18H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                    </svg>
+                <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="md:hidden">
+                   <Menu className="h-5 w-5"/>
                 </Button>
                 <div className="text-sm">
                     <span className="text-muted-foreground hidden md:inline">{course.title} / </span> 
@@ -846,6 +848,7 @@ function RepliesSection({ courseId, lessonId, commentId, currentUser, isAdmin }:
     const firestore = useFirestore();
     const [replyText, setReplyText] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const { toast } = useToast();
 
     const repliesQuery = useMemoFirebase(() => {
         if (!firestore) return null;
