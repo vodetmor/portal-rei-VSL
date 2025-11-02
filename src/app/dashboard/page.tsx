@@ -1,7 +1,7 @@
 'use client';
 import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { CourseCard } from '@/components/course-card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { doc, getDoc, collection, getDocs, type DocumentData } from 'firebase/firestore';
@@ -13,6 +13,8 @@ import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious
 import { useEditMode } from '@/context/EditModeContext';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { useToast } from '@/hooks/use-toast';
 
 interface Course extends DocumentData {
   id: string;
@@ -25,7 +27,10 @@ interface Course extends DocumentData {
 export default function DashboardPage() {
   const { user, loading: userLoading } = useUser();
   const firestore = useFirestore();
+  const storage = getStorage();
   const router = useRouter();
+  const { toast } = useToast();
+
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -35,7 +40,9 @@ export default function DashboardPage() {
   const [heroTitle, setHeroTitle] = useState("Seu Reinado <span class='text-primary'>começa aqui</span>.");
   const [heroSubtitle, setHeroSubtitle] = useState("No Rei da VSL, cada copy se torna uma conversão poderosa.");
   const [heroImage, setHeroImage] = useState("https://picsum.photos/seed/hero-bg/1920/1080");
+  const [isUploading, setIsUploading] = useState(false);
 
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!userLoading && !user) {
@@ -102,6 +109,56 @@ export default function DashboardPage() {
     fetchCourses();
   }, [firestore]);
 
+  const handleImageContainerClick = () => {
+    if (isEditMode) {
+      fileInputRef.current?.click();
+    }
+  };
+
+  const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file || !storage) return;
+
+    setIsUploading(true);
+    const storageRef = ref(storage, `layout-images/hero-background-${Date.now()}`);
+    const uploadTask = uploadBytesResumable(storageRef, file);
+
+    uploadTask.on('state_changed',
+      (snapshot) => {
+        // Optional: update progress
+      },
+      (error) => {
+        setIsUploading(false);
+        toast({
+          variant: "destructive",
+          title: "Erro no Upload",
+          description: "Não foi possível enviar a imagem. Tente novamente.",
+        });
+        console.error("Upload failed:", error);
+      },
+      () => {
+        getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+          setHeroImage(downloadURL);
+          setIsUploading(false);
+          toast({
+            title: "Sucesso!",
+            description: "A imagem de fundo foi atualizada. Lembre-se de salvar o layout.",
+          });
+          // In a future step, we will save this URL to Firestore.
+        }).catch((error) => {
+           setIsUploading(false);
+           console.error("Failed to get download URL:", error);
+           toast({
+            variant: "destructive",
+            title: "Erro",
+            description: "Falha ao obter a URL da imagem.",
+           });
+        });
+      }
+    );
+  };
+
+
   if (userLoading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -115,14 +172,29 @@ export default function DashboardPage() {
       {/* Hero Section */}
       <section className="relative flex h-[60vh] min-h-[500px] w-full flex-col items-center justify-center bg-black py-12 md:h-screen">
         <div className="absolute inset-0 z-0">
-          <div data-editable={isEditMode} className="w-full h-full">
+          <div 
+            data-editable={isEditMode}
+            className="w-full h-full relative"
+            onClick={handleImageContainerClick}
+          >
+             {isEditMode && (
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleImageUpload}
+                  className="hidden"
+                  accept="image/png, image/jpeg, image/webp"
+                />
+              )}
             <Image
               src={heroImage}
               alt="Hero background"
               fill
               className="object-cover"
               data-ai-hint="digital art collage"
+              priority
             />
+             {isUploading && <div className="absolute inset-0 bg-black/50 flex items-center justify-center"><div className="h-10 w-10 animate-spin rounded-full border-4 border-white border-t-transparent" /></div>}
           </div>
           <div className="absolute inset-0 bg-black/70" />
         </div>
