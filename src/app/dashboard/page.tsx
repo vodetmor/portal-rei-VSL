@@ -361,7 +361,7 @@ export default function DashboardPage() {
     <AlertDialog onOpenChange={(open) => !open && setCourseToDelete(null)}>
       <div className="w-full">
         {/* Hero Section */}
-        <section className="relative flex h-[70vh] min-h-[600px] w-full flex-col items-center justify-center py-12">
+        <section className="relative flex h-[60vh] min-h-[500px] w-full flex-col items-center justify-center py-12">
           {contentLoading ? <Skeleton className="absolute inset-0 z-0" /> : (
               <div className="absolute inset-0 z-0">
                 <Image
