@@ -36,18 +36,26 @@ function AdminDashboard() {
 
   const fetchCourses = async () => {
     if (!firestore) return;
-    const querySnapshot = await getDocs(collection(firestore, 'courses'));
-    const coursesData = querySnapshot.docs.map(doc => ({
-      id: doc.id,
-      ...doc.data()
-    })) as Course[];
-    setCourses(coursesData);
+    try {
+        const querySnapshot = await getDocs(collection(firestore, 'courses'));
+        const coursesData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+        })) as Course[];
+        setCourses(coursesData);
+    } catch (e) {
+        // TODO: Handle permission error with a toast
+    }
   };
   
   const fetchUserCount = async () => {
     if (!firestore) return;
-    const querySnapshot = await getDocs(collection(firestore, 'users'));
-    setUserCount(querySnapshot.size);
+    try {
+        const querySnapshot = await getDocs(collection(firestore, 'users'));
+        setUserCount(querySnapshot.size);
+    } catch(e) {
+         // TODO: Handle permission error with a toast
+    }
   };
 
 
@@ -107,11 +115,11 @@ function AdminDashboard() {
       </div>
 
       <AlertDialog>
-        <div className="bg-secondary p-6 rounded-lg shadow-lg">
+        <div className="bg-secondary/50 p-6 rounded-lg shadow-lg">
           <h2 className="text-xl font-semibold text-white mb-4">Gerenciar Cursos</h2>
           <div className="space-y-4">
             {courses.map(course => (
-              <div key={course.id} className="group relative flex items-center justify-between p-4 rounded-md bg-background/50 hover:bg-background transition-colors">
+              <div key={course.id} className="group relative flex items-center justify-between p-4 rounded-md bg-background/50 hover:bg-secondary/50 transition-colors">
                 <div className="flex items-center gap-4">
                   <Image src={course.thumbnailUrl} alt={course.title} width={80} height={45} className="rounded-md object-cover aspect-video" />
                   <span className="font-medium text-white">{course.title}</span>
@@ -142,7 +150,7 @@ function AdminDashboard() {
             </AlertDialogHeader>
             <AlertDialogFooter>
             <AlertDialogCancel onClick={() => setCourseToDelete(null)}>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDelete}>Excluir</AlertDialogAction>
+            <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Excluir</AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

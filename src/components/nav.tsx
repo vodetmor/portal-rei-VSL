@@ -1,6 +1,5 @@
 'use client';
 import { useAuth, useUser, useFirestore } from '@/firebase';
-import { doc, getDoc } from 'firebase/firestore';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,12 +12,10 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Home, Menu, ShieldCheck, Edit, Save } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
-import { useEditMode } from '@/context/EditModeContext';
-import { useToast } from '@/hooks/use-toast';
-import { FirestorePermissionError } from '@/firebase/errors';
+import { LayoutGrid, UserCircle, LogOut, ShieldCheck, Menu, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { doc, getDoc } from 'firebase/firestore';
+
 
 export function Nav() {
   const { user, loading } = useUser();
@@ -27,10 +24,6 @@ export function Nav() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const { isEditMode, toggleEditMode, triggerSave } = useEditMode();
-  const [isSaving, setIsSaving] = useState(false);
-  const { toast } = useToast();
-
 
   useEffect(() => {
     const handleScroll = () => {
@@ -38,6 +31,7 @@ export function Nav() {
     };
 
     window.addEventListener('scroll', handleScroll);
+    handleScroll(); // Check on mount
     return () => {
       window.removeEventListener('scroll', handleScroll);
     };
@@ -50,11 +44,15 @@ export function Nav() {
           setIsAdmin(true);
           return;
         }
-        const userDocRef = doc(firestore, 'users', user.uid);
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists() && userDoc.data().role === 'admin') {
-          setIsAdmin(true);
-        } else {
+        try {
+          const userDocRef = doc(firestore, 'users', user.uid);
+          const userDoc = await getDoc(userDocRef);
+          if (userDoc.exists() && userDoc.data().role === 'admin') {
+            setIsAdmin(true);
+          } else {
+            setIsAdmin(false);
+          }
+        } catch {
           setIsAdmin(false);
         }
       } else {
@@ -70,140 +68,128 @@ export function Nav() {
       auth.signOut();
     }
   };
-  
-  const handleEditClick = async () => {
-    if (isEditMode) {
-      setIsSaving(true);
-      try {
-        await triggerSave();
-        toast({
-          title: "Sucesso!",
-          description: "Alterações salvas no layout.",
-        });
-        // We successfully saved, so we can exit edit mode.
-        toggleEditMode(); 
-      } catch (error) {
-        // The specific error (including FirestorePermissionError) is emitted
-        // in the dashboard component. Here, we just handle the UI state.
-        // We don't show a toast because the FirebaseErrorListener will show the dev overlay.
-        if (!(error instanceof FirestorePermissionError)) {
-            toast({
-              variant: "destructive",
-              title: "Erro ao Salvar",
-              description: "Não foi possível salvar as alterações. Verifique o console para mais detalhes.",
-            });
-        }
-        // Do not exit edit mode if save fails, so the user can retry.
-      } finally {
-        setIsSaving(false);
-      }
-    } else {
-      toggleEditMode(); // Toggles the mode on
-    }
-  }
 
   const navLinks = (
     <>
-      <Link href="/dashboard" className="text-neutral-200 hover:text-white transition-colors block py-2" onClick={() => setIsSheetOpen(false)}>Início</Link>
+      <Link href="/dashboard" className="text-gray-300 hover:text-white transition-colors block py-2 text-lg" onClick={() => setIsSheetOpen(false)}>Início</Link>
+      <Link href="/dashboard" className="text-gray-300 hover:text-white transition-colors block py-2 text-lg" onClick={() => setIsSheetOpen(false)}>Meus Cursos</Link>
+      <Link href="/dashboard" className="text-gray-300 hover:text-white transition-colors block py-2 text-lg" onClick={() => setIsSheetOpen(false)}>Perfil</Link>
       {isAdmin && (
-        <>
-          <Link href="/admin" className="flex items-center gap-2 text-neutral-200 hover:text-white transition-colors block py-2" onClick={() => setIsSheetOpen(false)}>
-            <ShieldCheck className="h-4 w-4" />
+        <Link href="/admin" className="text-gray-300 hover:text-white transition-colors block py-2 text-lg" onClick={() => setIsSheetOpen(false)}>
             Painel Admin
-          </Link>
-          <Button variant="outline" size="sm" className="w-full justify-start mt-2" onClick={handleEditClick} disabled={isSaving}>
-            {isEditMode ? <Save className="mr-2 h-4 w-4" /> : <Edit className="mr-2 h-4 w-4" />}
-            {isSaving ? 'Salvando...' : isEditMode ? 'Salvar Alterações' : 'Editar Layout'}
-          </Button>
-        </>
+        </Link>
       )}
     </>
   );
 
   return (
-    <header className={cn(
-      "fixed top-0 z-50 w-full transition-colors duration-300",
-      isScrolled ? "bg-background/90 backdrop-blur-sm" : "bg-transparent"
-    )}>
-      <div className="container mx-auto flex h-20 items-center justify-between px-4 md:px-8">
-        <Link href="/" className="flex items-center space-x-2">
-          <span className="text-xl font-bold text-white tracking-wider">REI DA VSL</span>
-        </Link>
+    <>
+      <motion.nav
+        className="fixed top-0 left-0 w-full flex justify-between items-center px-4 md:px-8 py-4 z-50 transition-colors duration-300"
+        initial={{ backgroundColor: 'rgba(15, 15, 15, 0)' }}
+        animate={{ backgroundColor: isScrolled ? 'rgba(15, 15, 15, 0.7)' : 'rgba(15, 15, 15, 0)' }}
+        style={{ backdropFilter: isScrolled ? 'blur(10px)' : 'none' }}
+      >
+        <div className="flex items-center gap-8">
+            <Link href="/dashboard" className="text-2xl font-bold text-primary">
+                Portal Rei da VSL
+            </Link>
+            <ul className="hidden md:flex space-x-6 text-gray-300 items-center">
+                <li><Link href="/dashboard" className="hover:text-white cursor-pointer transition-colors text-sm">Início</Link></li>
+                <li><Link href="/dashboard" className="hover:text-white cursor-pointer transition-colors text-sm">Meus Cursos</Link></li>
+            </ul>
+        </div>
         
         <div className="flex items-center gap-4">
           {loading ? (
-            <div className="h-8 w-8 animate-pulse rounded-full bg-muted"></div>
+            <div className="h-10 w-24 animate-pulse rounded-md bg-muted/50"></div>
           ) : user ? (
             <>
-              {isAdmin && (
-                <div className="hidden md:flex items-center gap-2">
-                   <Button variant="outline" size="sm" onClick={handleEditClick} disabled={isSaving}>
-                      {isEditMode ? <Save className="mr-2 h-4 w-4" /> : <Edit className="mr-2 h-4 w-4" />}
-                      {isSaving ? 'Salvando...' : isEditMode ? 'Salvar Alterações' : 'Editar Layout'}
-                  </Button>
-                </div>
-              )}
-              <nav className="hidden md:flex items-center gap-2">
-                <Button variant="ghost" size="icon" asChild>
-                  <Link href="/dashboard"><Home className="h-5 w-5" /></Link>
-                </Button>
-                 {isAdmin && (
-                    <Button variant="ghost" size="icon" asChild>
-                        <Link href="/admin"><ShieldCheck className="h-5 w-5" /></Link>
-                    </Button>
-                 )}
-              </nav>
-
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-10 w-10 rounded-full">
-                    <Avatar className="h-10 w-10">
-                      <AvatarImage src={user.photoURL || undefined} alt={user.displayName || 'User'} />
-                      <AvatarFallback>{user.displayName?.charAt(0).toUpperCase()}</AvatarFallback>
-                    </Avatar>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56" align="end" forceMount>
-                  <DropdownMenuLabel className="font-normal">
-                    <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none text-white">{user.displayName || 'Usuário'}</p>
-                      <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
-                    </div>
-                  </DropdownMenuLabel>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem asChild><Link href="/dashboard">Dashboard</Link></DropdownMenuItem>
-                   {isAdmin && <DropdownMenuItem asChild><Link href="/admin">Painel Admin</Link></DropdownMenuItem>}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={handleSignOut}>Sair</DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+              <div className="hidden md:flex items-center gap-2">
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <button className="flex items-center gap-2 transition-opacity hover:opacity-80">
+                      <Avatar className="h-9 w-9 border-2 border-transparent group-hover:border-primary">
+                        <AvatarImage src={user.photoURL || undefined} alt={user.displayName || 'User'} />
+                        <AvatarFallback>{user.displayName?.charAt(0).toUpperCase()}</AvatarFallback>
+                      </Avatar>
+                    </button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-56" align="end" forceMount>
+                    <DropdownMenuLabel className="font-normal">
+                      <div className="flex flex-col space-y-1">
+                        <p className="text-sm font-medium leading-none text-white">{user.displayName || 'Usuário'}</p>
+                        <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild><Link href="/dashboard"><LayoutGrid className="mr-2 h-4 w-4" /><span>Dashboard</span></Link></DropdownMenuItem>
+                    <DropdownMenuItem asChild><Link href="/dashboard"><UserCircle className="mr-2 h-4 w-4" /><span>Perfil</span></Link></DropdownMenuItem>
+                    {isAdmin && <DropdownMenuItem asChild><Link href="/admin"><ShieldCheck className="mr-2 h-4 w-4" /><span>Painel Admin</span></Link></DropdownMenuItem>}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={handleSignOut} className="text-red-500 focus:text-red-400 focus:bg-red-500/10">
+                        <LogOut className="mr-2 h-4 w-4" />
+                        <span>Sair</span>
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </div>
 
                {/* Mobile Menu */}
               <div className="md:hidden">
-                 <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-                  <SheetTrigger asChild>
-                    <Button variant="ghost" size="icon">
-                      <Menu className="h-6 w-6" />
-                    </Button>
-                  </SheetTrigger>
-                  <SheetContent>
-                      <nav className="flex flex-col gap-4 text-lg font-medium mt-10">
-                        {navLinks}
-                      </nav>
-                  </SheetContent>
-                </Sheet>
+                <button onClick={() => setIsSheetOpen(true)} className="text-white">
+                    <Menu className="h-6 w-6" />
+                </button>
               </div>
-
             </>
           ) : (
-            <Button asChild>
-                <Link href="/login">Começar Agora</Link>
+            <Button asChild variant="destructive" className="bg-primary hover:bg-primary/90">
+                <Link href="/login">Login</Link>
             </Button>
           )}
         </div>
-      </div>
-    </header>
+      </motion.nav>
+
+       {/* Mobile Sheet */}
+      <AnimatePresence>
+      {isSheetOpen && (
+        <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 z-[100] md:hidden"
+            onClick={() => setIsSheetOpen(false)}
+        >
+            <motion.div
+                initial={{ x: '100%' }}
+                animate={{ x: 0 }}
+                exit={{ x: '100%' }}
+                transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+                className="fixed top-0 right-0 h-full w-3/4 max-w-sm bg-background p-6 shadow-lg"
+                onClick={(e) => e.stopPropagation()}
+            >
+                <div className="flex justify-between items-center mb-10">
+                    <h2 className="text-xl font-bold text-primary">Navegar</h2>
+                    <button onClick={() => setIsSheetOpen(false)}><X/></button>
+                </div>
+                <nav className="flex flex-col gap-4">
+                    {navLinks}
+                    <div className="border-t border-border pt-4 mt-4">
+                      {user ? (
+                         <Button onClick={handleSignOut} variant="destructive" className="w-full justify-start gap-2">
+                           <LogOut className="h-4 w-4"/> Sair
+                         </Button>
+                      ) : (
+                        <Button asChild variant="destructive" className="w-full">
+                          <Link href="/login">Login</Link>
+                        </Button>
+                      )}
+                    </div>
+                </nav>
+            </motion.div>
+        </motion.div>
+      )}
+      </AnimatePresence>
+    </>
   );
 }
-
-    

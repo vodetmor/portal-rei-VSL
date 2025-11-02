@@ -1,16 +1,19 @@
 import type { Metadata } from "next";
-import { Inter } from "next/font/google";
+import { Poppins } from "next/font/google";
 import "./globals.css";
 import { FirebaseClientProvider } from "@/firebase/client-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { Nav } from "@/components/nav";
-import { EditModeProvider } from "@/context/EditModeContext";
 
-const inter = Inter({ subsets: ["latin"], variable: '--font-sans' });
+const poppins = Poppins({
+  subsets: ["latin"],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-sans'
+});
 
 export const metadata: Metadata = {
-  title: "Rei da VSL",
-  description: "Sua plataforma para dominar a arte das VSLs.",
+  title: "Portal Rei da VSL",
+  description: "Sua plataforma para dominar a arte das VSLs, no estilo Netflix.",
   icons: {
     icon: '/favicon.ico',
   }
@@ -23,13 +26,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className={inter.className}>
+      <body className={poppins.className}>
         <FirebaseClientProvider>
-          <EditModeProvider>
             <Nav />
             <main>{children}</main>
             <Toaster />
-          </EditModeProvider>
         </FirebaseClientProvider>
       </body>
     </html>
