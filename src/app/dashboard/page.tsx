@@ -521,20 +521,20 @@ function DashboardClientPage() {
                 )}
             </div>
             {loading ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-                  {Array.from({ length: 5 }).map((_, index) => (
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                  {Array.from({ length: 4 }).map((_, index) => (
                       <div key={index}>
                           <Skeleton className="aspect-[2/3] w-full rounded-lg" />
                       </div>
                   ))}
                 </div>
             ) : (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                   {courses.map((course, index) => (
                     <CourseCard
                         key={course.id}
                         course={course}
-                        priority={index < 5}
+                        priority={index < 4}
                         isAdmin={isAdmin}
                         isEditing={isEditMode}
                         onUpdate={handleCourseUpdate}
@@ -555,3 +555,5 @@ export default function DashboardPage() {
     <DashboardClientPage />
   )
 }
+
+    
