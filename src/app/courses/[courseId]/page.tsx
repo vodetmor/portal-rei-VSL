@@ -7,13 +7,14 @@ import { doc, getDoc, type DocumentData } from 'firebase/firestore';
 import ReactPlayer from 'react-player/lazy';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { PlayCircle } from 'lucide-react';
+import { PlayCircle, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useToast } from '@/hooks/use-toast';
 
 interface Lesson {
     id: string;
     title: string;
-    videoUrl?: string; // Each lesson can have its own video
+    videoUrl?: string; 
 }
   
 interface Module {
@@ -27,18 +28,20 @@ interface Course extends DocumentData {
   title: string;
   description: string;
   modules: Module[];
-  videoUrl: string; // Keep a main videoUrl as fallback or intro
+  videoUrl: string;
 }
 
 export default function CoursePlayerPage() {
   const { user, loading: userLoading } = useUser();
   const firestore = useFirestore();
   const params = useParams();
+  const { toast } = useToast();
   const courseId = params.courseId as string;
   
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeLesson, setActiveLesson] = useState<Lesson | null>(null);
+  const [unlocked, setUnlocked] = useState(false); // For now, simple lock state
 
   useEffect(() => {
     const fetchCourse = async () => {
@@ -51,24 +54,52 @@ export default function CoursePlayerPage() {
         if (courseSnap.exists()) {
           const courseData = { id: courseSnap.id, ...courseSnap.data() } as Course;
           setCourse(courseData);
-          // Set the first lesson of the first module as the initial active lesson
-          if (courseData.modules && courseData.modules.length > 0 && courseData.modules[0].lessons.length > 0) {
+          
+          // For simplicity, let's say the course is unlocked if the user is logged in
+          // In a real app, you'd check for purchase/enrollment here.
+          setUnlocked(!!user);
+
+          // Set the first lesson of the first module as the initial active lesson if unlocked
+          if (!!user && courseData.modules && courseData.modules.length > 0 && courseData.modules[0].lessons.length > 0) {
             setActiveLesson(courseData.modules[0].lessons[0]);
+          } else {
+            setActiveLesson(null);
           }
         } else {
           console.log('No such document!');
+           toast({ variant: "destructive", title: "Erro", description: "Curso não encontrado."});
         }
       } catch (error) {
         console.error('Error fetching course:', error);
+        toast({ variant: "destructive", title: "Erro de Permissão", description: "Você não tem permissão para ver este curso."});
       } finally {
         setLoading(false);
       }
     };
 
-    if (user) {
-      fetchCourse();
+    // No need to wait for user to fetch course metadata, but user is needed to determine unlocked state
+    fetchCourse();
+
+  }, [firestore, courseId, user, toast]);
+
+  const handleLessonClick = (lesson: Lesson) => {
+    if (!unlocked) {
+        toast({
+            title: "Conteúdo Bloqueado",
+            description: "Você precisa adquirir este curso para assistir às aulas.",
+        });
+        return;
     }
-  }, [firestore, courseId, user]);
+    if (!lesson.videoUrl) {
+        toast({
+            variant: "destructive",
+            title: "Vídeo Indisponível",
+            description: "Ainda não há um vídeo para esta aula.",
+        });
+        return;
+    }
+    setActiveLesson(lesson);
+  }
   
   if (userLoading || loading) {
     return (
@@ -93,34 +124,37 @@ export default function CoursePlayerPage() {
   if (!course) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p>Curso não encontrado.</p>
+        <p>Curso não encontrado ou você não tem permissão para acessá-lo.</p>
       </div>
     );
   }
 
-  const currentVideoUrl = activeLesson?.videoUrl || course.videoUrl || '';
+  // Determine the video URL based on the active lesson, fallback to course's main video or an empty string
+  const currentVideoUrl = unlocked && activeLesson?.videoUrl ? activeLesson.videoUrl : (course.videoUrl || '');
 
   return (
     <div className="container mx-auto px-4 py-8 pt-24 md:px-8 grid lg:grid-cols-3 gap-8 items-start">
         {/* Left Side: Player and Description */}
         <div className="lg:col-span-2">
-            <div className="aspect-video mb-6">
-                <ReactPlayer
-                url={currentVideoUrl}
-                controls
-                playing // Auto-play when lesson changes
-                width="100%"
-                height="100%"
-                className="rounded-lg overflow-hidden bg-black"
-                config={{ 
-                    file: { 
-                    attributes: { 
-                        controlsList: 'nodownload' 
-                    } 
-                    } 
-                }}
-                onContextMenu={(e: { preventDefault: () => any; }) => e.preventDefault()}
-                />
+            <div className="aspect-video mb-6 bg-black rounded-lg overflow-hidden flex items-center justify-center">
+                {currentVideoUrl ? (
+                    <ReactPlayer
+                        url={currentVideoUrl}
+                        controls
+                        playing
+                        width="100%"
+                        height="100%"
+                        config={{ 
+                            file: { attributes: { controlsList: 'nodownload' } } 
+                        }}
+                        onContextMenu={(e: { preventDefault: () => any; }) => e.preventDefault()}
+                    />
+                ) : (
+                    <div className="text-center text-muted-foreground">
+                        <PlayCircle className="mx-auto h-16 w-16 mb-4" />
+                        <p>{unlocked ? 'Selecione uma aula para começar.' : 'Adquira o curso para assistir.'}</p>
+                    </div>
+                )}
             </div>
 
             <div className="space-y-4">
@@ -142,16 +176,16 @@ export default function CoursePlayerPage() {
                     {module.lessons.map((lesson, lessonIndex) => (
                       <li key={lesson.id || lessonIndex}>
                         <button 
-                          onClick={() => setActiveLesson(lesson)}
+                          onClick={() => handleLessonClick(lesson)}
                           className={cn(
                             "flex items-center gap-3 w-full text-left p-3 rounded-md transition-colors",
-                            activeLesson?.title === lesson.title 
+                            activeLesson?.title === lesson.title && unlocked
                                 ? "bg-primary/20 text-primary" 
                                 : "hover:bg-primary/10"
                           )}
                         >
-                          <PlayCircle className="h-5 w-5 flex-shrink-0" />
-                          <span className="flex-grow">{lesson.title}</span>
+                          {unlocked ? <PlayCircle className="h-5 w-5 flex-shrink-0" /> : <Lock className="h-5 w-5 flex-shrink-0 text-muted-foreground" />}
+                          <span className={cn("flex-grow", !unlocked && "text-muted-foreground")}>{lesson.title}</span>
                         </button>
                       </li>
                     ))}

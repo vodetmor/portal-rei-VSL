@@ -44,7 +44,11 @@ function AdminDashboard() {
         })) as Course[];
         setCourses(coursesData);
     } catch (e) {
-        // TODO: Handle permission error with a toast
+        toast({
+            variant: "destructive",
+            title: "Erro de Permissão",
+            description: "Não foi possível carregar os cursos. Verifique suas permissões."
+        })
     }
   };
   
@@ -54,7 +58,11 @@ function AdminDashboard() {
         const querySnapshot = await getDocs(collection(firestore, 'users'));
         setUserCount(querySnapshot.size);
     } catch(e) {
-         // TODO: Handle permission error with a toast
+        toast({
+            variant: "destructive",
+            title: "Erro de Permissão",
+            description: "Não foi possível carregar o número de usuários."
+        })
     }
   };
 

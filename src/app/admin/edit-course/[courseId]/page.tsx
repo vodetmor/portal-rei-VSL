@@ -43,6 +43,7 @@ type EditCourseFormValues = z.infer<typeof editCourseSchema>;
 interface Lesson {
     id: string;
     title: string;
+    videoUrl: string;
 }
   
 interface Module {
@@ -73,6 +74,10 @@ function EditCourseForm() {
 
   const form = useForm<EditCourseFormValues>({
     resolver: zodResolver(editCourseSchema),
+    defaultValues: {
+        title: '',
+        description: '',
+    }
   });
 
   useEffect(() => {
@@ -89,9 +94,9 @@ function EditCourseForm() {
           setCourse(courseData);
           // Add temporary UUIDs for client-side key management
           const initialModules = (courseData.modules || []).map(m => ({
-            ...m,
+            ...(m as Omit<Module, 'id'>),
             id: uuidv4(),
-            lessons: m.lessons.map(l => ({ ...l, id: uuidv4() }))
+            lessons: (m.lessons || []).map((l: Omit<Lesson, 'id'>) => ({ ...l, id: uuidv4() }))
           }));
           setModules(initialModules);
           form.reset({
@@ -137,7 +142,7 @@ function EditCourseForm() {
     const addLesson = (moduleId: string) => {
         setModules(modules.map(m => 
         m.id === moduleId 
-            ? { ...m, lessons: [...m.lessons, { id: uuidv4(), title: '' }] }
+            ? { ...m, lessons: [...m.lessons, { id: uuidv4(), title: '', videoUrl: '' }] }
             : m
         ));
     };
@@ -158,6 +163,14 @@ function EditCourseForm() {
         ));
     };
 
+    const updateLessonVideoUrl = (moduleId: string, lessonId: string, videoUrl: string) => {
+        setModules(modules.map(m => 
+          m.id === moduleId 
+            ? { ...m, lessons: m.lessons.map(l => l.id === lessonId ? { ...l, videoUrl } : l) }
+            : m
+        ));
+    };
+
   const onSubmit = async (data: EditCourseFormValues) => {
     if (!firestore || !courseId) return;
     setIsSubmitting(true);
@@ -168,7 +181,7 @@ function EditCourseForm() {
         ...data,
         modules: modules.map(({ id, ...restModule }) => ({
             ...restModule,
-            lessons: restModule.lessons.map(({ id, ...restLesson }) => restLesson)
+            lessons: restModule.lessons.map(({ id: lessonId, ...restLesson }) => restLesson)
         })), // Strip temporary IDs before saving
       });
       toast({
@@ -277,7 +290,7 @@ function EditCourseForm() {
                         </AlertDialogHeader>
                         <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDelete} disabled={isDeleting}>
+                        <AlertDialogAction onClick={handleDelete} disabled={isDeleting} className="bg-destructive hover:bg-destructive/90">
                             {isDeleting ? 'Excluindo...' : 'Excluir'}
                         </AlertDialogAction>
                         </AlertDialogFooter>
@@ -341,17 +354,24 @@ function EditCourseForm() {
                                         <Trash2 className="h-4 w-4 text-destructive" />
                                     </Button>
                                 </div>
-                                <div className="pl-4 space-y-2">
+                                <div className="pl-4 space-y-3">
                                     {module.lessons.map((lesson, lessonIndex) => (
-                                        <div key={lesson.id} className="flex items-center gap-2">
+                                        <div key={lesson.id} className="flex flex-col gap-2 p-3 rounded-md border border-border/50 bg-background/30">
+                                             <div className="flex items-center gap-2">
+                                                <Input
+                                                    placeholder={`Título da Aula ${lessonIndex + 1}`}
+                                                    value={lesson.title}
+                                                    onChange={(e) => updateLessonTitle(module.id, lesson.id, e.target.value)}
+                                                />
+                                                <Button type="button" variant="ghost" size="icon" onClick={() => removeLesson(module.id, lesson.id)}>
+                                                    <Trash2 className="h-4 w-4 text-destructive/70" />
+                                                </Button>
+                                            </div>
                                             <Input
-                                                placeholder={`Título da Aula ${lessonIndex + 1}`}
-                                                value={lesson.title}
-                                                onChange={(e) => updateLessonTitle(module.id, lesson.id, e.target.value)}
+                                                placeholder="URL do Vídeo da Aula (Ex: https://...)"
+                                                value={lesson.videoUrl}
+                                                onChange={(e) => updateLessonVideoUrl(module.id, lesson.id, e.target.value)}
                                             />
-                                            <Button type="button" variant="ghost" size="icon" onClick={() => removeLesson(module.id, lesson.id)}>
-                                                <Trash2 className="h-4 w-4 text-destructive/70" />
-                                            </Button>
                                         </div>
                                     ))}
                                 </div>
@@ -390,5 +410,3 @@ export default function EditCoursePage() {
         </AdminGuard>
     )
 }
-
-    

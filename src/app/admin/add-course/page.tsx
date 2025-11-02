@@ -30,6 +30,7 @@ type AddCourseFormValues = z.infer<typeof addCourseSchema>;
 interface Lesson {
     id: string;
     title: string;
+    videoUrl: string;
 }
   
 interface Module {
@@ -69,7 +70,7 @@ function AddCourseForm() {
   const addLesson = (moduleId: string) => {
     setModules(modules.map(m => 
       m.id === moduleId 
-        ? { ...m, lessons: [...m.lessons, { id: uuidv4(), title: '' }] }
+        ? { ...m, lessons: [...m.lessons, { id: uuidv4(), title: '', videoUrl: '' }] }
         : m
     ));
   };
@@ -89,6 +90,14 @@ function AddCourseForm() {
         : m
     ));
   };
+  
+  const updateLessonVideoUrl = (moduleId: string, lessonId: string, videoUrl: string) => {
+    setModules(modules.map(m => 
+      m.id === moduleId 
+        ? { ...m, lessons: m.lessons.map(l => l.id === lessonId ? { ...l, videoUrl } : l) }
+        : m
+    ));
+  };
 
 
   const onSubmit = async (data: AddCourseFormValues) => {
@@ -97,22 +106,27 @@ function AddCourseForm() {
     
     const videoId = uuidv4();
     const thumbnailUrl = `https://picsum.photos/seed/${videoId}/400/600`;
-    const videoUrl = ''; // Placeholder
+    const videoUrl = ''; // Placeholder for main course video, if any
 
     try {
-      const courseDocRef = await addDoc(collection(firestore, 'courses'), {
+      const courseData = {
         title: data.title,
         description: data.description,
         videoUrl: videoUrl,
         thumbnailUrl: thumbnailUrl,
         imageHint: 'abstract tech',
         createdAt: new Date(),
-        modules: modules.map(({ id, ...rest }) => rest), // Don't save temporary UUIDs
-      });
+        modules: modules.map(({ id, ...moduleRest }) => ({
+            ...moduleRest,
+            lessons: moduleRest.lessons.map(({ id: lessonId, ...lessonRest }) => lessonRest),
+        })),
+      };
+      
+      const courseDocRef = await addDoc(collection(firestore, 'courses'), courseData);
 
       toast({
         title: "Sucesso!",
-        description: "O curso foi criado. Agora você pode adicionar módulos e vídeos.",
+        description: "O curso foi criado. Agora você pode continuar editando.",
       });
       router.push(`/admin/edit-course/${courseDocRef.id}`);
     } catch (error) {
@@ -200,17 +214,24 @@ function AddCourseForm() {
                                         <Trash2 className="h-4 w-4 text-destructive" />
                                     </Button>
                                 </div>
-                                <div className="pl-4 space-y-2">
+                                <div className="pl-4 space-y-3">
                                     {module.lessons.map((lesson, lessonIndex) => (
-                                        <div key={lesson.id} className="flex items-center gap-2">
-                                            <Input
-                                                placeholder={`Título da Aula ${lessonIndex + 1}`}
-                                                value={lesson.title}
-                                                onChange={(e) => updateLessonTitle(module.id, lesson.id, e.target.value)}
+                                        <div key={lesson.id} className="flex flex-col gap-2 p-3 rounded-md border border-border/50 bg-background/30">
+                                            <div className="flex items-center gap-2">
+                                                <Input
+                                                    placeholder={`Título da Aula ${lessonIndex + 1}`}
+                                                    value={lesson.title}
+                                                    onChange={(e) => updateLessonTitle(module.id, lesson.id, e.target.value)}
+                                                />
+                                                <Button type="button" variant="ghost" size="icon" onClick={() => removeLesson(module.id, lesson.id)}>
+                                                    <Trash2 className="h-4 w-4 text-destructive/70" />
+                                                </Button>
+                                            </div>
+                                             <Input
+                                                placeholder="URL do Vídeo da Aula (Ex: https://...)"
+                                                value={lesson.videoUrl}
+                                                onChange={(e) => updateLessonVideoUrl(module.id, lesson.id, e.target.value)}
                                             />
-                                            <Button type="button" variant="ghost" size="icon" onClick={() => removeLesson(module.id, lesson.id)}>
-                                                <Trash2 className="h-4 w-4 text-destructive/70" />
-                                            </Button>
                                         </div>
                                     ))}
                                 </div>
@@ -230,7 +251,7 @@ function AddCourseForm() {
 
                     <div className="flex justify-end mt-8">
                         <Button type="submit" disabled={isSubmitting}>
-                            {isSubmitting ? 'Salvando...' : 'Salvar Curso'}
+                            {isSubmitting ? 'Salvando...' : 'Salvar e Continuar'}
                         </Button>
                     </div>
                 </form>
