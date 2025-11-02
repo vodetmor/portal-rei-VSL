@@ -27,7 +27,6 @@ interface Course extends DocumentData {
   title: string;
   thumbnailUrl: string;
   imageHint: string;
-  isFeatured?: boolean;
 }
 
 const iconMap: { [key: string]: LucideIcon } = {
@@ -522,32 +521,27 @@ function DashboardClientPage() {
                 )}
             </div>
             {loading ? (
-              <div className="flex space-x-4">
-                  {Array.from({ length: 4 }).map((_, index) => (
-                      <div key={index} className="w-1/4">
-                          <Skeleton className="h-[180px] w-full rounded-lg" />
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+                  {Array.from({ length: 5 }).map((_, index) => (
+                      <div key={index}>
+                          <Skeleton className="aspect-[2/3] w-full rounded-lg" />
                       </div>
                   ))}
                 </div>
             ) : (
-              <Carousel opts={{ align: "start", loop: courses.length > 4 }} className="w-full">
-                <CarouselContent className="-ml-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
                   {courses.map((course, index) => (
-                    <CarouselItem key={course.id} className="md:basis-1/2 lg:basis-1/3 xl:basis-1/5 pl-4">
-                        <CourseCard
-                          course={course}
-                          priority={index < 4}
-                          isAdmin={isAdmin}
-                          isEditing={isEditMode}
-                          onUpdate={handleCourseUpdate}
-                          onDelete={handleConfirmDelete}
-                        />
-                    </CarouselItem>
+                    <CourseCard
+                        key={course.id}
+                        course={course}
+                        priority={index < 5}
+                        isAdmin={isAdmin}
+                        isEditing={isEditMode}
+                        onUpdate={handleCourseUpdate}
+                        onDelete={handleConfirmDelete}
+                    />
                   ))}
-                </CarouselContent>
-                <CarouselPrevious className="hidden md:flex -left-4" />
-                <CarouselNext className="hidden md:flex -right-4" />
-              </Carousel>
+              </div>
             )}
           </div>
         </section>

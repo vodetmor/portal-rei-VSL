@@ -22,6 +22,7 @@ import { Input } from './ui/input';
 import { Progress } from './ui/progress';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { useToast } from '@/hooks/use-toast';
+import { Popover, PopoverContent, PopoverTrigger } from './ui/popover';
 
 interface CourseCardProps {
   course: {
@@ -40,7 +41,7 @@ interface CourseCardProps {
 export function CourseCard({ course, priority = false, isAdmin = false, isEditing = false, onUpdate, onDelete }: CourseCardProps) {
   const { toast } = useToast();
   const [tempTitle, setTempTitle] = useState(course.title);
-  const [tempThumbnail, setTempThumbnail] = useState(course.thumbnailUrl);
+  const [tempThumbnailUrl, setTempThumbnailUrl] = useState(course.thumbnailUrl || '');
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   
@@ -56,41 +57,39 @@ export function CourseCard({ course, priority = false, isAdmin = false, isEditin
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
-    if (file) {
+    if (file && onUpdate) {
       setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setTempThumbnail(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      
+      // Start upload immediately
+      setUploadProgress(0);
+      const storage = getStorage();
+      const storageRef = ref(storage, `courses/${course.id}/${Date.now()}-${file.name}`);
+      const uploadTask = uploadBytesResumable(storageRef, file);
+
+      uploadTask.on('state_changed',
+        (snapshot) => setUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
+        (error) => {
+          toast({ variant: 'destructive', title: 'Falha no Upload', description: 'Não foi possível enviar a imagem.' });
+          setUploadProgress(null);
+          setImageFile(null);
+        },
+        () => {
+          getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+            onUpdate(course.id, { thumbnailUrl: downloadURL });
+            setTempThumbnailUrl(downloadURL); // Update local preview
+          });
+          setUploadProgress(null);
+          setImageFile(null);
+        }
+      );
     }
   };
 
-  const handleImageSave = async () => {
-    if (!onUpdate || !imageFile) return;
-
-    setUploadProgress(0);
-    const storage = getStorage();
-    const storageRef = ref(storage, `courses/${course.id}/${Date.now()}-${imageFile.name}`);
-    const uploadTask = uploadBytesResumable(storageRef, imageFile);
-
-    try {
-        const downloadURL = await new Promise<string>((resolve, reject) => {
-            uploadTask.on('state_changed',
-                (snapshot) => setUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
-                (error) => reject(error),
-                () => getDownloadURL(uploadTask.snapshot.ref).then(resolve)
-            );
-        });
-        onUpdate(course.id, { thumbnailUrl: downloadURL });
-        setImageFile(null);
-    } catch(error) {
-        toast({ variant: 'destructive', title: 'Falha no Upload', description: 'Não foi possível enviar a imagem.' });
-    } finally {
-        setUploadProgress(null);
+  const handleUrlSave = () => {
+    if (onUpdate && tempThumbnailUrl !== course.thumbnailUrl) {
+        onUpdate(course.id, { thumbnailUrl: tempThumbnailUrl })
     }
-  };
-
+  }
 
   const handleDeleteConfirm = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -101,12 +100,12 @@ export function CourseCard({ course, priority = false, isAdmin = false, isEditin
   };
 
 
-  const finalImageUrl = tempThumbnail || `https://picsum.photos/seed/${course.id}/400/600`;
+  const finalImageUrl = tempThumbnailUrl || `https://picsum.photos/seed/${course.id}/400/600`;
   
   const cardContent = (
     <>
         <Image
-          src={finalImageUrl}
+          src={isEditing ? finalImageUrl : (course.thumbnailUrl || `https://picsum.photos/seed/${course.id}/400/600`)}
           alt={course.title}
           width={400}
           height={600}
@@ -128,7 +127,7 @@ export function CourseCard({ course, priority = false, isAdmin = false, isEditin
                         onChange={handleTitleChange}
                         onBlur={handleTitleSave}
                         className="bg-background/80 border-primary/50 text-white font-semibold"
-                        onKeyDown={(e) => { if (e.key === 'Enter') handleTitleSave(); }}
+                        onKeyDown={(e) => { if (e.key === 'Enter') {e.preventDefault(); (e.target as HTMLInputElement).blur();} }}
                     />
                 </div>
             ) : (
@@ -164,16 +163,33 @@ export function CourseCard({ course, priority = false, isAdmin = false, isEditin
         )}>
           {isEditing ? (
               <div className='flex flex-col gap-2'>
-                <label htmlFor={`img-${course.id}`} className="flex items-center justify-center h-9 w-9 cursor-pointer rounded-full bg-black/60 hover:bg-primary border border-white/20 text-white">
+                <label htmlFor={`img-upload-${course.id}`} className="flex items-center justify-center h-9 w-9 cursor-pointer rounded-full bg-black/60 hover:bg-primary border border-white/20 text-white">
                     <Upload className="h-4 w-4" />
                 </label>
-                <Input id={`img-${course.id}`} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
-                {imageFile && (
-                    <Button size="icon" className="h-9 w-9 bg-green-600/80 hover:bg-green-500 border-white/20 text-white" onClick={handleImageSave}>
-                       <Save className="h-4 w-4" />
-                    </Button>
-                )}
-                {uploadProgress !== null && <Progress value={uploadProgress} className="w-9 h-1" />}
+                <Input id={`img-upload-${course.id}`} type="file" accept="image/*" className="hidden" onChange={handleFileChange} />
+                
+                <Popover>
+                    <PopoverTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-9 w-9 bg-black/60 hover:bg-primary border border-white/20 text-white">
+                           <Link2 className="h-4 w-4" />
+                        </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-64 p-2" side="left">
+                        <div className="grid gap-2">
+                           <p className="text-xs text-muted-foreground">Cole a URL da imagem</p>
+                            <Input
+                                value={tempThumbnailUrl}
+                                onChange={(e) => setTempThumbnailUrl(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') {e.preventDefault(); handleUrlSave(); (e.target as HTMLInputElement).blur();} }}
+                                className="h-8 text-xs"
+                                placeholder="https://..."
+                            />
+                             <Button onClick={handleUrlSave} size="sm" className="h-7 text-xs">Salvar URL</Button>
+                        </div>
+                    </PopoverContent>
+                </Popover>
+
+                {uploadProgress !== null && <Progress value={uploadProgress} className="w-9 h-1 bg-background/50" />}
               </div>
 
           ) : (
