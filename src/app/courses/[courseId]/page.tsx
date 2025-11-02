@@ -22,6 +22,7 @@ import { ActionToolbar } from '@/components/ui/action-toolbar';
 import { addDays, differenceInDays, parseISO } from 'date-fns';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 
 interface Module {
     id: string;
@@ -472,7 +473,7 @@ export default function CoursePlayerPage() {
         )}
       </section>
 
-      {/* Modules Grid */}
+      {/* Modules Carousel */}
       <section className="container mx-auto px-4 py-12 md:px-8">
         <div className="flex justify-between items-center mb-6">
             <div className="flex items-center gap-3">
@@ -492,34 +493,46 @@ export default function CoursePlayerPage() {
         </div>
         
         {course.modules && course.modules.length > 0 ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
-            {course.modules.map((module, index) => {
-                const unlocked = isModuleUnlocked(module);
-                const daysRemaining = getDaysUntilRelease(module);
+          <Carousel
+            opts={{
+              align: "start",
+              loop: false,
+            }}
+            className="w-full"
+          >
+            <CarouselContent>
+              {course.modules.map((module, index) => {
+                  const unlocked = isModuleUnlocked(module);
+                  const daysRemaining = getDaysUntilRelease(module);
 
-                return (
-                <div key={module.id || index} className="relative">
-                  <CourseCard
-                    course={{ ...module, id: module.id || `module-${index}` }}
-                    priority={index < 5}
-                    isAdmin={false} // Editing happens at the course level for now
-                    isLocked={!unlocked}
-                  />
-                  {!unlocked && (
-                    <div className="absolute inset-0 bg-black/70 rounded-lg flex flex-col items-center justify-center text-center p-4">
-                        <Lock className="h-8 w-8 text-primary mb-2" />
-                        <p className="text-white font-semibold">Bloqueado</p>
-                        <p className="text-xs text-muted-foreground">
-                            {daysRemaining !== null 
-                                ? `Libera em ${daysRemaining} ${daysRemaining > 1 ? 'dias' : 'dia'}`
-                                : 'Em breve'}
-                        </p>
-                    </div>
-                  )}
-                </div>
-                )
-            })}
-          </div>
+                  return (
+                    <CarouselItem key={module.id || index} className="basis-1/2 md:basis-1/3 lg:basis-1/4 xl:basis-1/5">
+                      <div className="relative p-1">
+                        <CourseCard
+                          course={{ ...module, id: module.id || `module-${index}` }}
+                          priority={index < 5}
+                          isAdmin={false} // Editing happens at the course level for now
+                          isLocked={!unlocked}
+                        />
+                        {!unlocked && (
+                          <div className="absolute inset-1 bg-black/70 rounded-lg flex flex-col items-center justify-center text-center p-4">
+                              <Lock className="h-8 w-8 text-primary mb-2" />
+                              <p className="text-white font-semibold">Bloqueado</p>
+                              <p className="text-xs text-muted-foreground">
+                                  {daysRemaining !== null 
+                                      ? `Libera em ${daysRemaining} ${daysRemaining > 1 ? 'dias' : 'dia'}`
+                                      : 'Em breve'}
+                              </p>
+                          </div>
+                        )}
+                      </div>
+                    </CarouselItem>
+                  )
+              })}
+            </CarouselContent>
+            <CarouselPrevious />
+            <CarouselNext />
+          </Carousel>
         ) : (
           <div className="flex flex-col items-center justify-center text-center p-12 rounded-lg bg-secondary/50">
             <p className="text-muted-foreground">Nenhum módulo encontrado para este curso.</p>
