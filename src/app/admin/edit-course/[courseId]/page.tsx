@@ -26,6 +26,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Separator } from '@/components/ui/separator';
 import { Dock } from '@/components/ui/dock';
+import { cn } from '@/lib/utils';
 
 interface Lesson {
   id: string;
@@ -205,7 +206,7 @@ function EditCoursePageContent() {
   if (!course) return null;
 
   return (
-    <div className="container mx-auto px-4 py-8 md:px-8 pt-24">
+    <div className="container mx-auto px-4 py-8 md:px-8 pt-24 relative pb-32 md:pb-8">
       <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
         <div>
           <Button asChild variant="outline" size="sm" className="mb-2">
@@ -216,6 +217,14 @@ function EditCoursePageContent() {
         </div>
       </div>
       
+       {/* Dock for actions */}
+       <div className={cn(
+            "fixed left-0 right-0 z-50",
+            "bottom-4 md:bottom-auto md:top-24"
+        )}>
+          <Dock items={dockItems} />
+      </div>
+
       {/* Course Details Editor */}
       <Card className="mb-8">
         <CardHeader>
@@ -271,10 +280,6 @@ function EditCoursePageContent() {
           </div>
         </CardContent>
       </Card>
-      <div className="fixed bottom-4 left-0 right-0 z-50">
-          <Dock items={dockItems} />
-      </div>
-
     </div>
   );
 }
@@ -540,5 +545,3 @@ export default function EditCoursePage() {
         </AdminGuard>
     )
 }
-
-    
