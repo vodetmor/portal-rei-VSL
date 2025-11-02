@@ -56,47 +56,28 @@ service cloud.firestore {
     }
     
     // --- Lesson Engagement Features ---
-    match /courses/{courseId}/lessons/{lessonId} {
+match /courses/{courseId}/lessons/{lessonId} {
+  // Comments Subcollection
+  match /comments/{commentId} {
+    allow list, read, create, update, delete: if hasCourseAccess(courseId) || isAdmin();
 
-        // Comments Subcollection
-        match /comments/{commentId} {
-          // ANY authenticated user can read comments, as requested.
-          allow list, read: if request.auth != null;
-          
-          // Creation allowed only for users with course access or admins
-          allow create: if (request.auth != null && hasCourseAccess(courseId)) || isAdmin();
-          
-          // Update: Admins can pin/update counts, user can edit their own comment if they have access
-          allow update: if (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isPinned', 'likeCount', 'replyCount']))
-                        || (request.auth != null && request.auth.uid == resource.data.userId && hasCourseAccess(courseId));
-          
-          // Deletion: Owner with access can delete, or any admin
-          allow delete: if (request.auth != null && request.auth.uid == resource.data.userId && hasCourseAccess(courseId))
-                        || isAdmin();
-
-          // --- Replies Subcollection ---
-          match /replies/{replyId} {
-            // ANY authenticated user can read replies.
-            allow list, read: if request.auth != null;
-            allow create: if (request.auth != null && hasCourseAccess(courseId)) || isAdmin();
-            allow update: if (request.auth != null && request.auth.uid == resource.data.userId && hasCourseAccess(courseId)) || isAdmin();
-            allow delete: if (request.auth != null && request.auth.uid == resource.data.userId && hasCourseAccess(courseId)) || isAdmin();
-          }
-
-          // --- Likes Subcollection ---
-          match /likes/{userId} {
-            // ANY authenticated user can see who liked a comment.
-            allow list, read: if request.auth != null;
-            allow create, delete: if request.auth != null && request.auth.uid == userId && hasCourseAccess(courseId);
-          }
-        }
-
-        // Reactions Subcollection
-        match /reactions/{reactionId} {
-          allow read, list: if hasCourseAccess(courseId) || isAdmin();
-          allow write: if isAdmin() || (request.auth.uid == reactionId && hasCourseAccess(courseId));
-        }
+    // Replies Subcollection
+    match /replies/{replyId} {
+      allow list, read, create, update, delete: if hasCourseAccess(courseId) || isAdmin();
     }
+
+    // Likes Subcollection
+    match /likes/{userId} {
+      allow list, read, create, delete: if hasCourseAccess(courseId) || isAdmin();
+    }
+  }
+
+  // Reactions Subcollection
+  match /reactions/{reactionId} {
+    allow read, list, write, update, delete: if hasCourseAccess(courseId) || isAdmin();
+  }
+}
+
 
     // --- Other Collections ---
 
