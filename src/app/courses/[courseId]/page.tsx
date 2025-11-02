@@ -96,93 +96,93 @@ export default function CoursePlayerPage() {
     setIsClient(true);
   }, []);
 
-  useEffect(() => {
-    const fetchCourseData = async () => {
-        if (!user || !firestore) {
-            if(!userLoading) router.push('/login');
-            return;
-        };
-
-        setLoading(true);
-
-        try {
-            // Check admin status
-            let userIsAdmin = false;
-            if (user.email === 'admin@reidavsl.com') {
-                userIsAdmin = true;
-            } else {
-                const userDocRef = doc(firestore, 'users', user.uid);
-                const userDocSnap = await getDoc(userDocRef);
-                userIsAdmin = userDocSnap.exists() && userDocSnap.data().role === 'admin';
-            }
-            setIsAdmin(userIsAdmin);
-
-            // Check course access
-            const accessDocRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId);
-            const accessDocSnap = await getDoc(accessDocRef);
-
-            if (!accessDocSnap.exists() && !userIsAdmin) {
-                toast({ variant: "destructive", title: "Acesso Negado", description: "Você não tem acesso a este curso." });
-                router.push('/dashboard');
-                return;
-            }
-            if(accessDocSnap.exists()){
-                const accessTimestamp = accessDocSnap.data().grantedAt?.toDate();
-                if (accessTimestamp) {
-                    setCourseAccessInfo({ grantedAt: accessTimestamp.toISOString() });
-                }
-            } else if (userIsAdmin) {
-                setCourseAccessInfo({ grantedAt: new Date().toISOString() });
-            }
-
-            // Fetch course data
-            const courseRef = doc(firestore, 'courses', courseId);
-            const courseSnap = await getDoc(courseRef);
-            if (!courseSnap.exists()) {
-                toast({ variant: "destructive", title: "Erro", description: "Curso não encontrado." });
-                router.push('/dashboard');
-                return;
-            }
-
-            const courseData = { id: courseSnap.id, ...courseSnap.data() } as Course;
-            if (courseData.status === 'draft' && !userIsAdmin) {
-                toast({ variant: "destructive", title: "Curso Indisponível", description: "Este curso ainda não foi publicado." });
-                router.push('/dashboard');
-                return;
-            }
-            
-            setCourse(courseData);
-            setTempTitle(courseData.title);
-            setTempSubtitle(courseData.subtitle || 'Rei da VSL®');
-            setTempDescription(courseData.description);
-            setTempHeroImageDesktop(courseData.heroImageUrlDesktop || DEFAULT_HERO_IMAGE_DESKTOP);
-            setTempHeroImageMobile(courseData.heroImageUrlMobile || DEFAULT_HERO_IMAGE_MOBILE);
-            setHeroImageUrlInputDesktop(courseData.heroImageUrlDesktop || '');
-            setHeroImageUrlInputMobile(courseData.heroImageUrlMobile || '');
-
-            // Fetch user progress
-            const progressRef = doc(firestore, `users/${user.uid}/progress`, courseId);
-            const progressSnap = await getDoc(progressRef);
-            if (progressSnap.exists()) {
-                setUserProgress(progressSnap.data() as UserProgress);
-            }
-        } catch (error) {
-            console.error('Error fetching course data:', error);
-            const permissionError = new FirestorePermissionError({
-                path: `courses/${courseId}`,
-                operation: 'get',
-            });
-            errorEmitter.emit('permission-error', permissionError);
-            toast({ variant: "destructive", title: "Erro de Permissão", description: "Ocorreu um erro ao carregar o curso." });
-        } finally {
-            setLoading(false);
-        }
+  const fetchCourseData = useCallback(async () => {
+    if (!user || !firestore) {
+        if(!userLoading) router.push('/login');
+        return;
     };
 
-    if (!userLoading) {
-      fetchCourseData();
+    setLoading(true);
+
+    try {
+        // Check admin status
+        let userIsAdmin = false;
+        if (user.email === 'admin@reidavsl.com') {
+            userIsAdmin = true;
+        } else {
+            const userDocRef = doc(firestore, 'users', user.uid);
+            const userDocSnap = await getDoc(userDocRef);
+            userIsAdmin = userDocSnap.exists() && userDocSnap.data().role === 'admin';
+        }
+        setIsAdmin(userIsAdmin);
+
+        // Check course access
+        const accessDocRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId);
+        const accessDocSnap = await getDoc(accessDocRef);
+
+        if (!accessDocSnap.exists() && !userIsAdmin) {
+            toast({ variant: "destructive", title: "Acesso Negado", description: "Você não tem acesso a este curso." });
+            router.push('/dashboard');
+            return;
+        }
+        if(accessDocSnap.exists()){
+            const accessTimestamp = accessDocSnap.data().grantedAt?.toDate();
+            if (accessTimestamp) {
+                setCourseAccessInfo({ grantedAt: accessTimestamp.toISOString() });
+            }
+        } else if (userIsAdmin) {
+            setCourseAccessInfo({ grantedAt: new Date().toISOString() });
+        }
+
+        // Fetch course data
+        const courseRef = doc(firestore, 'courses', courseId);
+        const courseSnap = await getDoc(courseRef);
+        if (!courseSnap.exists()) {
+            toast({ variant: "destructive", title: "Erro", description: "Curso não encontrado." });
+            router.push('/dashboard');
+            return;
+        }
+
+        const courseData = { id: courseSnap.id, ...courseSnap.data() } as Course;
+        if (courseData.status === 'draft' && !userIsAdmin) {
+            toast({ variant: "destructive", title: "Curso Indisponível", description: "Este curso ainda não foi publicado." });
+            router.push('/dashboard');
+            return;
+        }
+        
+        setCourse(courseData);
+        setTempTitle(courseData.title);
+        setTempSubtitle(courseData.subtitle || 'Rei da VSL®');
+        setTempDescription(courseData.description);
+        setTempHeroImageDesktop(courseData.heroImageUrlDesktop || DEFAULT_HERO_IMAGE_DESKTOP);
+        setTempHeroImageMobile(courseData.heroImageUrlMobile || DEFAULT_HERO_IMAGE_MOBILE);
+        setHeroImageUrlInputDesktop(courseData.heroImageUrlDesktop || '');
+        setHeroImageUrlInputMobile(courseData.heroImageUrlMobile || '');
+
+        // Fetch user progress
+        const progressRef = doc(firestore, `users/${user.uid}/progress`, courseId);
+        const progressSnap = await getDoc(progressRef);
+        if (progressSnap.exists()) {
+            setUserProgress(progressSnap.data() as UserProgress);
+        }
+    } catch (error) {
+        console.error('Error fetching course data:', error);
+        const permissionError = new FirestorePermissionError({
+            path: `courses/${courseId}`,
+            operation: 'get',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        toast({ variant: "destructive", title: "Erro de Permissão", description: "Ocorreu um erro ao carregar o curso." });
+    } finally {
+        setLoading(false);
     }
   }, [user, firestore, courseId, router, toast, userLoading]);
+
+  useEffect(() => {
+    if (!userLoading && user && firestore) {
+      fetchCourseData();
+    }
+  }, [user, userLoading, firestore, fetchCourseData]);
 
   const enterEditMode = () => {
     setIsEditMode(true);

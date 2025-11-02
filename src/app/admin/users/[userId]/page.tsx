@@ -63,9 +63,14 @@ function ManageUserAccessPage() {
   const [userProgress, setUserProgress] = useState<UserProgress>({});
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isClient, setIsClient] = useState(false);
   
   const [isConfirmingRoleChange, setIsConfirmingRoleChange] = useState(false);
   const [targetRole, setTargetRole] = useState<'admin' | 'user' | null>(null);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const fetchData = useCallback(async () => {
     if (!firestore || !userId) return;
@@ -345,6 +350,7 @@ function ManageUserAccessPage() {
                 progress={userProgress[course.id] || null}
                 onAccessChange={(hasAccess) => handleAccessChange(course.id, course.title, hasAccess)}
                 onResetProgress={() => handleResetProgress(course.id, course.title)}
+                isClient={isClient}
              />
           )) : (
             <p className="text-muted-foreground text-center py-4">Nenhum curso encontrado na plataforma.</p>
@@ -362,16 +368,17 @@ interface CourseProgressCardProps {
     progress: UserProgress[string] | null;
     onAccessChange: (hasAccess: boolean) => void;
     onResetProgress: () => void;
+    isClient: boolean;
 }
 
-function CourseProgressCard({ course, access, progress, onAccessChange, onResetProgress }: CourseProgressCardProps) {
+function CourseProgressCard({ course, access, progress, onAccessChange, onResetProgress, isClient }: CourseProgressCardProps) {
     const totalLessons = course.modules?.reduce((acc, mod) => acc + (mod.lessons?.length || 0), 0) || 0;
     const completedLessonsCount = progress ? Object.keys(progress.completedLessons).length : 0;
     const overallProgress = totalLessons > 0 ? (completedLessonsCount / totalLessons) * 100 : 0;
     const hasAccess = !!access;
     
     const isModuleUnlocked = (module: Course['modules'][0]) => {
-        if (!access) return false;
+        if (!access || !isClient) return false;
         const delay = module.releaseDelayDays || 0;
         if (delay === 0) return true;
 
@@ -381,7 +388,7 @@ function CourseProgressCard({ course, access, progress, onAccessChange, onResetP
     };
 
     const getDaysUntilRelease = (module: Course['modules'][0]): number | null => {
-        if (!access) return null;
+        if (!access || !isClient) return null;
         const delay = module.releaseDelayDays || 0;
         if (delay === 0) return null;
         
@@ -502,5 +509,3 @@ export default function ManageUserPage() {
         </AdminGuard>
     )
 }
-
-    
