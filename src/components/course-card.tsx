@@ -72,7 +72,7 @@ export function CourseCard({ id, title, imageUrl, imageHint, priority = false, i
       </Link>
       
       {isAdmin && (
-        <div className="absolute top-3 right-3 z-20 flex flex-col items-center gap-2 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+        <div className="absolute top-3 right-3 z-20 flex flex-col items-center gap-2 transition-opacity duration-300">
           <Button 
             size="icon" 
             className="h-9 w-9 bg-black/60 hover:bg-primary border-white/20"
