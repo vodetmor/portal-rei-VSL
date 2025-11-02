@@ -112,7 +112,7 @@ export default function RegisterPage() {
             />
             {authError && <p className="text-sm font-medium text-destructive">{authError}</p>}
             <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting ? 'Criando conta...' : 'Criar Conta'}
+              {form.formState.isSubmitting ? 'Criando...' : 'Criar Conta'}
             </Button>
           </form>
         </Form>
