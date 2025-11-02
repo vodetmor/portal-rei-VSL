@@ -1,11 +1,10 @@
 'use client';
 
+import 'firebase/firestore';
 import { firebaseConfig } from '@/firebase/config';
 import { initializeApp, getApps, getApp, FirebaseApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-// Import 'getFirestore' e o módulo do Firestore para registro do serviço
 import { getFirestore } from 'firebase/firestore';
-import 'firebase/firestore';
 
 
 // IMPORTANT: DO NOT MODIFY THIS FUNCTION
