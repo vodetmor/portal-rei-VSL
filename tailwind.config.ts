@@ -15,15 +15,9 @@ const config = {
     },
     extend: {
       fontFamily: {
-        sans: ['var(--font-inter-tight)', ...fontFamily.sans],
+        sans: ['var(--font-sans)', ...fontFamily.sans],
       },
       colors: {
-        'dark-bg': '#0C0C0D',
-        'primary-cyan': '#14F7FF',
-        'primary-green': '#37FF9F',
-        'subtle-border': 'rgba(255, 255, 255, 0.1)',
-        'light-gray': '#ADB0B7',
-        'medium-gray': '#777D87',
         border: 'hsl(var(--border))',
         input: 'hsl(var(--input))',
         ring: 'hsl(var(--ring))',
@@ -57,11 +51,6 @@ const config = {
           DEFAULT: 'hsl(var(--card))',
           foreground: 'hsl(var(--card-foreground))',
         },
-        "color-1": "hsl(var(--color-1))",
-        "color-2": "hsl(var(--color-2))",
-        "color-3": "hsl(var(--color-3))",
-        "color-4": "hsl(var(--color-4))",
-        "color-5": "hsl(var(--color-5))",
       },
       borderRadius: {
         lg: 'var(--radius)',
@@ -77,35 +66,10 @@ const config = {
           from: { height: 'var(--radix-accordion-content-height)' },
           to: { height: '0' },
         },
-        aurora: {
-          from: {
-            backgroundPosition: '50% 50%, 50% 50%',
-          },
-          to: {
-            backgroundPosition: '350% 50%, 350% 50%',
-          },
-        },
-        rainbow: {
-          "0%": { "background-position": "0%" },
-          "100%": { "background-position": "200%" },
-        },
-        'white-glow': {
-          '0%': { 'background-position': '0%', opacity: '0.6' },
-          '50%': { 'background-position': '100%', opacity: '1' },
-          '100%': { 'background-position': '200%', opacity: '0.6' },
-        },
-        'background-pan': {
-          '0%': { backgroundPosition: '0% 0%' },
-          '100%': { backgroundPosition: '-100% 0%' },
-        }
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
-        'aurora': 'aurora 60s linear infinite',
-        rainbow: "rainbow var(--speed, 2s) infinite linear",
-        'white-glow': "white-glow 3s infinite linear",
-        'background-pan': 'background-pan 30s linear infinite',
       },
     },
   },

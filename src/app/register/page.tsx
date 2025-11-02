@@ -1,6 +1,5 @@
 'use client';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth, useUser, useFirestore } from '@/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
@@ -11,7 +10,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { AuthButton } from '@/components/ui/auth-button';
 import Link from 'next/link';
 
 const registerSchema = z.object({
@@ -68,60 +66,60 @@ export default function RegisterPage() {
     }
   };
 
-  if (loading || user) {
-    return <div className="flex min-h-screen items-center justify-center">Carregando...</div>;
+    if (loading || user) {
+    return <div className="flex min-h-screen items-center justify-center">
+      <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+    </div>;
   }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Criar Conta</CardTitle>
-          <CardDescription>Junte-se à nossa comunidade de criadores de VSLs.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input placeholder="seu@email.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Senha</FormLabel>
-                    <FormControl>
-                      <Input type="password" placeholder="Crie uma senha forte" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              {authError && <p className="text-sm font-medium text-destructive">{authError}</p>}
-              <AuthButton type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? 'Criando conta...' : 'Criar Conta'}
-              </AuthButton>
-            </form>
-          </Form>
-          <div className="mt-4 text-center text-sm">
-            Já tem uma conta?{' '}
-            <Link href="/login" className="underline">
-              Faça login
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
+      <div className="w-full max-w-sm space-y-8">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold tracking-tight text-white">Criar Conta</h1>
+          <p className="mt-2 text-muted-foreground">Junte-se à nossa comunidade de criadores de VSLs.</p>
+        </div>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-white">Email</FormLabel>
+                  <FormControl>
+                    <Input placeholder="seu@email.com" {...field} className="bg-secondary/50 border-border" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-white">Senha</FormLabel>
+                  <FormControl>
+                    <Input type="password" placeholder="Crie uma senha forte" {...field} className="bg-secondary/50 border-border" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            {authError && <p className="text-sm font-medium text-destructive">{authError}</p>}
+            <Button type="submit" className="w-full bg-brand-red text-white hover:bg-brand-red-dark" disabled={form.formState.isSubmitting}>
+              {form.formState.isSubmitting ? 'Criando conta...' : 'Criar Conta'}
+            </Button>
+          </form>
+        </Form>
+        <div className="mt-4 text-center text-sm text-muted-foreground">
+          Já tem uma conta?{' '}
+          <Link href="/login" className="font-medium text-white hover:underline">
+            Faça login
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

@@ -1,6 +1,4 @@
 'use client';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth, useUser } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
@@ -10,7 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
-import { AuthButton } from '@/components/ui/auth-button';
+import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
 const loginSchema = z.object({
@@ -56,8 +54,8 @@ export default function LoginPage() {
           setAuthError('Senha incorreta. Por favor, tente novamente.');
           break;
         case 'auth/invalid-credential':
-            setAuthError('Credenciais inválidas. Verifique seu e-mail e senha.');
-            break;
+          setAuthError('Credenciais inválidas. Verifique seu e-mail e senha.');
+          break;
         default:
           setAuthError('Ocorreu um erro ao fazer login. Tente novamente mais tarde.');
           break;
@@ -66,59 +64,63 @@ export default function LoginPage() {
   };
 
   if (loading || user) {
-    return <div className="flex min-h-screen items-center justify-center">Carregando...</div>;
+    return <div className="flex min-h-screen items-center justify-center">
+      <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+    </div>;
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Acessar Plataforma</CardTitle>
-          <CardDescription>Faça login para acessar a área de membros.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Form {...form}>
-            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email</FormLabel>
-                    <FormControl>
-                      <Input placeholder="seu@email.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="password"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Senha</FormLabel>
-                    <FormControl>
-                      <Input type="password" placeholder="Sua senha" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              {authError && <p className="text-sm font-medium text-destructive">{authError}</p>}
-              <AuthButton type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-                {form.formState.isSubmitting ? 'Entrando...' : 'Entrar'}
-              </AuthButton>
-            </form>
-          </Form>
-          <div className="mt-4 text-center text-sm">
-            Não tem uma conta?{' '}
-            <Link href="/register" className="underline">
-              Cadastre-se
-            </Link>
-          </div>
-        </CardContent>
-      </Card>
+    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+      <div className="w-full max-w-sm space-y-8">
+        <div className="text-center">
+          <h1 className="text-3xl font-bold tracking-tight text-white">
+            Acessar Plataforma
+          </h1>
+          <p className="mt-2 text-muted-foreground">
+            Faça login para acessar a área de membros.
+          </p>
+        </div>
+        <Form {...form}>
+          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-white">Email</FormLabel>
+                  <FormControl>
+                    <Input placeholder="seu@email.com" {...field} className="bg-secondary/50 border-border" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="password"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel className="text-white">Senha</FormLabel>
+                  <FormControl>
+                    <Input type="password" placeholder="Sua senha" {...field} className="bg-secondary/50 border-border" />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            {authError && <p className="text-sm font-medium text-destructive">{authError}</p>}
+            <Button type="submit" className="w-full bg-brand-red text-white hover:bg-brand-red-dark" disabled={form.formState.isSubmitting}>
+              {form.formState.isSubmitting ? 'Entrando...' : 'Entrar'}
+            </Button>
+          </form>
+        </Form>
+        <div className="mt-4 text-center text-sm text-muted-foreground">
+          Não tem uma conta?{' '}
+          <Link href="/register" className="font-medium text-white hover:underline">
+            Cadastre-se
+          </Link>
+        </div>
+      </div>
     </div>
   );
 }

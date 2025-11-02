@@ -22,11 +22,7 @@ export function Nav() {
 
   useEffect(() => {
     const handleScroll = () => {
-      if (window.scrollY > 10) {
-        setIsScrolled(true);
-      } else {
-        setIsScrolled(false);
-      }
+      setIsScrolled(window.scrollY > 10);
     };
 
     window.addEventListener('scroll', handleScroll);
@@ -42,37 +38,40 @@ export function Nav() {
   };
 
   return (
-    <header className={cn("sticky top-0 z-50 transition-all", isScrolled ? "bg-background/95" : "bg-transparent")}>
-      <div className="container flex h-16 items-center">
+    <header className={cn(
+      "fixed top-0 z-50 w-full transition-colors duration-300",
+      isScrolled ? "bg-background/90 backdrop-blur-sm" : "bg-transparent"
+    )}>
+      <div className="container mx-auto flex h-16 items-center px-4 md:px-8">
         <div className="mr-8 flex items-center">
           <Link href="/" className="mr-6 flex items-center space-x-2">
-            <span className="text-xl font-bold text-red-600">REI DA VSL</span>
+            <span className="text-2xl font-bold brand-red tracking-wider">REI DA VSL</span>
           </Link>
           {user && (
-             <nav className="hidden md:flex items-center space-x-4 text-sm font-medium">
-                <Link href="/" className="text-white hover:text-muted-foreground transition-colors">Início</Link>
-                <Link href="/dashboard" className="text-white hover:text-muted-foreground transition-colors">Dashboard</Link>
+             <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
+                <Link href="/dashboard" className="text-neutral-300 hover:text-white transition-colors">Início</Link>
+                {/* Add more links like "Séries", "Filmes" if needed */}
              </nav>
           )}
         </div>
 
-        <div className="flex flex-1 items-center justify-end space-x-4">
+        <div className="flex flex-1 items-center justify-end space-x-2 md:space-x-4">
           {loading ? (
             <div className="h-8 w-8 animate-pulse rounded-full bg-muted"></div>
           ) : user ? (
             <>
-              <Button variant="ghost" size="icon" className="hidden md:inline-flex">
+              <Button variant="ghost" size="icon" className="text-neutral-300 hover:text-white">
                 <Search className="h-5 w-5" />
                 <span className="sr-only">Search</span>
               </Button>
-              <Button variant="ghost" size="icon" className="hidden md:inline-flex">
+              <Button variant="ghost" size="icon" className="text-neutral-300 hover:text-white">
                 <Bell className="h-5 w-5" />
                 <span className="sr-only">Notifications</span>
               </Button>
             
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" className="relative h-8 w-8 rounded-full">
+                  <Button variant="ghost" className="relative h-8 w-8 rounded-md">
                     <Avatar className="h-8 w-8">
                       <AvatarImage src={user.photoURL || undefined} alt={user.displayName || 'User'} />
                       <AvatarFallback>{user.displayName?.charAt(0).toUpperCase()}</AvatarFallback>
@@ -82,13 +81,13 @@ export function Nav() {
                 <DropdownMenuContent className="w-56" align="end" forceMount>
                   <DropdownMenuLabel className="font-normal">
                     <div className="flex flex-col space-y-1">
-                      <p className="text-sm font-medium leading-none">{user.displayName}</p>
+                      <p className="text-sm font-medium leading-none text-white">{user.displayName}</p>
                       <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
                     </div>
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem>
-                    <Link href="/profile">Meu Perfil</Link>
+                    <Link href="/profile">Gerenciar Perfil</Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleSignOut}>Sair</DropdownMenuItem>
@@ -96,8 +95,8 @@ export function Nav() {
               </DropdownMenu>
             </>
           ) : (
-            <Button asChild variant="destructive" size="sm" className="bg-red-600 hover:bg-red-700">
-                <Link href="/login">Login</Link>
+            <Button asChild size="sm" className="bg-brand-red text-white hover:bg-brand-red-dark">
+                <Link href="/login">Entrar</Link>
             </Button>
           )}
         </div>

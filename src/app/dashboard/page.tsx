@@ -1,12 +1,12 @@
 'use client';
-import { useUser, useAuth } from '@/firebase';
+import { useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
-import { Button } from '@/components/ui/button';
+import { CourseCard } from '@/components/course-card';
+import { placeholderCourses } from '@/lib/placeholder-images.json';
 
 export default function DashboardPage() {
   const { user, loading } = useUser();
-  const auth = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -15,31 +15,50 @@ export default function DashboardPage() {
     }
   }, [user, loading, router]);
 
-  if (loading) {
-    return <div className="flex min-h-screen items-center justify-center">Carregando...</div>;
+  if (loading || !user) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+      </div>
+    );
   }
 
-  if (!user) {
-    return null; // or a redirect component
-  }
+  const featuredCourses = placeholderCourses.filter(course => course.isFeatured);
+  const allCourses = placeholderCourses;
 
   return (
-    <div className="container mx-auto p-4 pt-20">
-      <h1 className="text-4xl font-bold">Área de Membros</h1>
-      <p className="text-muted-foreground mt-2">Bem-vindo(a) de volta, {user.displayName || 'Membro'}!</p>
-      
-      {/* Placeholder for course content */}
-      <div className="mt-8 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-         {/* Course cards will go here */}
-         <div className="h-64 rounded-lg border-2 border-dashed border-border flex items-center justify-center">
-            <p className="text-muted-foreground">Conteúdo do Curso em Breve...</p>
-         </div>
-         <div className="h-64 rounded-lg border-2 border-dashed border-border flex items-center justify-center">
-            <p className="text-muted-foreground">Conteúdo do Curso em Breve...</p>
-         </div>
-         <div className="h-64 rounded-lg border-2 border-dashed border-border flex items-center justify-center">
-            <p className="text-muted-foreground">Conteúdo do Curso em Breve...</p>
-         </div>
+    <div className="container mx-auto px-4 py-8 pt-24 md:px-8">
+      <div className="space-y-12">
+        {/* Featured Section */}
+        <section>
+          <h2 className="mb-4 text-2xl font-bold text-white">Em Destaque</h2>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {featuredCourses.map((course, index) => (
+              <CourseCard
+                key={course.id}
+                title={course.title}
+                imageUrl={course.thumbnailUrl}
+                imageHint={course.imageHint}
+                priority={index < 4}
+              />
+            ))}
+          </div>
+        </section>
+
+        {/* All Courses Section */}
+        <section>
+          <h2 className="mb-4 text-2xl font-bold text-white">Todos os Cursos</h2>
+          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+            {allCourses.map(course => (
+              <CourseCard
+                key={course.id}
+                title={course.title}
+                imageUrl={course.thumbnailUrl}
+                imageHint={course.imageHint}
+              />
+            ))}
+          </div>
+        </section>
       </div>
     </div>
   );

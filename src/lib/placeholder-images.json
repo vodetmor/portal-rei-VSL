@@ -1,0 +1,74 @@
+{
+  "placeholderCourses": [
+    {
+      "id": "course-1",
+      "title": "VSL: Do Zero ao Lançamento",
+      "thumbnailUrl": "https://picsum.photos/seed/course1/600/338",
+      "imageHint": "copywriting book",
+      "isFeatured": true
+    },
+    {
+      "id": "course-2",
+      "title": "Copywriting para Vendas",
+      "thumbnailUrl": "https://picsum.photos/seed/course2/600/338",
+      "imageHint": "sales presentation",
+      "isFeatured": true
+    },
+    {
+      "id": "course-3",
+      "title": "Gatilhos Mentais em VSL",
+      "thumbnailUrl": "https://picsum.photos/seed/course3/600/338",
+      "imageHint": "psychology brain",
+      "isFeatured": true
+    },
+    {
+      "id": "course-4",
+      "title": "Edição de Vídeo para VSLs",
+      "thumbnailUrl": "https://picsum.photos/seed/course4/600/338",
+      "imageHint": "video editing",
+      "isFeatured": true
+    },
+    {
+      "id": "course-5",
+      "title": "Estruturas de Roteiro VSL",
+      "thumbnailUrl": "https://picsum.photos/seed/course5/600/338",
+      "imageHint": "writing script",
+      "isFeatured": false
+    },
+    {
+      "id": "course-6",
+      "title": "Tráfego Pago para VSL",
+      "thumbnailUrl": "https://picsum.photos/seed/course6/600/338",
+      "imageHint": "digital advertising",
+      "isFeatured": false
+    },
+    {
+      "id": "course-7",
+      "title": "Análise de Métricas VSL",
+      "thumbnailUrl": "https://picsum.photos/seed/course7/600/338",
+      "imageHint": "data analytics",
+      "isFeatured": false
+    },
+    {
+      "id": "course-8",
+      "title": "Voz e Locução para VSL",
+      "thumbnailUrl": "https://picsum.photos/seed/course8/600/338",
+      "imageHint": "microphone recording",
+      "isFeatured": false
+    },
+    {
+      "id": "course-9",
+      "title": "Design para Thumbnails",
+      "thumbnailUrl": "https://picsum.photos/seed/course9/600/338",
+      "imageHint": "graphic design",
+      "isFeatured": false
+    },
+    {
+      "id": "course-10",
+      "title": "Neuromarketing Aplicado",
+      "thumbnailUrl": "https://picsum.photos/seed/course10/600/338",
+      "imageHint": "marketing brain",
+      "isFeatured": false
+    }
+  ]
+}

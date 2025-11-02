@@ -18,19 +18,19 @@ export default function Home() {
   if (loading) {
     return (
       <main className="flex min-h-screen items-center justify-center">
-        <h1 className="text-4xl font-bold">Carregando...</h1>
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       </main>
     );
   }
 
   if (!user) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center p-24">
-        <h1 className="text-5xl font-bold mb-4">Bem-vindo ao Portal Rei da VSL</h1>
+      <main className="flex min-h-screen flex-col items-center justify-center p-24 text-center">
+        <h1 className="text-5xl font-bold mb-4 text-white">Bem-vindo ao Portal <span className="brand-red">Rei da VSL</span></h1>
         <p className="text-xl text-muted-foreground mb-8">Sua plataforma para dominar a arte das VSLs.</p>
         <div className="flex gap-4">
-            <Button onClick={() => router.push('/login')} size="lg">
-              Acessar Plataforma
+            <Button asChild size="lg" className="bg-brand-red text-white hover:bg-brand-red-dark">
+                <Link href="/login">Acessar Plataforma</Link>
             </Button>
              <Button asChild variant="outline" size="lg">
                 <Link href="/register">Criar Conta</Link>
