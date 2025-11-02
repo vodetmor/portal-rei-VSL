@@ -1,10 +1,10 @@
 'use client';
 import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useCallback } from 'react';
 import { CourseCard } from '@/components/course-card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { doc, getDoc, collection, getDocs, type DocumentData } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, setDoc, type DocumentData } from 'firebase/firestore';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -24,6 +24,10 @@ interface Course extends DocumentData {
   isFeatured?: boolean;
 }
 
+const DEFAULT_HERO_TITLE = "Seu Reinado <span class='text-primary'>começa aqui</span>.";
+const DEFAULT_HERO_SUBTITLE = "No Rei da VSL, cada copy se torna uma conversão poderosa.";
+const DEFAULT_HERO_IMAGE = "https://picsum.photos/seed/hero-bg/1920/1080";
+
 export default function DashboardPage() {
   const { user, loading: userLoading } = useUser();
   const firestore = useFirestore();
@@ -34,15 +38,48 @@ export default function DashboardPage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
-  const { isEditMode } = useEditMode();
+  const { isEditMode, registerSaveHandler } = useEditMode();
   
   // State for editable content
-  const [heroTitle, setHeroTitle] = useState("Seu Reinado <span class='text-primary'>começa aqui</span>.");
-  const [heroSubtitle, setHeroSubtitle] = useState("No Rei da VSL, cada copy se torna uma conversão poderosa.");
-  const [heroImage, setHeroImage] = useState("https://picsum.photos/seed/hero-bg/1920/1080");
+  const [heroTitle, setHeroTitle] = useState(DEFAULT_HERO_TITLE);
+  const [heroSubtitle, setHeroSubtitle] = useState(DEFAULT_HERO_SUBTITLE);
+  const [heroImage, setHeroImage] = useState(DEFAULT_HERO_IMAGE);
   const [isUploading, setIsUploading] = useState(false);
+  const [contentLoading, setContentLoading] = useState(true);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleSaveChanges = useCallback(async () => {
+    if (!firestore) {
+      toast({ variant: "destructive", title: "Erro", description: "Conexão com o banco de dados não disponível." });
+      return;
+    }
+    const layoutRef = doc(firestore, 'layout', 'dashboard-hero');
+    const dataToSave = {
+      title: heroTitle,
+      subtitle: heroSubtitle,
+      imageUrl: heroImage,
+    };
+    try {
+      await setDoc(layoutRef, dataToSave, { merge: true });
+    } catch (error) {
+      console.error("Error saving layout:", error);
+      const permissionError = new FirestorePermissionError({
+        path: layoutRef.path,
+        operation: 'write',
+        requestResourceData: dataToSave,
+      });
+      errorEmitter.emit('permission-error', permissionError);
+      throw error; // Re-throw to be caught by the nav button handler
+    }
+  }, [firestore, heroTitle, heroSubtitle, heroImage, toast]);
+
+  useEffect(() => {
+    if (isAdmin) {
+      registerSaveHandler(handleSaveChanges);
+    }
+  }, [isAdmin, registerSaveHandler, handleSaveChanges]);
+
 
   useEffect(() => {
     if (!userLoading && !user) {
@@ -51,29 +88,35 @@ export default function DashboardPage() {
   }, [user, userLoading, router]);
 
   useEffect(() => {
-    const fetchCourses = async () => {
+    const fetchPageContent = async () => {
       if (!firestore) return;
-      setLoading(true);
+      setContentLoading(true);
+      const layoutRef = doc(firestore, 'layout', 'dashboard-hero');
       try {
-        const querySnapshot = await getDocs(collection(firestore, 'courses'));
-        if (querySnapshot.empty) {
-          setCourses([]);
+        const docSnap = await getDoc(layoutRef);
+        if (docSnap.exists()) {
+          const data = docSnap.data();
+          setHeroTitle(data.title || DEFAULT_HERO_TITLE);
+          setHeroSubtitle(data.subtitle || DEFAULT_HERO_SUBTITLE);
+          setHeroImage(data.imageUrl || DEFAULT_HERO_IMAGE);
         } else {
-          const coursesData = querySnapshot.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data()
-          })) as Course[];
-          setCourses(coursesData);
+          // Use defaults if doc doesn't exist
+          setHeroTitle(DEFAULT_HERO_TITLE);
+          setHeroSubtitle(DEFAULT_HERO_SUBTITLE);
+          setHeroImage(DEFAULT_HERO_IMAGE);
         }
       } catch (error) {
-        console.error("Error fetching courses: ", error);
-        setCourses([]); // Set to empty array on error
+         console.error("Error fetching layout:", error);
+         // Fallback to defaults on error
+         setHeroTitle(DEFAULT_HERO_TITLE);
+         setHeroSubtitle(DEFAULT_HERO_SUBTITLE);
+         setHeroImage(DEFAULT_HERO_IMAGE);
       } finally {
-        setLoading(false);
+        setContentLoading(false);
       }
     };
     
-    const checkAdminAndFetchCourses = async () => {
+    const checkAdminAndFetchData = async () => {
       if (user && firestore) {
         if (user.email === 'admin@reidavsl.com') {
           setIsAdmin(true);
@@ -95,15 +138,37 @@ export default function DashboardPage() {
                 setIsAdmin(false);
             }
         }
-        await fetchCourses();
+        
+        // Fetch courses and page content
+        setLoading(true);
+        await fetchPageContent();
+        try {
+          const querySnapshot = await getDocs(collection(firestore, 'courses'));
+          if (querySnapshot.empty) {
+            setCourses([]);
+          } else {
+            const coursesData = querySnapshot.docs.map(doc => ({
+              id: doc.id,
+              ...doc.data()
+            })) as Course[];
+            setCourses(coursesData);
+          }
+        } catch (error) {
+          console.error("Error fetching courses: ", error);
+          setCourses([]); // Set to empty array on error
+        } finally {
+          setLoading(false);
+        }
+
       } else {
         setIsAdmin(false);
         setLoading(false);
+        setContentLoading(false);
       }
     };
 
     if (user && firestore) {
-      checkAdminAndFetchCourses();
+      checkAdminAndFetchData();
     }
   }, [user, firestore]);
 
@@ -141,9 +206,8 @@ export default function DashboardPage() {
           setIsUploading(false);
           toast({
             title: "Sucesso!",
-            description: "A imagem de fundo foi atualizada. Lembre-se de salvar o layout.",
+            description: "A imagem de fundo foi atualizada. Clique em 'Salvar Alterações' para persistir a mudança.",
           });
-          // In a future step, we will save this URL to Firestore.
         }).catch((error) => {
            setIsUploading(false);
            console.error("Failed to get download URL:", error);
@@ -170,6 +234,7 @@ export default function DashboardPage() {
     <div className="w-full" data-edit-mode={isEditMode}>
       {/* Hero Section */}
       <section className="relative flex h-[60vh] min-h-[500px] w-full flex-col items-center justify-center bg-black py-12 md:h-screen">
+       {contentLoading ? <Skeleton className="absolute inset-0 z-0" /> : (
         <div className="absolute inset-0 z-0">
           <div 
             data-editable={isEditMode}
@@ -197,13 +262,14 @@ export default function DashboardPage() {
           </div>
           <div className="absolute inset-0 bg-black/70" />
         </div>
+       )}
         <div className="relative z-10 mx-auto flex max-w-4xl flex-col items-start px-4 text-left">
           {isEditMode ? (
             <div data-editable="true" className="w-full">
               <Input
                 type="text"
                 value={heroTitle.replace(/<[^>]+>/g, '')} // Remove HTML for editing
-                onChange={(e) => setHeroTitle(e.target.value)}
+                onChange={(e) => setHeroTitle(e.target.value.replace(/<[^>]+>/g, '') + " <span class='text-primary'>começa aqui</span>.")}
                 className="w-full text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl bg-transparent border-dashed"
               />
             </div>

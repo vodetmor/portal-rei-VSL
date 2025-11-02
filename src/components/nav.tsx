@@ -17,6 +17,7 @@ import { Home, Menu, ShieldCheck, Edit, Save } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
 import { useEditMode } from '@/context/EditModeContext';
+import { useToast } from '@/hooks/use-toast';
 
 export function Nav() {
   const { user, loading } = useUser();
@@ -25,7 +26,9 @@ export function Nav() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
-  const { isEditMode, toggleEditMode } = useEditMode();
+  const { isEditMode, toggleEditMode, triggerSave } = useEditMode();
+  const [isSaving, setIsSaving] = useState(false);
+  const { toast } = useToast();
 
 
   useEffect(() => {
@@ -67,13 +70,28 @@ export function Nav() {
     }
   };
   
-  const handleEditClick = () => {
-    toggleEditMode();
-    // In the future, this could also save the changes.
-    // For now, it just toggles the mode.
-    if(isEditMode) {
-      console.log("Saving changes...");
-      // Here you would add logic to save to Firestore.
+  const handleEditClick = async () => {
+    if (isEditMode) {
+      setIsSaving(true);
+      try {
+        await triggerSave();
+        toast({
+          title: "Sucesso!",
+          description: "Alterações salvas no layout.",
+        });
+        toggleEditMode(); // Toggles the mode off after saving
+      } catch (error) {
+        console.error("Failed to save changes:", error);
+        toast({
+          variant: "destructive",
+          title: "Erro ao Salvar",
+          description: "Não foi possível salvar as alterações.",
+        });
+      } finally {
+        setIsSaving(false);
+      }
+    } else {
+      toggleEditMode(); // Toggles the mode on
     }
   }
 
@@ -86,9 +104,9 @@ export function Nav() {
             <ShieldCheck className="h-4 w-4" />
             Painel Admin
           </Link>
-          <Button variant="outline" size="sm" className="w-full justify-start mt-2" onClick={handleEditClick}>
+          <Button variant="outline" size="sm" className="w-full justify-start mt-2" onClick={handleEditClick} disabled={isSaving}>
             {isEditMode ? <Save className="mr-2 h-4 w-4" /> : <Edit className="mr-2 h-4 w-4" />}
-            {isEditMode ? 'Salvar Alterações' : 'Editar Layout'}
+            {isSaving ? 'Salvando...' : isEditMode ? 'Salvar Alterações' : 'Editar Layout'}
           </Button>
         </>
       )}
@@ -112,9 +130,9 @@ export function Nav() {
             <>
               {isAdmin && (
                 <div className="hidden md:flex items-center gap-2">
-                   <Button variant="outline" size="sm" onClick={handleEditClick}>
+                   <Button variant="outline" size="sm" onClick={handleEditClick} disabled={isSaving}>
                       {isEditMode ? <Save className="mr-2 h-4 w-4" /> : <Edit className="mr-2 h-4 w-4" />}
-                      {isEditMode ? 'Salvar Alterações' : 'Editar Layout'}
+                      {isSaving ? 'Salvando...' : isEditMode ? 'Salvar Alterações' : 'Editar Layout'}
                   </Button>
                 </div>
               )}
