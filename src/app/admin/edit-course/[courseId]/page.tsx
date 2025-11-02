@@ -17,7 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Trash2, Save, Upload, Link2, GripVertical, FileVideo } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, Upload, Link2, GripVertical, FileVideo, Eye } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
@@ -25,6 +25,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Separator } from '@/components/ui/separator';
+import { Dock } from '@/components/ui/dock';
 
 interface Lesson {
   id: string;
@@ -172,6 +173,23 @@ function EditCoursePageContent() {
     }
   };
   
+  const dockItems = [
+    {
+        icon: Save,
+        label: isSaving ? "Salvando..." : "Salvar",
+        onClick: handleSaveChanges,
+    },
+    {
+        icon: Plus,
+        label: "Adicionar Módulo",
+        onClick: addModule,
+    },
+    {
+        icon: Eye,
+        label: "Visualizar Curso",
+        onClick: () => router.push(`/courses/${courseId}`),
+    }
+  ];
 
   if (loading) {
     return (
@@ -195,14 +213,6 @@ function EditCoursePageContent() {
           </Button>
           <h1 className="text-2xl md:text-3xl font-bold text-white">Editor de Curso</h1>
           <p className="text-muted-foreground">Edite todos os aspectos do seu curso em um só lugar.</p>
-        </div>
-        <div className="flex gap-2">
-            <Button asChild variant="secondary">
-                <Link href={`/courses/${courseId}`}>
-                    Visualizar Curso
-                </Link>
-            </Button>
-            <Button onClick={handleSaveChanges} disabled={isSaving}><Save className="mr-2 h-4 w-4" />{isSaving ? 'Salvando...' : 'Salvar Alterações'}</Button>
         </div>
       </div>
       
@@ -259,9 +269,11 @@ function EditCoursePageContent() {
                 />
               ))}
           </div>
-          <Button type="button" variant="outline" size="sm" className="w-full" onClick={addModule}><Plus className="mr-2 h-4 w-4" />Adicionar Módulo</Button>
         </CardContent>
       </Card>
+      <div className="fixed bottom-4 left-0 right-0 z-50">
+          <Dock items={dockItems} />
+      </div>
 
     </div>
   );
