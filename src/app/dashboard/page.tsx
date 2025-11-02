@@ -12,7 +12,7 @@ import { ActionToolbar } from '@/components/ui/action-toolbar';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Plus, Pencil, Save, X, Trophy, Gem, Crown, Star, type LucideIcon, Upload, Link2, Trash2, ChevronDown, AlignCenter, AlignLeft, AlignRight, Edit3 } from 'lucide-react';
+import { Plus, Pencil, Save, X, Trophy, Gem, Crown, Star, type LucideIcon, Upload, Link2, Trash2, ChevronDown, AlignCenter, AlignLeft, AlignRight, Edit3, Bold } from 'lucide-react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -69,10 +69,6 @@ function DashboardClientPage() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
-  // Refs for editable content
-  const heroTitleRef = useRef<HTMLHeadingElement>(null);
-  const heroSubtitleRef = useRef<HTMLParagraphElement>(null);
-
   // States for temporary edits
   const [tempHeroTitle, setTempHeroTitle] = useState(layoutData.heroTitle);
   const [tempHeroSubtitle, setTempHeroSubtitle] = useState(layoutData.heroSubtitle);
@@ -80,6 +76,7 @@ function DashboardClientPage() {
   const [tempMembersTitle, setTempMembersTitle] = useState(layoutData.membersTitle);
   const [tempMembersSubtitle, setTempMembersSubtitle] = useState(layoutData.membersSubtitle);
   const [tempMembersIcon, setTempMembersIcon] = useState(layoutData.membersIcon);
+  const [heroAlignment, setHeroAlignment] = useState<'left' | 'center' | 'right'>('left');
 
   
   const [heroImageFile, setHeroImageFile] = useState<File | null>(null);
@@ -102,6 +99,14 @@ function DashboardClientPage() {
   const markdownToHtml = (markdown: string) => {
     if (!markdown) return '';
     return markdown.replace(/\*(.*?)\*/g, "<span class='text-primary'>$1</span>");
+  };
+
+  const applyFormat = (command: string, value: string | null = null) => {
+    document.execCommand(command, false, value);
+  };
+  
+  const handleAlignment = (alignment: 'left' | 'center' | 'right') => {
+    setHeroAlignment(alignment);
   };
 
   const enterEditMode = () => {
@@ -340,6 +345,15 @@ function DashboardClientPage() {
     );
   }
   
+  const heroContainerClasses = cn(
+    "relative z-10 mx-auto flex max-w-4xl flex-col px-4",
+    {
+      'items-start text-left': heroAlignment === 'left',
+      'items-center text-center': heroAlignment === 'center',
+      'items-end text-right': heroAlignment === 'right',
+    }
+  );
+
   return (
     <AlertDialog onOpenChange={(open) => !open && setCourseToDelete(null)}>
       <div className="w-full">
@@ -362,21 +376,19 @@ function DashboardClientPage() {
               </div>
           )}
 
-          <div className="relative z-10 mx-auto flex max-w-4xl flex-col items-start px-4 text-left">
+          <div className={heroContainerClasses}>
               <h1 
-                  ref={heroTitleRef}
                   contentEditable={isEditMode}
                   suppressContentEditableWarning={true}
-                  onInput={(e) => setTempHeroTitle(e.currentTarget.innerText)}
+                  onInput={(e) => setTempHeroTitle(e.currentTarget.innerHTML)}
                   className={cn(
                     "text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl",
                     isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
                   )}
-                  dangerouslySetInnerHTML={{ __html: isEditMode ? tempHeroTitle : layoutData.heroTitle }}
+                  dangerouslySetInnerHTML={{ __html: isEditMode ? tempHeroTitle.replace(/\*(.*?)\*/g, "<span>$1</span>") : layoutData.heroTitle }}
                 />
 
               <p 
-                ref={heroSubtitleRef}
                 contentEditable={isEditMode}
                 suppressContentEditableWarning={true}
                 onInput={(e) => setTempHeroSubtitle(e.currentTarget.innerText)}
@@ -412,9 +424,10 @@ function DashboardClientPage() {
                     </Button>
                 </div>
                 <ActionToolbar buttons={[
-                    { label: "Left", icon: <AlignLeft className="size-4" /> },
-                    { label: "Center", icon: <AlignCenter className="size-4" /> },
-                    { label: "Right", icon: <AlignRight className="size-4" /> },
+                    { label: "Bold", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
+                    { label: "Left", icon: <AlignLeft className="size-4" />, onClick: () => handleAlignment('left') },
+                    { label: "Center", icon: <AlignCenter className="size-4" />, onClick: () => handleAlignment('center') },
+                    { label: "Right", icon: <AlignRight className="size-4" />, onClick: () => handleAlignment('right') },
                 ]}/>
                  <Collapsible open={openCollapsible === 'banner'} onOpenChange={(isOpen) => setOpenCollapsible(isOpen ? 'banner' : null)} className="w-full max-w-xs">
                     <CollapsibleTrigger className="w-full bg-background/50 border border-border rounded-lg backdrop-blur-sm">
@@ -626,5 +639,3 @@ export default function DashboardPage() {
     </LayoutProvider>
   )
 }
-
-    

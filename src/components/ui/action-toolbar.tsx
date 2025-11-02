@@ -32,11 +32,12 @@ export function ActionToolbar({ buttons, compact = false, className = "" }: Acti
     buttons.map((btn) => !!btn.active)
   );
 
-  const handleToggle = (index: number, onClick?: () => void) => {
-    const updated = [...activeStates];
-    updated[index] = !updated[index];
-    setActiveStates(updated);
-    if (onClick) onClick();
+  const handleButtonClick = (index: number, onClick?: () => void) => {
+    // For toggle-like buttons, you might want to manage their active state
+    // For now, we just execute the onClick
+    if (onClick) {
+      onClick();
+    }
   };
 
   return (
@@ -60,7 +61,8 @@ export function ActionToolbar({ buttons, compact = false, className = "" }: Acti
           return (
             <div key={index} className="flex items-center">
               <Button
-                onClick={() => handleToggle(index, btn.onClick)}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => handleButtonClick(index, btn.onClick)}
                 variant="ghost"
                 className={cn(buttonClasses, compact && "px-2")}
               >
@@ -99,12 +101,13 @@ export function ActionToolbar({ buttons, compact = false, className = "" }: Acti
         return (
           <Button
             key={index}
-            onClick={() => handleToggle(index, btn.onClick)}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => handleButtonClick(index, btn.onClick)}
             variant="ghost"
             className={cn(buttonClasses, compact && "px-2")}
           >
             {btn.icon}
-            <span className="font-medium">{btn.label}</span>
+            {!compact && <span className="font-medium">{btn.label}</span>}
             {btn.count !== undefined && (
               <Badge
                 variant={isActive ? "secondary" : "outline"}
