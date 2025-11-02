@@ -338,16 +338,20 @@ function DashboardClientPage() {
   
   // Effect to set initial content of contentEditable divs & sync state
   useEffect(() => {
+    const titleEl = titleRef.current;
+    const subtitleEl = subtitleRef.current;
+    const ctaEl = ctaRef.current;
+
     if (isEditMode) {
-      if (titleRef.current) titleRef.current.innerHTML = tempHeroTitle;
-      if (subtitleRef.current) subtitleRef.current.innerHTML = tempHeroSubtitle;
-      if (ctaRef.current) ctaRef.current.innerHTML = tempCtaText;
+      if (titleEl) titleEl.innerHTML = tempHeroTitle;
+      if (subtitleEl) subtitleEl.innerHTML = tempHeroSubtitle;
+      if (ctaEl) ctaEl.innerHTML = tempCtaText;
     } else {
-        if (titleRef.current) titleRef.current.innerHTML = layoutData.heroTitle;
-        if (subtitleRef.current) subtitleRef.current.innerHTML = layoutData.heroSubtitle;
-        if (ctaRef.current) ctaRef.current.innerHTML = layoutData.ctaText;
+      if (titleEl) titleEl.innerHTML = layoutData.heroTitle;
+      if (subtitleEl) subtitleEl.innerHTML = layoutData.heroSubtitle;
+      if (ctaEl) ctaEl.innerHTML = layoutData.ctaText;
     }
-  }, [isEditMode, layoutData, tempHeroTitle, tempHeroSubtitle, tempCtaText]);
+}, [isEditMode, layoutData, tempHeroTitle, tempHeroSubtitle, tempCtaText]);
 
 
   if (userLoading || !user || layoutData.isLoading) {
@@ -387,7 +391,7 @@ function DashboardClientPage() {
       <div className="w-full">
         {/* Hero Section */}
         <section className={cn(
-          "relative flex h-[60vh] min-h-[500px] w-full flex-col justify-center -mt-20",
+          "relative flex h-[60vh] min-h-[500px] w-full flex-col justify-center",
           isEditMode && "border-2 border-dashed border-primary/50"
         )}>
           {layoutData.isLoading ? <Skeleton className="absolute inset-0 z-0" /> : (
@@ -412,8 +416,7 @@ function DashboardClientPage() {
                     contentEditable={isEditMode}
                     suppressContentEditableWarning={true}
                     onFocus={() => setActiveEditor('hero-title-editor')}
-                    onBlur={() => { setActiveEditor(null); }}
-                    onInput={(e) => setTempHeroTitle(e.currentTarget.innerHTML)}
+                    onBlur={() => setActiveEditor(null)}
                     className={cn(
                         "text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl",
                         isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
@@ -442,8 +445,7 @@ function DashboardClientPage() {
                     contentEditable={isEditMode}
                     suppressContentEditableWarning={true}
                     onFocus={() => setActiveEditor('hero-subtitle-editor')}
-                    onBlur={() => { setActiveEditor(null);}}
-                    onInput={(e) => setTempHeroSubtitle(e.currentTarget.innerHTML)}
+                    onBlur={() => setActiveEditor(null)}
                     className={cn(
                         "max-w-2xl text-lg text-muted-foreground md:text-xl",
                         {'mx-auto': heroAlignment === 'center', 'ml-auto': heroAlignment === 'end'},
@@ -469,8 +471,6 @@ function DashboardClientPage() {
                     ref={ctaRef}
                     contentEditable={true}
                     suppressContentEditableWarning={true}
-                    onBlur={(e) => setTempCtaText(e.currentTarget.innerHTML)}
-                    dangerouslySetInnerHTML={{ __html: tempCtaText }}
                     className="inline-block px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-md text-lg font-semibold outline-none focus:ring-2 focus:ring-ring"
                  >
                  </div>
@@ -541,7 +541,7 @@ function DashboardClientPage() {
         </section>
 
         {/* All Courses Section */}
-        <section ref={coursesSectionRef} className="container mx-auto px-4 py-16 md:px-8 space-y-12">
+        <section ref={coursesSectionRef} className="container mx-auto px-4 py-16 md:px-8 space-y-12 pt-20">
           
            <div>
             <div className="flex justify-between items-center mb-4">
@@ -596,5 +596,3 @@ export default function DashboardPage() {
     <DashboardClientPage />
   )
 }
-
-    
