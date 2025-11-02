@@ -326,30 +326,38 @@ export default function CoursePlayerPage() {
     }
   };
 
-  const isModuleUnlocked = useCallback((module: Module) => {
-    if (isAdmin || !isClient) return true; // Admins and server-side render see all as unlocked
+  const isModuleUnlocked = useCallback((module: Module): boolean => {
+    if (isAdmin || !isClient) return true; // Admins see all, server-render assumes unlocked
     if (!courseAccessInfo) return false;
 
     const delay = module.releaseDelayDays || 0;
     if (delay === 0) return true;
 
-    const grantedDate = parseISO(courseAccessInfo.grantedAt);
-    const releaseDate = addDays(grantedDate, delay);
-    return new Date() >= releaseDate;
+    try {
+      const grantedDate = parseISO(courseAccessInfo.grantedAt);
+      const releaseDate = addDays(grantedDate, delay);
+      return new Date() >= releaseDate;
+    } catch (e) {
+      console.error("Error parsing date for module unlock check", e);
+      return false; // Fail safely
+    }
+  }, [isAdmin, isClient, courseAccessInfo]);
 
-  }, [courseAccessInfo, isAdmin, isClient]);
-  
   const getDaysUntilRelease = (module: Module): number | null => {
     if (!courseAccessInfo || isAdmin || !isClient) return null;
     
     const delay = module.releaseDelayDays || 0;
     if (delay === 0) return null;
     
-    const grantedDate = parseISO(courseAccessInfo.grantedAt);
-    const releaseDate = addDays(grantedDate, delay);
-    const daysRemaining = differenceInDays(releaseDate, new Date());
-    
-    return daysRemaining >= 0 ? daysRemaining : null;
+    try {
+        const grantedDate = parseISO(courseAccessInfo.grantedAt);
+        const releaseDate = addDays(grantedDate, delay);
+        const daysRemaining = differenceInDays(releaseDate, new Date());
+        return daysRemaining >= 0 ? daysRemaining : null;
+    } catch (e) {
+        console.error("Error parsing date for days until release", e);
+        return null;
+    }
   };
 
   const calculateModuleProgress = (module: Module) => {
@@ -654,5 +662,3 @@ export default function CoursePlayerPage() {
     </div>
   );
 }
-
-    
