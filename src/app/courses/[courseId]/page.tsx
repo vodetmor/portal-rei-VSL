@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useFirestore, useUser, useAuth } from '@/firebase';
+import { useFirestore, useUser, useAuth, useMemoFirebase } from '@/firebase';
 import { doc, getDoc, updateDoc, type DocumentData } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 
@@ -13,12 +13,12 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { CourseCard } from '@/components/course-card';
-import { Plus, Pencil, Save, X, Upload, Link2, Bold, Italic, Underline, Palette, Smartphone, Monitor, Lock, Trophy } from 'lucide-react';
+import { Plus, Pencil, Save, X, Upload, Link2, Smartphone, Monitor, Lock, Trophy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
-import { ActionToolbar } from '@/components/ui/action-toolbar';
 import { addDays, differenceInDays, parseISO } from 'date-fns';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
@@ -70,7 +70,6 @@ export default function CoursePlayerPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
-  const [activeEditor, setActiveEditor] = useState<string | null>(null);
   const [courseAccessInfo, setCourseAccessInfo] = useState<CourseAccessInfo | null>(null);
   const [userProgress, setUserProgress] = useState<UserProgress | null>(null);
 
@@ -92,22 +91,8 @@ export default function CoursePlayerPage() {
   const [tempDescription, setTempDescription] = useState('');
 
 
-  const applyFormat = (command: string) => {
-    // Only use execCommand for simple, reliable formatting to avoid bugs.
-    if (['bold', 'italic', 'underline'].includes(command)) {
-        document.execCommand(command, false);
-    } else if (command === 'foreColor') {
-        // Temporarily disable color change to prevent text inversion bug
-        toast({
-            variant: 'destructive',
-            title: 'Funcionalidade em Manutenção',
-            description: 'A alteração de cor está sendo aprimorada e será reativada em breve.',
-        });
-    }
-  };
-
   const checkAdminStatus = useCallback(async () => {
-    if (!user || !auth || !firestore) return false;
+    if (!user || !firestore) return false;
     if (user.email === 'admin@reidavsl.com') return true;
 
     try {
@@ -118,7 +103,7 @@ export default function CoursePlayerPage() {
         console.error("Error checking admin status:", error);
         return false;
     }
-  }, [user, auth, firestore]);
+  }, [user, firestore]);
 
 
   useEffect(() => {
@@ -230,7 +215,6 @@ export default function CoursePlayerPage() {
     setHeroImageDesktopFile(null);
     setHeroImageMobileFile(null);
     setUploadProgress(null);
-    setActiveEditor(null);
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, device: 'desktop' | 'mobile') => {
@@ -315,7 +299,6 @@ export default function CoursePlayerPage() {
         setCourse(prev => prev ? { ...prev, ...dataToSave } : null);
         toast({ title: "Sucesso!", description: "O curso foi atualizado." });
         setIsEditMode(false);
-        setActiveEditor(null);
 
     } catch (error) {
         console.error('Error saving course:', error);
@@ -403,58 +386,25 @@ export default function CoursePlayerPage() {
         </div>
 
         <div className="relative z-10 p-4 max-w-3xl mx-auto">
-             <div className="relative">
-                <div
-                    id="course-title-editor"
-                    contentEditable={isEditMode}
-                    suppressContentEditableWarning={true}
-                    onFocus={() => setActiveEditor('course-title-editor')}
-                    onBlur={() => setActiveEditor(null)}
-                    onInput={(e) => setTempTitle(e.currentTarget.innerHTML)}
-                    className={cn(
-                        "text-4xl md:text-6xl font-bold tracking-tight text-white",
-                        isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
-                    )}
-                    dangerouslySetInnerHTML={{ __html: isEditMode ? tempTitle : course.title }}
-                />
-                 {isEditMode && activeEditor === 'course-title-editor' && (
-                    <ActionToolbar
-                        className="absolute -top-14 left-1/2 -translate-x-1/2"
-                        buttons={[
-                            { label: "Bold", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
-                            { label: "Italic", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
-                            { label: "Underline", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
-                            { label: "Cor", icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor') },
-                        ]}
+             {isEditMode ? (
+                <div className="space-y-4">
+                    <Input 
+                        value={tempTitle}
+                        onChange={e => setTempTitle(e.target.value)}
+                        className="text-4xl md:text-6xl font-bold tracking-tight text-white bg-transparent border-2 border-dashed border-primary/50 text-center h-auto"
                     />
-                )}
-            </div>
-             <div className="relative mt-4">
-                <div
-                    id="course-description-editor"
-                    contentEditable={isEditMode}
-                    suppressContentEditableWarning={true}
-                    onFocus={() => setActiveEditor('course-description-editor')}
-                    onBlur={() => setActiveEditor(null)}
-                    onInput={(e) => setTempDescription(e.currentTarget.innerHTML)}
-                    className={cn(
-                        "text-lg text-muted-foreground",
-                        isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
-                    )}
-                    dangerouslySetInnerHTML={{ __html: isEditMode ? tempDescription : course.description }}
-                />
-                 {isEditMode && activeEditor === 'course-description-editor' && (
-                    <ActionToolbar
-                        className="absolute -top-14 left-1/2 -translate-x-1/2"
-                        buttons={[
-                           { label: "Bold", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
-                           { label: "Italic", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
-                           { label: "Underline", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
-                           { label: "Cor", icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor') },
-                        ]}
+                     <Textarea 
+                        value={tempDescription}
+                        onChange={e => setTempDescription(e.target.value)}
+                        className="text-lg text-muted-foreground bg-transparent border-2 border-dashed border-primary/50 text-center min-h-[100px]"
                     />
-                )}
-            </div>
+                </div>
+             ) : (
+                <>
+                    <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-white" dangerouslySetInnerHTML={{ __html: course.title }}></h1>
+                    <p className="mt-4 text-lg text-muted-foreground" dangerouslySetInnerHTML={{ __html: course.description }}></p>
+                </>
+             )}
         </div>
         
         {isAdmin && !isEditMode && (
@@ -529,20 +479,18 @@ export default function CoursePlayerPage() {
             <div className="flex items-center gap-3">
                 <Trophy className="h-8 w-8 text-primary" />
                 <div>
-                    <h2 className="text-xl font-bold text-white">{course.title}</h2>
-                    <div
-                      id="course-subtitle-editor"
-                      contentEditable={isEditMode}
-                      suppressContentEditableWarning={true}
-                      onFocus={() => setActiveEditor('course-subtitle-editor')}
-                      onBlur={() => setActiveEditor(null)}
-                      onInput={(e) => setTempSubtitle(e.currentTarget.innerHTML)}
-                      className={cn(
-                          "text-sm text-muted-foreground",
-                          isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-1 -m-1"
-                      )}
-                      dangerouslySetInnerHTML={{ __html: isEditMode ? tempSubtitle : (course.subtitle || 'Rei da VSL®') }}
-                  />
+                  {isEditMode ? (
+                    <Input 
+                        value={tempSubtitle}
+                        onChange={(e) => setTempSubtitle(e.target.value)}
+                        className="text-sm text-muted-foreground bg-transparent border-2 border-dashed border-primary/50"
+                    />
+                  ) : (
+                    <>
+                      <h2 className="text-xl font-bold text-white">{course.title}</h2>
+                      <p className="text-sm text-muted-foreground">{course.subtitle || 'Rei da VSL®'}</p>
+                    </>
+                  )}
                 </div>
             </div>
              {isAdmin && (
@@ -575,7 +523,7 @@ export default function CoursePlayerPage() {
                           course={{ ...module, id: module.id || `module-${index}` }}
                           progress={progress}
                           priority={index < 5}
-                          isAdmin={false} // Editing happens at the course level for now
+                          isAdmin={false} 
                           isLocked={!unlocked}
                         />
                         {!unlocked && (

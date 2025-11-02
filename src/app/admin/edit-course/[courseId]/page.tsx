@@ -18,19 +18,16 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Trash2, Save, Upload, Link2, GripVertical, FileVideo, Eye, CalendarDays, Send, BarChart2, Book, Bold, Italic, Underline, Palette } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, Upload, Link2, GripVertical, FileVideo, Eye, CalendarDays, Send, BarChart2, Book } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Separator } from '@/components/ui/separator';
 import { logAdminAction } from '@/lib/audit';
 import { Badge } from '@/components/ui/badge';
 import CourseAnalytics from '@/components/admin/course-analytics';
-import { cn } from '@/lib/utils';
-import { ActionToolbar } from '@/components/ui/action-toolbar';
 
 interface ComplementaryMaterial {
   id: string;
@@ -85,22 +82,6 @@ function EditCoursePageContent() {
   const [tempSubtitle, setTempSubtitle] = useState('');
   const [tempDescription, setTempDescription] = useState('');
   const [modules, setModules] = useState<Module[]>([]);
-  const [activeEditor, setActiveEditor] = useState<string | null>(null);
-
-  const applyFormat = (command: string) => {
-    // Only use execCommand for simple, reliable formatting to avoid bugs.
-    if (['bold', 'italic', 'underline'].includes(command)) {
-        document.execCommand(command, false);
-    } else if (command === 'foreColor') {
-        // Temporarily disable color change to prevent text inversion bug
-        toast({
-            variant: 'destructive',
-            title: 'Funcionalidade em Manutenção',
-            description: 'A alteração de cor está sendo aprimorada e será reativada em breve.',
-        });
-    }
-  };
-
 
   const fetchCourse = useCallback(async () => {
     if (!firestore || !courseId) return;
@@ -366,32 +347,15 @@ function EditCoursePageContent() {
                                 className="mt-1"
                             />
                         </div>
-                        <div className='relative'>
-                            <label htmlFor="course-description-editor" className="text-sm font-medium text-white">Descrição</label>
-                            <div
-                                id="course-description-editor"
-                                contentEditable={true}
-                                suppressContentEditableWarning={true}
-                                onFocus={() => setActiveEditor('course-description-editor')}
-                                onBlur={() => setActiveEditor(null)}
-                                onInput={(e) => setTempDescription(e.currentTarget.innerHTML)}
-                                dangerouslySetInnerHTML={{ __html: tempDescription }}
-                                className={cn(
-                                    "mt-1 min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-                                    "prose prose-sm prose-invert max-w-none"
-                                )}
+                        <div>
+                            <label htmlFor="course-description" className="text-sm font-medium text-white">Descrição</label>
+                            <Textarea
+                                id="course-description"
+                                placeholder="Descreva o que os alunos aprenderão neste curso..."
+                                value={tempDescription}
+                                onChange={(e) => setTempDescription(e.target.value)}
+                                className="mt-1 min-h-[120px]"
                             />
-                             {activeEditor === 'course-description-editor' && (
-                                <ActionToolbar
-                                    className="absolute -top-12 left-1/2 -translate-x-1/2"
-                                    buttons={[
-                                        { label: "Bold", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
-                                        { label: "Italic", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
-                                        { label: "Underline", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
-                                        { label: "Cor", icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor') },
-                                    ]}
-                                />
-                            )}
                         </div>
                     </CardContent>
                 </Card>
@@ -419,9 +383,6 @@ function EditCoursePageContent() {
                                 onUpdateLesson={updateLessonField}
                                 onRemoveLesson={removeLesson}
                                 onReorderLessons={reorderLessons}
-                                setActiveEditor={setActiveEditor}
-                                activeEditor={activeEditor}
-                                applyFormat={applyFormat}
                             />
                             ))}
                         </Reorder.Group>
@@ -510,12 +471,9 @@ interface ModuleEditorProps {
     onUpdateLesson: (moduleId: string, lessonId: string, field: keyof Lesson, value: any) => void;
     onRemoveLesson: (moduleId: string, lessonId: string, lessonTitle: string) => void;
     onReorderLessons: (moduleId: string, reorderedLessons: Lesson[]) => void;
-    activeEditor: string | null;
-    setActiveEditor: (id: string | null) => void;
-    applyFormat: (command: string) => void;
 }
 
-function ModuleEditor({ module, onUpdate, onRemove, onAddLesson, onUpdateLesson, onRemoveLesson, onReorderLessons, activeEditor, setActiveEditor, applyFormat }: ModuleEditorProps) {
+function ModuleEditor({ module, onUpdate, onRemove, onAddLesson, onUpdateLesson, onRemoveLesson, onReorderLessons }: ModuleEditorProps) {
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [uploadProgress, setUploadProgress] = useState<number | null>(null);
     const [imageInputMode, setImageInputMode] = useState<'upload' | 'url'>('upload');
@@ -657,9 +615,6 @@ function ModuleEditor({ module, onUpdate, onRemove, onAddLesson, onUpdateLesson,
                                   moduleId={module.id}
                                   onUpdate={onUpdateLesson}
                                   onRemove={onRemoveLesson}
-                                  activeEditor={activeEditor}
-                                  setActiveEditor={setActiveEditor}
-                                  applyFormat={applyFormat}
                                />
                             ))}
                         </Reorder.Group>
@@ -680,17 +635,13 @@ interface LessonEditorProps {
   moduleId: string;
   onUpdate: (moduleId: string, lessonId: string, field: keyof Lesson, value: any) => void;
   onRemove: (moduleId: string, lessonId: string, lessonTitle: string) => void;
-  activeEditor: string | null;
-  setActiveEditor: (id: string | null) => void;
-  applyFormat: (command: string) => void;
 }
 
-function LessonEditor({ lesson, moduleId, onUpdate, onRemove, activeEditor, setActiveEditor, applyFormat }: LessonEditorProps) {
+function LessonEditor({ lesson, moduleId, onUpdate, onRemove }: LessonEditorProps) {
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const { toast } = useToast();
   const dragControls = useDragControls();
-  const descriptionEditorId = `lesson-desc-${lesson.id}`;
 
   const isDriveLink = lesson.videoUrl && lesson.videoUrl.includes('drive.google.com');
 
@@ -782,32 +733,12 @@ function LessonEditor({ lesson, moduleId, onUpdate, onRemove, activeEditor, setA
         </Button>
       </div>
       
-      <div className="relative">
-        <div
-            id={descriptionEditorId}
-            contentEditable={true}
-            suppressContentEditableWarning={true}
-            onFocus={() => setActiveEditor(descriptionEditorId)}
-            onBlur={() => setActiveEditor(null)}
-            onInput={(e) => onUpdate(moduleId, lesson.id, 'description', e.currentTarget.innerHTML)}
-            dangerouslySetInnerHTML={{ __html: lesson.description || '' }}
-            className={cn(
-                "min-h-[60px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-                "prose prose-sm prose-invert max-w-none"
-            )}
-        />
-        {activeEditor === descriptionEditorId && (
-            <ActionToolbar
-                className="absolute -top-12 left-1/2 -translate-x-1/2"
-                buttons={[
-                    { label: "Bold", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
-                    { label: "Italic", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
-                    { label: "Underline", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
-                    { label: "Cor", icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor') },
-                ]}
-            />
-        )}
-      </div>
+      <Textarea
+        placeholder="Descrição da aula..."
+        value={lesson.description}
+        onChange={(e) => onUpdate(moduleId, lesson.id, 'description', e.target.value)}
+        className="min-h-[60px] text-sm"
+      />
       
        {/* Main Video Section */}
        <div className="space-y-2 pt-2">
@@ -898,5 +829,3 @@ export default function EditCoursePage() {
         </AdminGuard>
     )
 }
-
-    
