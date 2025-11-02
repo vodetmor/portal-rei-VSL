@@ -8,7 +8,7 @@ import { doc, getDoc, collection, getDocs, setDoc, type DocumentData } from 'fir
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Trophy, UploadCloud } from 'lucide-react';
+import { Trophy, UploadCloud, Gem, Crown, Star } from 'lucide-react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { useEditMode } from '@/context/EditModeContext';
 import { Input } from '@/components/ui/input';
@@ -16,7 +16,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
-
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Course extends DocumentData {
   id: string;
@@ -31,7 +31,14 @@ const DEFAULT_HERO_SUBTITLE = "No Rei da VSL, cada copy se torna uma conversão 
 const DEFAULT_HERO_IMAGE = "https://picsum.photos/seed/hero-bg/1920/1080";
 const DEFAULT_MEMBERS_TITLE = "Área de Membros Premium";
 const DEFAULT_MEMBERS_SUBTITLE = "Rei da VSL ®";
+const DEFAULT_MEMBERS_ICON = 'Trophy';
 
+const iconComponents: { [key: string]: React.ElementType } = {
+  Trophy,
+  Gem,
+  Crown,
+  Star,
+};
 
 export default function DashboardPage() {
   const { user, loading: userLoading } = useUser();
@@ -51,11 +58,16 @@ export default function DashboardPage() {
   const [heroImage, setHeroImage] = useState(DEFAULT_HERO_IMAGE);
   const [membersTitle, setMembersTitle] = useState(DEFAULT_MEMBERS_TITLE);
   const [membersSubtitle, setMembersSubtitle] = useState(DEFAULT_MEMBERS_SUBTITLE);
+  const [membersIcon, setMembersIcon] = useState(DEFAULT_MEMBERS_ICON);
+
 
   const [isUploading, setIsUploading] = useState(false);
   const [contentLoading, setContentLoading] = useState(true);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  
+  const MembersIconComponent = iconComponents[membersIcon] || Trophy;
+
 
   const handleSaveChanges = useCallback(async () => {
     if (!firestore) {
@@ -69,6 +81,7 @@ export default function DashboardPage() {
       imageUrl: heroImage,
       membersTitle: membersTitle,
       membersSubtitle: membersSubtitle,
+      membersIcon: membersIcon,
     };
     
     // Use a non-blocking write and catch permission errors
@@ -84,7 +97,7 @@ export default function DashboardPage() {
         throw permissionError;
       });
 
-  }, [firestore, heroTitle, heroSubtitle, heroImage, membersTitle, membersSubtitle, toast]);
+  }, [firestore, heroTitle, heroSubtitle, heroImage, membersTitle, membersSubtitle, membersIcon, toast]);
 
   useEffect(() => {
     // Register the save handler if the user is an admin
@@ -114,6 +127,7 @@ export default function DashboardPage() {
           setHeroImage(data.imageUrl || DEFAULT_HERO_IMAGE);
           setMembersTitle(data.membersTitle || DEFAULT_MEMBERS_TITLE);
           setMembersSubtitle(data.membersSubtitle || DEFAULT_MEMBERS_SUBTITLE);
+          setMembersIcon(data.membersIcon || DEFAULT_MEMBERS_ICON);
         } else {
           // Use defaults if doc doesn't exist
           setHeroTitle(DEFAULT_HERO_TITLE);
@@ -121,6 +135,7 @@ export default function DashboardPage() {
           setHeroImage(DEFAULT_HERO_IMAGE);
           setMembersTitle(DEFAULT_MEMBERS_TITLE);
           setMembersSubtitle(DEFAULT_MEMBERS_SUBTITLE);
+          setMembersIcon(DEFAULT_MEMBERS_ICON);
         }
       } catch (error) {
          console.error("Error fetching layout:", error);
@@ -130,6 +145,7 @@ export default function DashboardPage() {
          setHeroImage(DEFAULT_HERO_IMAGE);
          setMembersTitle(DEFAULT_MEMBERS_TITLE);
          setMembersSubtitle(DEFAULT_MEMBERS_SUBTITLE);
+         setMembersIcon(DEFAULT_MEMBERS_ICON);
       } finally {
         setContentLoading(false);
       }
@@ -343,27 +359,48 @@ export default function DashboardPage() {
       {/* Members Area Section */}
       <section className="container mx-auto px-4 py-16 md:px-8">
         <div className="mb-8">
-            <div className="flex items-center gap-3 text-2xl font-bold text-white" data-editable={isEditMode}>
-                <Trophy className="h-7 w-7 text-primary" />
+            <div className="flex items-center gap-3 text-2xl font-bold text-white">
+                 {isEditMode ? (
+                    <div data-editable="true">
+                        <Select value={membersIcon} onValueChange={setMembersIcon}>
+                            <SelectTrigger className="w-[180px] bg-transparent border-dashed">
+                                <SelectValue placeholder="Selecione um ícone" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="Trophy"><Trophy className="inline-block mr-2 h-4 w-4" /> Troféu</SelectItem>
+                                <SelectItem value="Gem"><Gem className="inline-block mr-2 h-4 w-4" /> Joia</SelectItem>
+                                <SelectItem value="Crown"><Crown className="inline-block mr-2 h-4 w-4" /> Coroa</SelectItem>
+                                <SelectItem value="Star"><Star className="inline-block mr-2 h-4 w-4" /> Estrela</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                ) : (
+                    <MembersIconComponent className="h-7 w-7 text-primary" />
+                )}
+
                 {isEditMode ? (
-                    <Input 
-                        value={membersTitle}
-                        onChange={(e) => setMembersTitle(e.target.value)}
-                        className="text-2xl font-bold text-white bg-transparent border-dashed p-0 h-auto"
-                    />
+                    <div data-editable="true" className="flex-grow">
+                        <Input 
+                            value={membersTitle}
+                            onChange={(e) => setMembersTitle(e.target.value)}
+                            className="text-2xl font-bold text-white bg-transparent border-dashed p-0 h-auto"
+                        />
+                    </div>
                 ) : (
                     <h2>{membersTitle}</h2>
                 )}
             </div>
              <div className="text-muted-foreground" data-editable={isEditMode}>
                 {isEditMode ? (
-                     <Input 
-                        value={membersSubtitle}
-                        onChange={(e) => setMembersSubtitle(e.target.value)}
-                        className="text-base text-muted-foreground bg-transparent border-dashed p-0 h-auto"
-                    />
+                    <div data-editable="true" className="pl-10">
+                         <Input 
+                            value={membersSubtitle}
+                            onChange={(e) => setMembersSubtitle(e.target.value)}
+                            className="text-base text-muted-foreground bg-transparent border-dashed p-0 h-auto"
+                        />
+                    </div>
                 ) : (
-                    <p>{membersSubtitle}</p>
+                    <p className="pl-10">{membersSubtitle}</p>
                 )}
              </div>
         </div>
