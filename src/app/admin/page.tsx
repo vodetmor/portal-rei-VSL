@@ -9,6 +9,17 @@ import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 interface Course extends DocumentData {
   id: string;
@@ -21,6 +32,7 @@ function AdminDashboard() {
   const { toast } = useToast();
   const [courses, setCourses] = useState<Course[]>([]);
   const [userCount, setUserCount] = useState(0);
+  const [courseToDelete, setCourseToDelete] = useState<string | null>(null);
 
   const fetchCourses = async () => {
     if (!firestore) return;
@@ -46,11 +58,10 @@ function AdminDashboard() {
     }
   }, [firestore]);
 
-  const handleDelete = async (courseId: string) => {
-    if (!firestore) return;
-    // We can add a confirmation dialog here if needed, but for now, it's direct.
+  const handleDelete = async () => {
+    if (!firestore || !courseToDelete) return;
     try {
-      await deleteDoc(doc(firestore, 'courses', courseId));
+      await deleteDoc(doc(firestore, 'courses', courseToDelete));
       toast({
         title: "Curso Excluído",
         description: "O curso foi removido com sucesso.",
@@ -63,6 +74,8 @@ function AdminDashboard() {
         title: "Erro ao Excluir",
         description: "Não foi possível excluir o curso. Verifique as permissões."
       });
+    } finally {
+      setCourseToDelete(null);
     }
   };
   
@@ -93,31 +106,46 @@ function AdminDashboard() {
         </Card>
       </div>
 
-
-      <div className="bg-secondary p-6 rounded-lg shadow-lg">
-        <h2 className="text-xl font-semibold text-white mb-4">Gerenciar Cursos</h2>
-        <div className="space-y-4">
-          {courses.map(course => (
-            <div key={course.id} className="group relative flex items-center justify-between p-4 rounded-md bg-background/50 hover:bg-background transition-colors">
-              <div className="flex items-center gap-4">
-                <Image src={course.thumbnailUrl} alt={course.title} width={80} height={45} className="rounded-md object-cover aspect-video" />
-                <span className="font-medium text-white">{course.title}</span>
+      <AlertDialog>
+        <div className="bg-secondary p-6 rounded-lg shadow-lg">
+          <h2 className="text-xl font-semibold text-white mb-4">Gerenciar Cursos</h2>
+          <div className="space-y-4">
+            {courses.map(course => (
+              <div key={course.id} className="group relative flex items-center justify-between p-4 rounded-md bg-background/50 hover:bg-background transition-colors">
+                <div className="flex items-center gap-4">
+                  <Image src={course.thumbnailUrl} alt={course.title} width={80} height={45} className="rounded-md object-cover aspect-video" />
+                  <span className="font-medium text-white">{course.title}</span>
+                </div>
+                <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button asChild variant="outline" size="icon">
+                    <Link href={`/admin/edit-course/${course.id}`}>
+                      <Pencil className="h-4 w-4" />
+                    </Link>
+                  </Button>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="icon" onClick={() => setCourseToDelete(course.id)}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                </div>
               </div>
-              <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                <Button asChild variant="outline" size="icon">
-                  <Link href={`/admin/edit-course/${course.id}`}>
-                    <Pencil className="h-4 w-4" />
-                  </Link>
-                </Button>
-                <Button variant="destructive" size="icon" onClick={() => handleDelete(course.id)}>
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </div>
-            </div>
-          ))}
-          {courses.length === 0 && <p className="text-muted-foreground text-center py-4">Nenhum curso encontrado.</p>}
+            ))}
+            {courses.length === 0 && <p className="text-muted-foreground text-center py-4">Nenhum curso encontrado.</p>}
+          </div>
         </div>
-      </div>
+         <AlertDialogContent>
+            <AlertDialogHeader>
+            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+                Esta ação não pode ser desfeita. Isso irá excluir permanentemente o curso.
+            </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setCourseToDelete(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDelete}>Excluir</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
