@@ -13,7 +13,7 @@
     --popover: 0 0% 6%;
     --popover-foreground: 0 0% 100%;
 
-    --primary: 45 95% 55%; /* #f7b733 - VSL Yellow */
+    --primary: 51 100% 50%; /* #FFD700 - Gold */
     --primary-foreground: 0 0% 10%;
 
     --secondary: 0 0% 15%;
@@ -30,7 +30,7 @@
 
     --border: 0 0% 15%;
     --input: 0 0% 15%;
-    --ring: 45 95% 55%;
+    --ring: 51 100% 50%;
 
     --radius: 0.5rem;
   }

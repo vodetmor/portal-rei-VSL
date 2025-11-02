@@ -2,9 +2,9 @@
 import { useState, useEffect } from 'react';
 import { useFirestore } from '@/firebase';
 import AdminGuard from '@/components/admin/admin-guard';
-import { collection, getDocs, deleteDoc, doc, addDoc, DocumentData } from 'firebase/firestore';
+import { collection, getDocs, deleteDoc, doc, addDoc, setDoc, DocumentData } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
-import { Plus, Trash2, Users, Pencil, BookOpen } from 'lucide-react';
+import { Plus, Trash2, Users, Pencil, BookOpen, Link as LinkIcon, Copy } from 'lucide-react';
 import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
@@ -20,7 +20,20 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogTrigger,
+  DialogClose
+} from '@/components/ui/dialog';
 import { useRouter } from 'next/navigation';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface Course extends DocumentData {
   id: string;
@@ -28,25 +41,37 @@ interface Course extends DocumentData {
   thumbnailUrl: string;
 }
 
+interface PremiumLink extends DocumentData {
+    id: string;
+    name: string;
+    courseIds: string[];
+}
+
 function AdminDashboard() {
   const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
   const [courses, setCourses] = useState<Course[]>([]);
+  const [premiumLinks, setPremiumLinks] = useState<PremiumLink[]>([]);
   const [userCount, setUserCount] = useState(0);
   const [courseCount, setCourseCount] = useState(0);
-  const [courseToDelete, setCourseToDelete] = useState<string | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<{id: string; type: 'course' | 'link'} | null>(null);
+
+  // State for the "Create Premium Link" dialog
+  const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
+  const [newLinkName, setNewLinkName] = useState('');
+  const [selectedCourses, setSelectedCourses] = useState<Record<string, boolean>>({});
 
   const fetchData = async () => {
     if (!firestore) return;
     try {
         const coursesQuery = await getDocs(collection(firestore, 'courses'));
-        const coursesData = coursesQuery.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        })) as Course[];
+        const coursesData = coursesQuery.docs.map(doc => ({ id: doc.id, ...doc.data() })) as Course[];
         setCourses(coursesData);
         setCourseCount(coursesData.length);
+
+        const linksQuery = await getDocs(collection(firestore, 'premiumLinks'));
+        setPremiumLinks(linksQuery.docs.map(doc => ({ id: doc.id, ...doc.data() } as PremiumLink)));
 
         const usersQuery = await getDocs(collection(firestore, 'users'));
         setUserCount(usersQuery.size);
@@ -93,35 +118,68 @@ function AdminDashboard() {
     }
   };
 
-
   const handleDelete = async () => {
-    if (!firestore || !courseToDelete) return;
+    if (!firestore || !itemToDelete) return;
+    const { id, type } = itemToDelete;
+    const collectionName = type === 'course' ? 'courses' : 'premiumLinks';
+
     try {
-      await deleteDoc(doc(firestore, 'courses', courseToDelete));
+      await deleteDoc(doc(firestore, collectionName, id));
       toast({
-        title: "Curso Excluído",
-        description: "O curso foi removido com sucesso.",
+        title: `${type === 'course' ? 'Curso' : 'Link'} Excluído`,
+        description: `O ${type === 'course' ? 'curso' : 'link'} foi removido com sucesso.`,
       })
       fetchData(); 
     } catch (error) {
-      console.error("Error deleting course: ", error);
+      console.error(`Error deleting ${type}: `, error);
       toast({
         variant: "destructive",
         title: "Erro ao Excluir",
-        description: "Não foi possível excluir o curso. Verifique as permissões."
+        description: `Não foi possível excluir o ${type}. Verifique as permissões.`
       });
     } finally {
-      setCourseToDelete(null);
+      setItemToDelete(null);
     }
   };
+
+  const handleCreatePremiumLink = async () => {
+    if (!firestore || !newLinkName.trim()) {
+        toast({ variant: "destructive", title: "Erro", description: "O nome do link é obrigatório." });
+        return;
+    }
+    const courseIds = Object.keys(selectedCourses).filter(id => selectedCourses[id]);
+    if (courseIds.length === 0) {
+        toast({ variant: "destructive", title: "Erro", description: "Selecione pelo menos um curso." });
+        return;
+    }
+
+    try {
+        const newLink = { name: newLinkName, courseIds };
+        await addDoc(collection(firestore, 'premiumLinks'), newLink);
+        toast({ title: "Sucesso!", description: "Link premium criado." });
+        setNewLinkName('');
+        setSelectedCourses({});
+        setIsLinkDialogOpen(false);
+        fetchData();
+    } catch (error) {
+        console.error("Error creating premium link: ", error);
+        toast({ variant: "destructive", title: "Erro", description: "Não foi possível criar o link." });
+    }
+  };
+
+  const copyLinkToClipboard = (id: string) => {
+    const url = `${window.location.origin}/premium/${id}`;
+    navigator.clipboard.writeText(url);
+    toast({ title: "Copiado!", description: "O link de acesso foi copiado para a área de transferência." });
+  }
   
   return (
-    <div className="container mx-auto px-4 py-8 md:px-8">
-      <div className="flex justify-between items-center mb-8 pt-24">
+    <div className="container mx-auto px-4 py-8 md:px-8 space-y-8">
+      <div className="flex justify-between items-center pt-24">
         <h1 className="text-3xl font-bold text-white">Painel do Administrador</h1>
       </div>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Usuários Totais</CardTitle>
@@ -148,20 +206,80 @@ function AdminDashboard() {
         </Card>
       </div>
       
-       <div className="flex justify-end gap-4 mb-8">
+       <div className="flex justify-end gap-4">
           <Button asChild>
               <Link href="/admin/users">
                   <Users className="mr-2 h-4 w-4" /> Gerenciar Usuários
               </Link>
           </Button>
-          <Button onClick={handleAddCourse}>
-            <Plus className="mr-2 h-4 w-4" /> Adicionar Curso
-          </Button>
       </div>
+
+       {/* Premium Links Section */}
+      <div className="bg-secondary/30 p-6 rounded-lg shadow-lg">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold text-white">Links de Acesso Premium</h2>
+            <Dialog open={isLinkDialogOpen} onOpenChange={setIsLinkDialogOpen}>
+              <DialogTrigger asChild>
+                <Button size="sm"><Plus className="mr-2 h-4 w-4" /> Criar Link</Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Criar Novo Link de Acesso</DialogTitle>
+                  <DialogDescription>Dê um nome ao link e selecione os cursos que ele irá liberar.</DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 py-4">
+                    <div>
+                        <Label htmlFor="link-name">Nome do Link</Label>
+                        <Input id="link-name" value={newLinkName} onChange={e => setNewLinkName(e.target.value)} placeholder="Ex: Pacote VSL Completo" />
+                    </div>
+                    <div>
+                        <Label>Cursos Inclusos</Label>
+                        <div className="max-h-60 overflow-y-auto space-y-2 rounded-md border p-4 mt-2">
+                            {courses.map(course => (
+                                <div key={course.id} className="flex items-center gap-3">
+                                    <Checkbox id={`course-${course.id}`} checked={selectedCourses[course.id] || false} onCheckedChange={checked => setSelectedCourses(prev => ({ ...prev, [course.id]: !!checked }))} />
+                                    <Label htmlFor={`course-${course.id}`} className="font-normal">{course.title}</Label>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+                <DialogFooter>
+                  <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
+                  <Button onClick={handleCreatePremiumLink}>Criar Link</Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+          <div className="space-y-2">
+            {premiumLinks.map(link => (
+              <div key={link.id} className="group relative flex items-center justify-between p-3 rounded-md bg-background/50 hover:bg-secondary/50 transition-colors">
+                <div className="flex items-center gap-3">
+                  <LinkIcon className="h-5 w-5 text-primary" />
+                  <span className="font-medium text-white">{link.name}</span>
+                </div>
+                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Button variant="outline" size="icon" onClick={() => copyLinkToClipboard(link.id)}><Copy className="h-4 w-4" /></Button>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" size="icon" onClick={() => setItemToDelete({ id: link.id, type: 'link' })}>
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </AlertDialogTrigger>
+                </div>
+              </div>
+            ))}
+            {premiumLinks.length === 0 && <p className="text-muted-foreground text-center py-4">Nenhum link premium criado.</p>}
+          </div>
+        </div>
 
       <AlertDialog>
         <div className="bg-secondary/50 p-6 rounded-lg shadow-lg">
-          <h2 className="text-xl font-semibold text-white mb-4">Gerenciar Cursos</h2>
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xl font-semibold text-white">Gerenciar Cursos</h2>
+             <Button onClick={handleAddCourse}>
+                <Plus className="mr-2 h-4 w-4" /> Adicionar Curso
+             </Button>
+          </div>
           <div className="space-y-4">
             {courses.map(course => (
               <div key={course.id} className="group relative flex items-center justify-between p-4 rounded-md bg-background/50 hover:bg-secondary/50 transition-colors">
@@ -176,7 +294,7 @@ function AdminDashboard() {
                     </Link>
                   </Button>
                   <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="icon" onClick={() => setCourseToDelete(course.id)}>
+                    <Button variant="destructive" size="icon" onClick={() => setItemToDelete({ id: course.id, type: 'course'})}>
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </AlertDialogTrigger>
@@ -190,11 +308,11 @@ function AdminDashboard() {
             <AlertDialogHeader>
             <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
             <AlertDialogDescription>
-                Esta ação não pode ser desfeita. Isso irá excluir permanentemente o curso.
+                Esta ação não pode ser desfeita. Isso irá excluir permanentemente o {itemToDelete?.type === 'course' ? 'curso' : 'link'}.
             </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-            <AlertDialogCancel onClick={() => setCourseToDelete(null)}>Cancelar</AlertDialogCancel>
+            <AlertDialogCancel onClick={() => setItemToDelete(null)}>Cancelar</AlertDialogCancel>
             <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">Excluir</AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>

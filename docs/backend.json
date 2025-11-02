@@ -77,6 +77,22 @@
         "sentAt": { "type": "string", "description": "Timestamp indicating when the message was sent.", "format": "date-time" }
       },
       "required": ["id", "name", "email", "message", "sentAt"]
+    },
+    "PremiumLink": {
+      "$schema": "http://json-schema.org/draft-07-schema#",
+      "title": "PremiumLink",
+      "type": "object",
+      "description": "Represents a unique link that grants access to one or more courses.",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the link (the token)." },
+        "name": { "type": "string", "description": "A descriptive name for the link, for admin use." },
+        "courseIds": {
+          "type": "array",
+          "description": "An array of course IDs that this link grants access to.",
+          "items": { "type": "string" }
+        }
+      },
+      "required": ["id", "name", "courseIds"]
     }
   },
   "auth": {
@@ -140,8 +156,17 @@
           "description": "Stores contact messages submitted through the contact form.",
           "params": [{ "name": "messageId", "description": "Unique identifier for the contact message." }]
         }
+      },
+       {
+        "path": "/premiumLinks/{linkId}",
+        "definition": {
+          "entityName": "PremiumLink",
+          "schema": { "$ref": "#/backend/entities/PremiumLink" },
+          "description": "Stores premium access links and their associated course IDs.",
+          "params": [{ "name": "linkId", "description": "The unique token for the premium link." }]
+        }
       }
     ],
-    "reasoning": "The Firestore structure is designed to store data for the 'Portfólio Hades' application, focusing on separation of concerns, security, and scalability. User management has been added with a specific subcollection for course access to allow granular control. \n\n**Users:** Stored in the `/users` collection, containing public profile information and roles.\n**Course Access:** A subcollection `/users/{userId}/courseAccess` explicitly grants users access to courses, allowing admins to manage permissions easily.\n**Videos:** Stored in the `/videos` collection.\n**Clients:** Stored in the `/clients` collection.\n**Skills:** Stored in the `/skills` collection.\n**Contact Messages:** Stored in the `/contactMessages` collection.\n\n**Authorization:** Access control is managed via Firestore Rules, restricting sensitive operations to admins. The `courseAccess` subcollection is writable only by admins, providing a secure way to manage user entitlements."
+    "reasoning": "The Firestore structure is designed to store data for the 'Portfólio Hades' application, focusing on separation of concerns, security, and scalability. User management has been added with a specific subcollection for course access to allow granular control. The `premiumLinks` collection has been added to manage the new premium access system, linking tokens to course bundles.\n\n**Users:** Stored in the `/users` collection.\n**Course Access:** A subcollection `/users/{userId}/courseAccess` explicitly grants users access to courses.\n**Premium Links:** A new collection `/premiumLinks` stores the generated tokens and the course IDs they grant access to.\n\n**Authorization:** Access control is managed via Firestore Rules, restricting sensitive operations to admins. The `premiumLinks` collection is only writable by admins, but readable by any authenticated user to verify a link."
   }
 }
