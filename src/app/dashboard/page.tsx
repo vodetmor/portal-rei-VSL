@@ -1,7 +1,7 @@
 'use client';
 import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, useCallback, useContext, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { CourseCard } from '@/components/course-card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { doc, getDoc, collection, getDocs, setDoc, deleteDoc, type DocumentData, updateDoc } from 'firebase/firestore';
@@ -43,14 +43,13 @@ function DashboardClientPage() {
   const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
-  const { layoutData, setLayoutData } = useLayout();
+  const { layoutData, setLayoutData, isEditMode, setIsEditMode } = useLayout();
 
 
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   
-  const [isEditMode, setIsEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [activeEditor, setActiveEditor] = useState<string | null>(null);
 
@@ -511,7 +510,7 @@ function DashboardClientPage() {
                 )}
             </div>
             {loading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                   {Array.from({ length: 4 }).map((_, index) => (
                       <div key={index}>
                           <Skeleton className="aspect-[2/3] w-full rounded-lg" />
@@ -519,7 +518,7 @@ function DashboardClientPage() {
                   ))}
                 </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                   {courses.map((course, index) => (
                     <CourseCard
                         key={course.id}

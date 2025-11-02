@@ -21,6 +21,8 @@ interface LayoutData {
 interface LayoutContextType {
   layoutData: LayoutData;
   setLayoutData: React.Dispatch<React.SetStateAction<LayoutData>>;
+  isEditMode: boolean;
+  setIsEditMode: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 const LayoutContext = createContext<LayoutContextType | undefined>(undefined);
@@ -32,6 +34,8 @@ export const LayoutProvider = ({ children }: { children: ReactNode }) => {
     isLoading: true,
     defaults: DEFAULT_DEFAULTS,
   });
+  const [isEditMode, setIsEditMode] = useState(false);
+
 
   const fetchPageContent = useCallback(async () => {
     if (!firestore) return;
@@ -60,7 +64,7 @@ export const LayoutProvider = ({ children }: { children: ReactNode }) => {
   }, [fetchPageContent]);
 
   return (
-    <LayoutContext.Provider value={{ layoutData, setLayoutData }}>
+    <LayoutContext.Provider value={{ layoutData, setLayoutData, isEditMode, setIsEditMode }}>
       {children}
     </LayoutContext.Provider>
   );
