@@ -71,6 +71,16 @@ interface LessonComment {
     replyCount?: number;
 }
 
+interface CommentReply {
+    id: string;
+    userId: string;
+    userDisplayName: string;
+    userPhotoURL: string;
+    text: string;
+    timestamp: any;
+}
+
+
 interface LessonReaction {
     id: string;
     userId: string;
@@ -459,7 +469,7 @@ export default function LessonPage() {
                     </svg>
                 </Button>
                 <div className="text-sm">
-                    <span className="text-muted-foreground hidden md:inline">{course.title} / </span>
+                    <span className="text-muted-foreground hidden md:inline">{course.title} / </span> 
                     <span className="text-white font-medium">{currentLesson.title}</span>
                 </div>
             </div>
@@ -642,6 +652,13 @@ function Comment({ comment, courseId, lessonId, currentUserId, isAdmin }: Commen
     const firestore = useFirestore();
     const { toast } = useToast();
     const [showReplies, setShowReplies] = useState(false);
+    
+    const repliesQuery = useMemoFirebase(() => {
+        if (!firestore || !showReplies) return null;
+        return query(collection(firestore, `courses/${courseId}/lessons/${lessonId}/comments/${comment.id}/replies`), orderBy('timestamp', 'asc'));
+    }, [firestore, courseId, lessonId, comment.id, showReplies]);
+
+    const { data: replies, isLoading: repliesLoading } = useCollection<CommentReply>(repliesQuery);
 
     const handleTogglePin = () => {
         if (!isAdmin || !firestore) return;
@@ -659,11 +676,9 @@ function Comment({ comment, courseId, lessonId, currentUserId, isAdmin }: Commen
         runTransaction(firestore, async (transaction) => {
             const likeDoc = await transaction.get(likeRef);
             if (likeDoc.exists()) {
-                // User has already liked, so unlike
                 transaction.delete(likeRef);
                 transaction.update(commentRef, { likeCount: increment(-1) });
             } else {
-                // User has not liked, so like
                 transaction.set(likeRef, { userId: currentUserId, timestamp: serverTimestamp() });
                 transaction.update(commentRef, { likeCount: increment(1) });
             }
@@ -710,49 +725,28 @@ function Comment({ comment, courseId, lessonId, currentUserId, isAdmin }: Commen
                 </div>
                 {showReplies && (
                     <div className="mt-4 space-y-4">
-                        <ReplyForm courseId={courseId} lessonId={lessonId} commentId={comment.id} currentUserId={currentUserId} />
-                        <ReplyList courseId={courseId} lessonId={lessonId} commentId={comment.id} />
+                        <ReplyForm courseId={courseId} lessonId={lessonId} commentId={comment.id} />
+                         <div className="space-y-4 pl-8 border-l border-border/50">
+                            {repliesLoading && <Skeleton className="h-10 w-full" />}
+                            {replies?.map(reply => (
+                                <div key={reply.id} className="flex items-start gap-3">
+                                    <Avatar className="h-8 w-8">
+                                        <AvatarImage src={reply.userPhotoURL} />
+                                        <AvatarFallback>{reply.userDisplayName.charAt(0)}</AvatarFallback>
+                                    </Avatar>
+                                     <div className="flex-1">
+                                        <div className="flex items-baseline gap-2">
+                                             <p className="font-semibold text-white text-sm">{reply.userDisplayName}</p>
+                                              <p className="text-xs text-muted-foreground">{reply.timestamp ? formatDistanceToNow(reply.timestamp.toDate(), { addSuffix: true, locale: ptBR }) : ''}</p>
+                                        </div>
+                                        <div className="text-muted-foreground text-sm whitespace-pre-wrap prose-sm prose-invert max-w-none">{makeLinksClickable(reply.text)}</div>
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     </div>
                 )}
             </div>
-        </div>
-    );
-}
-
-interface ReplyListProps {
-    courseId: string;
-    lessonId: string;
-    commentId: string;
-}
-
-function ReplyList({ courseId, lessonId, commentId }: ReplyListProps) {
-    const firestore = useFirestore();
-    const repliesQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
-        return query(collection(firestore, `courses/${courseId}/lessons/${lessonId}/comments/${commentId}/replies`), orderBy('timestamp', 'asc'));
-    }, [firestore, courseId, lessonId, commentId]);
-
-    const { data: replies, isLoading } = useCollection(repliesQuery);
-
-    if (isLoading) return <Skeleton className="h-10 w-full" />;
-
-    return (
-        <div className="space-y-4 pl-8 border-l border-border/50">
-            {replies?.map(reply => (
-                <div key={reply.id} className="flex items-start gap-3">
-                    <Avatar className="h-8 w-8">
-                        <AvatarImage src={reply.userPhotoURL} />
-                        <AvatarFallback>{reply.userDisplayName.charAt(0)}</AvatarFallback>
-                    </Avatar>
-                     <div className="flex-1">
-                        <div className="flex items-baseline gap-2">
-                             <p className="font-semibold text-white text-sm">{reply.userDisplayName}</p>
-                              <p className="text-xs text-muted-foreground">{reply.timestamp ? formatDistanceToNow(reply.timestamp.toDate(), { addSuffix: true, locale: ptBR }) : ''}</p>
-                        </div>
-                        <div className="text-muted-foreground text-sm whitespace-pre-wrap prose-sm prose-invert max-w-none">{makeLinksClickable(reply.text)}</div>
-                    </div>
-                </div>
-            ))}
         </div>
     );
 }
@@ -761,10 +755,9 @@ interface ReplyFormProps {
     courseId: string;
     lessonId: string;
     commentId: string;
-    currentUserId?: string;
 }
 
-function ReplyForm({ courseId, lessonId, commentId, currentUserId }: ReplyFormProps) {
+function ReplyForm({ courseId, lessonId, commentId }: ReplyFormProps) {
     const firestore = useFirestore();
     const { user } = useUser();
     const [replyText, setReplyText] = useState('');
@@ -821,3 +814,5 @@ function ReplyForm({ courseId, lessonId, commentId, currentUserId }: ReplyFormPr
         </form>
     );
 }
+
+    
