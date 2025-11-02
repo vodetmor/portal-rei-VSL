@@ -3,7 +3,7 @@ import { Poppins } from "next/font/google";
 import "./globals.css";
 import { FirebaseClientProvider } from "@/firebase/client-provider";
 import { Toaster } from "@/components/ui/toaster";
-import { Nav } from "@/components/nav";
+import { Header } from "@/components/ui/header-2";
 import { LayoutProvider } from "@/context/layout-context";
 
 
@@ -31,7 +31,7 @@ export default function RootLayout({
       <body className={poppins.className}>
         <FirebaseClientProvider>
           <LayoutProvider>
-            <Nav />
+            <Header />
             <main>{children}</main>
             <Toaster />
           </LayoutProvider>
