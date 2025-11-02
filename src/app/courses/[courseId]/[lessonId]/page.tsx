@@ -239,10 +239,10 @@ export default function LessonPage() {
   };
 
   return (
-    <div className="flex min-h-screen bg-black text-white">
+    <div className="flex min-h-screen bg-black text-white pt-20">
       {/* Sidebar */}
       <aside className={cn(
-        "bg-background h-screen flex-col transition-all duration-300 ease-in-out fixed top-0 left-0 z-20 hidden md:flex",
+        "bg-background h-[calc(100vh-5rem)] flex-col transition-all duration-300 ease-in-out fixed top-20 left-0 z-20 hidden md:flex",
         isSidebarOpen ? "w-80" : "w-0 overflow-hidden"
       )}>
         <div className="flex items-center justify-between p-4 border-b border-r border-border h-20">
@@ -293,7 +293,7 @@ export default function LessonPage() {
         "flex-1 flex flex-col transition-all duration-300 ease-in-out",
         isSidebarOpen ? "md:ml-80" : "md:ml-0"
       )}>
-        <header className="flex items-center justify-between p-4 bg-background/80 backdrop-blur-sm z-10 border-b border-border h-20 shrink-0 sticky top-0">
+        <header className="flex items-center justify-between p-4 bg-background/80 backdrop-blur-sm z-10 border-b border-border h-20 shrink-0 sticky top-20">
            <div className="flex items-center gap-4">
                 <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="md:hidden">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -379,3 +379,5 @@ export default function LessonPage() {
     </div>
   );
 }
+
+    
