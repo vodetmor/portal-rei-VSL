@@ -17,7 +17,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Trash2, Save, Upload, Link2, GripVertical, FileVideo, Eye } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, Upload, Link2, GripVertical, FileVideo, Eye, CalendarDays } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
@@ -33,14 +33,16 @@ interface Lesson {
   title: string;
   description?: string;
   videoUrl: string;
+  releaseDelayDays?: number;
 }
 
 interface Module {
-  id: string;
+  id:string;
   title: string;
   thumbnailUrl: string;
   imageHint: string;
   lessons: Lesson[];
+  releaseDelayDays?: number;
 }
 
 interface Course {
@@ -83,7 +85,8 @@ function EditCoursePageContent() {
         setModules((courseData.modules || []).map(m => ({
           ...m,
           id: uuidv4(), // Client-side ID
-          lessons: (m.lessons || []).map(l => ({ ...l, id: uuidv4(), description: l.description || '' }))
+          releaseDelayDays: m.releaseDelayDays || 0,
+          lessons: (m.lessons || []).map(l => ({ ...l, id: uuidv4(), description: l.description || '', releaseDelayDays: l.releaseDelayDays || 0 }))
         })));
       } else {
         toast({ variant: "destructive", title: "Erro", description: "Curso não encontrado." });
@@ -109,6 +112,7 @@ function EditCoursePageContent() {
       thumbnailUrl: DEFAULT_MODULE_IMAGE,
       imageHint: 'abstract',
       lessons: [],
+      releaseDelayDays: 0,
     };
     setModules([...modules, newModule]);
   };
@@ -124,12 +128,12 @@ function EditCoursePageContent() {
   const addLesson = (moduleId: string) => {
     setModules(modules.map(m => 
       m.id === moduleId 
-        ? { ...m, lessons: [...m.lessons, { id: uuidv4(), title: '', description: '', videoUrl: '' }] }
+        ? { ...m, lessons: [...m.lessons, { id: uuidv4(), title: '', description: '', videoUrl: '', releaseDelayDays: 0 }] }
         : m
     ));
   };
 
-  const updateLessonField = (moduleId: string, lessonId: string, field: keyof Lesson, value: string) => {
+  const updateLessonField = (moduleId: string, lessonId: string, field: keyof Lesson, value: string | number) => {
     setModules(modules.map(m => 
       m.id === moduleId 
         ? { ...m, lessons: m.lessons.map(l => l.id === lessonId ? { ...l, [field]: value } : l) }
@@ -152,10 +156,14 @@ function EditCoursePageContent() {
     
     try {
       const courseRef = doc(firestore, 'courses', courseId);
-      // Strip client-side 'id's before saving to Firestore
+      // Strip client-side 'id's and ensure releaseDelayDays is a number before saving
       const modulesToSave = modules.map(({ id, lessons, ...rest }) => ({
         ...rest,
-        lessons: lessons.map(({ id: lessonId, ...lessonRest }) => lessonRest)
+        releaseDelayDays: Number(rest.releaseDelayDays || 0),
+        lessons: lessons.map(({ id: lessonId, ...lessonRest }) => ({
+            ...lessonRest,
+            releaseDelayDays: Number(lessonRest.releaseDelayDays || 0)
+        }))
       }));
       
       const courseDataToSave = {
@@ -292,7 +300,7 @@ interface ModuleEditorProps {
     onUpdate: <K extends keyof Module>(moduleId: string, field: K, value: Module[K]) => void;
     onRemove: (moduleId: string) => void;
     onAddLesson: (moduleId: string) => void;
-    onUpdateLesson: (moduleId: string, lessonId: string, field: keyof Lesson, value: string) => void;
+    onUpdateLesson: (moduleId: string, lessonId: string, field: keyof Lesson, value: string | number) => void;
     onRemoveLesson: (moduleId: string, lessonId: string) => void;
 }
 
@@ -345,12 +353,26 @@ function ModuleEditor({ module, onUpdate, onRemove, onAddLesson, onUpdateLesson,
                 </div>
 
                 <div className="flex-grow w-full space-y-3">
-                     <Input
-                        placeholder="Título do Módulo"
-                        value={module.title}
-                        onChange={(e) => onUpdate(module.id, 'title', e.target.value)}
-                        className="font-semibold"
-                    />
+                    <div className="flex gap-2">
+                        <Input
+                            placeholder="Título do Módulo"
+                            value={module.title}
+                            onChange={(e) => onUpdate(module.id, 'title', e.target.value)}
+                            className="font-semibold flex-grow"
+                        />
+                         <div className="relative w-32">
+                            <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                                type="number"
+                                placeholder="Dias para liberar"
+                                value={module.releaseDelayDays || ''}
+                                onChange={(e) => onUpdate(module.id, 'releaseDelayDays', Number(e.target.value))}
+                                className="pl-8 text-xs"
+                                min={0}
+                            />
+                        </div>
+                    </div>
+
 
                     <Tabs value={imageInputMode} onValueChange={(v) => setImageInputMode(v as 'upload' | 'url')} className="w-full">
                         <TabsList className="grid w-full grid-cols-2 h-9">
@@ -437,7 +459,7 @@ interface LessonEditorProps {
   lesson: Lesson;
   moduleId: string;
   lessonIndex: number;
-  onUpdate: (moduleId: string, lessonId: string, field: keyof Lesson, value: string) => void;
+  onUpdate: (moduleId: string, lessonId: string, field: keyof Lesson, value: string | number) => void;
   onRemove: (moduleId: string, lessonId: string) => void;
 }
 
@@ -486,6 +508,17 @@ function LessonEditor({ lesson, moduleId, lessonIndex, onUpdate, onRemove }: Les
           onChange={(e) => onUpdate(moduleId, lesson.id, 'title', e.target.value)}
           className="h-9 flex-grow"
         />
+        <div className="relative w-32">
+            <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+                type="number"
+                placeholder="Dias"
+                value={lesson.releaseDelayDays || ''}
+                onChange={(e) => onUpdate(moduleId, lesson.id, 'releaseDelayDays', Number(e.target.value))}
+                className="h-9 pl-8 text-xs"
+                min={0}
+            />
+        </div>
         <Button type="button" variant="ghost" size="icon" onClick={() => onRemove(moduleId, lesson.id)}>
           <Trash2 className="h-4 w-4 text-destructive/70" />
         </Button>

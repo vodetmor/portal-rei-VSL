@@ -34,11 +34,12 @@ interface CourseCardProps {
   priority?: boolean;
   isAdmin?: boolean;
   isEditing?: boolean;
+  isLocked?: boolean;
   onUpdate?: (id: string, data: { title?: string; thumbnailUrl?: string }) => void;
   onDelete?: (id: string) => void;
 }
 
-export function CourseCard({ course, priority = false, isAdmin = false, isEditing = false, onUpdate, onDelete }: CourseCardProps) {
+export function CourseCard({ course, priority = false, isAdmin = false, isEditing = false, isLocked = false, onUpdate, onDelete }: CourseCardProps) {
   const { toast } = useToast();
   const [tempTitle, setTempTitle] = useState(course.title);
   const [tempThumbnailUrl, setTempThumbnailUrl] = useState(course.thumbnailUrl || '');
@@ -111,13 +112,18 @@ export function CourseCard({ course, priority = false, isAdmin = false, isEditin
           height={600}
           data-ai-hint={course.imageHint}
           priority={priority}
-          className="object-cover transition-transform duration-300 ease-in-out h-full w-full"
+          className={cn(
+              "object-cover transition-transform duration-300 ease-in-out h-full w-full",
+              isLocked && "grayscale"
+            )}
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
         
-        <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-            <Play className="h-12 w-12 text-white/80" fill="currentColor" />
-        </div>
+        {!isLocked && (
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+                <Play className="h-12 w-12 text-white/80" fill="currentColor" />
+            </div>
+        )}
 
         <div className="absolute bottom-0 left-0 p-4 w-full">
             {isEditing && isAdmin ? (
@@ -137,26 +143,26 @@ export function CourseCard({ course, priority = false, isAdmin = false, isEditin
     </>
   );
   
+  const WrapperComponent = isLocked ? 'div' : Link;
+  const wrapperProps = isLocked ? {} : { href: `/courses/${course.id}` };
+
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={{ scale: 1.05, zIndex: 10 }}
+      whileHover={{ scale: isLocked ? 1 : 1.05, zIndex: 10 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
       className={cn(
-          "group relative block aspect-[2/3] w-full cursor-pointer overflow-hidden rounded-lg bg-card shadow-lg transition-transform",
-          isEditing && "ring-2 ring-primary/50 ring-offset-2 ring-offset-background"
+          "group relative block aspect-[2/3] w-full overflow-hidden rounded-lg bg-card shadow-lg transition-transform",
+          isEditing && "ring-2 ring-primary/50 ring-offset-2 ring-offset-background",
+          isLocked ? "cursor-not-allowed" : "cursor-pointer"
         )}
     >
-      {isEditing && isAdmin ? (
-        <div className="block h-full w-full">{cardContent}</div>
-      ) : (
-        <Link href={`/courses/${course.id}`} className="block h-full w-full">
-            {cardContent}
-        </Link>
-      )}
+        <WrapperComponent {...wrapperProps} className="block h-full w-full">
+          {cardContent}
+        </WrapperComponent>
       
-      {isAdmin && (
+      {isAdmin && !isLocked && (
         <div className={cn(
             "absolute top-3 right-3 z-20 flex flex-col items-center gap-2",
             !isEditing && "opacity-0 group-hover:opacity-100 transition-opacity"

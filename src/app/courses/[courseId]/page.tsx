@@ -1,9 +1,10 @@
+
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useFirestore, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { doc, getDoc, updateDoc, type DocumentData } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, type DocumentData, collection } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 
 import { Skeleton } from '@/components/ui/skeleton';
@@ -12,18 +13,20 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { CourseCard } from '@/components/course-card';
-import { Plus, Pencil, Save, X, Upload, Link2, Bold, Italic, Underline, Palette, Trophy, Smartphone, Monitor } from 'lucide-react';
+import { Plus, Pencil, Save, X, Upload, Link2, Bold, Italic, Underline, Palette, Trophy, Smartphone, Monitor, Lock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { ActionToolbar } from '@/components/ui/action-toolbar';
+import { addDays, differenceInDays, parseISO } from 'date-fns';
 
 interface Module {
     id: string;
     title: string;
     thumbnailUrl: string;
     imageHint: string;
+    releaseDelayDays?: number;
 }
   
 interface Course extends DocumentData {
@@ -33,6 +36,10 @@ interface Course extends DocumentData {
   modules: Module[];
   heroImageUrlDesktop?: string;
   heroImageUrlMobile?: string;
+}
+
+interface CourseAccessInfo {
+    grantedAt: string; // ISO string date
 }
 
 const DEFAULT_HERO_IMAGE_DESKTOP = "https://picsum.photos/seed/default-hero-desktop/1920/1080";
@@ -53,6 +60,7 @@ export default function CoursePlayerPage() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [activeEditor, setActiveEditor] = useState<string | null>(null);
+  const [courseAccessInfo, setCourseAccessInfo] = useState<CourseAccessInfo | null>(null);
 
 
   // Temp states for editing
@@ -84,10 +92,11 @@ export default function CoursePlayerPage() {
     else if (editorId === 'course-description-editor') setTempDescription(editorElement.innerHTML);
   };
 
-  const fetchCourse = useCallback(async () => {
-    if (!firestore || !courseId) return;
+  const fetchCourseAndAccess = useCallback(async () => {
+    if (!firestore || !courseId || !user) return;
     setLoading(true);
     try {
+      // Fetch course
       const courseRef = doc(firestore, 'courses', courseId);
       const courseSnap = await getDoc(courseRef);
 
@@ -103,14 +112,32 @@ export default function CoursePlayerPage() {
       } else {
         toast({ variant: "destructive", title: "Erro", description: "Curso não encontrado."});
         router.push('/dashboard');
+        return;
       }
+      
+      // Fetch user access
+      const accessRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId);
+      const accessSnap = await getDoc(accessRef);
+      if (accessSnap.exists()) {
+        const accessData = accessSnap.data();
+        // Firestore Timestamps need to be converted to JS Dates then to ISO strings
+        const grantedAtDate = accessData.grantedAt.toDate();
+        setCourseAccessInfo({ grantedAt: grantedAtDate.toISOString() });
+      } else {
+        // If not admin, they shouldn't be here
+        if (!isAdmin) {
+             toast({ variant: "destructive", title: "Acesso Negado", description: "Você não tem acesso a este curso."});
+             router.push('/dashboard');
+        }
+      }
+
     } catch (error) {
-      console.error('Error fetching course:', error);
-      toast({ variant: "destructive", title: "Erro de Permissão", description: "Você não tem permissão para ver este curso."});
+      console.error('Error fetching course or access:', error);
+      toast({ variant: "destructive", title: "Erro", description: "Você não tem permissão para ver este curso."});
     } finally {
       setLoading(false);
     }
-  }, [firestore, courseId, toast, router]);
+  }, [firestore, courseId, toast, router, user, isAdmin]);
 
   useEffect(() => {
     const checkAdmin = async () => {
@@ -134,8 +161,10 @@ export default function CoursePlayerPage() {
   }, [user, firestore]);
 
   useEffect(() => {
-    fetchCourse();
-  }, [fetchCourse]);
+    if (user) { // Only fetch if user is available
+        fetchCourseAndAccess();
+    }
+  }, [user, fetchCourseAndAccess]);
 
   // Edit Mode Handlers
   const enterEditMode = () => setIsEditMode(true);
@@ -241,6 +270,31 @@ export default function CoursePlayerPage() {
         setUploadProgress(null);
     }
   };
+
+  const isModuleUnlocked = useCallback((module: Module) => {
+    if (isAdmin) return true; // Admins see everything
+    if (!courseAccessInfo) return false; // No access info means no access
+    const delay = module.releaseDelayDays || 0;
+    if (delay === 0) return true; // No delay means instant access
+
+    const grantedDate = parseISO(courseAccessInfo.grantedAt);
+    const releaseDate = addDays(grantedDate, delay);
+    return new Date() >= releaseDate;
+
+  }, [courseAccessInfo, isAdmin]);
+  
+  const getDaysUntilRelease = (module: Module): number | null => {
+    if (!courseAccessInfo || isAdmin) return null;
+    const delay = module.releaseDelayDays || 0;
+    if (delay === 0) return null;
+    
+    const grantedDate = parseISO(courseAccessInfo.grantedAt);
+    const releaseDate = addDays(grantedDate, delay);
+    const daysRemaining = differenceInDays(releaseDate, new Date());
+    
+    return daysRemaining > 0 ? daysRemaining : null;
+  };
+
 
   if (loading) {
     return (
@@ -404,7 +458,7 @@ export default function CoursePlayerPage() {
 
       {/* Modules Grid */}
       <section className="container mx-auto px-4 py-12 md:px-8">
-        <div className="flex justify-between items-center mb-6 pt-20">
+        <div className="flex justify-between items-center mb-6">
             <div className="flex items-center gap-3">
                 <TrophyIcon className="h-8 w-8 text-primary" />
                 <div>
@@ -423,16 +477,32 @@ export default function CoursePlayerPage() {
         
         {course.modules && course.modules.length > 0 ? (
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4 md:gap-6">
-            {course.modules.map((module, index) => (
-                // Here we will eventually link to the module player
-                // For now, it's just a visual card.
-              <CourseCard
-                key={module.id || index}
-                course={{ ...module, id: module.id || `module-${index}` }}
-                priority={index < 5}
-                isAdmin={false} // Editing happens at the course level for now
-              />
-            ))}
+            {course.modules.map((module, index) => {
+                const unlocked = isModuleUnlocked(module);
+                const daysRemaining = getDaysUntilRelease(module);
+
+                return (
+                <div key={module.id || index} className="relative">
+                  <CourseCard
+                    course={{ ...module, id: module.id || `module-${index}` }}
+                    priority={index < 5}
+                    isAdmin={false} // Editing happens at the course level for now
+                    isLocked={!unlocked}
+                  />
+                  {!unlocked && (
+                    <div className="absolute inset-0 bg-black/70 rounded-lg flex flex-col items-center justify-center text-center p-4">
+                        <Lock className="h-8 w-8 text-primary mb-2" />
+                        <p className="text-white font-semibold">Bloqueado</p>
+                        <p className="text-xs text-muted-foreground">
+                            {daysRemaining !== null 
+                                ? `Libera em ${daysRemaining} ${daysRemaining > 1 ? 'dias' : 'dia'}`
+                                : 'Em breve'}
+                        </p>
+                    </div>
+                  )}
+                </div>
+                )
+            })}
           </div>
         ) : (
           <div className="flex flex-col items-center justify-center text-center p-12 rounded-lg bg-secondary/50">
