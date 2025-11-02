@@ -46,40 +46,37 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Courses can be read if:
-    // 1. They are published.
-    // 2. The user is an admin.
-    // 3. The user has a specific access record for this course.
+    // Courses can be read if the user is an admin or has a specific access record.
+    // Write access is restricted to admins.
     match /courses/{courseId} {
-      allow read: if resource.data.status == 'published' || isAdmin() || hasCourseAccess(courseId);
+      allow read: if isAdmin() || hasCourseAccess(courseId);
       allow write: if isAdmin();
     }
     
     // --- Lesson Engagement Features ---
-match /courses/{courseId}/lessons/{lessonId} {
-  // Comments Subcollection
-  match /comments/{commentId} {
-    allow list, read, create, update, delete: if hasCourseAccess(courseId) || isAdmin();
+    match /courses/{courseId}/lessons/{lessonId} {
+      
+      // Comments Subcollection and its sub-collections
+      match /comments/{commentId} {
+        allow list, read, create, update, delete: if hasCourseAccess(courseId) || isAdmin();
 
-    // Replies Subcollection
-    match /replies/{replyId} {
-      allow list, read, create, update, delete: if hasCourseAccess(courseId) || isAdmin();
+        // Replies Subcollection
+        match /replies/{replyId} {
+          allow list, read, create, update, delete: if hasCourseAccess(courseId) || isAdmin();
+        }
+
+        // Likes Subcollection
+        match /likes/{userId} {
+          allow list, read, create, delete: if hasCourseAccess(courseId) || isAdmin();
+        }
+      }
+
+      // Reactions Subcollection
+      match /reactions/{reactionId} {
+        allow read, list, write: if hasCourseAccess(courseId) || isAdmin();
+      }
     }
 
-    // Likes Subcollection
-    match /likes/{userId} {
-      allow list, read, create, delete: if hasCourseAccess(courseId) || isAdmin();
-    }
-  }
-
-  // Reactions Subcollection
-  match /reactions/{reactionId} {
-    allow read, list, write, update, delete: if hasCourseAccess(courseId) || isAdmin();
-  }
-}
-
-
-    // --- Other Collections ---
 
     // Videos can be read by any authenticated user, but only written by admins
     match /videos/{videoId} {
