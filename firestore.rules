@@ -60,8 +60,7 @@ service cloud.firestore {
 
         // Comments Subcollection
         match /comments/{commentId} {
-          // Permite list e read para admins ou usuários com acesso ao curso
-          allow list, read: if isAdmin() || hasCourseAccess(courseId);
+          allow read, list: if hasCourseAccess(courseId) || isAdmin();
           
           // Criação permitida apenas para usuários com acesso ou admins
           allow create: if (request.auth != null && hasCourseAccess(courseId)) || isAdmin();
@@ -76,7 +75,7 @@ service cloud.firestore {
 
           // --- Replies Subcollection ---
           match /replies/{replyId} {
-            allow list, read: if isAdmin() || hasCourseAccess(courseId);
+            allow read, list: if hasCourseAccess(courseId) || isAdmin();
             allow create: if (request.auth != null && hasCourseAccess(courseId)) || isAdmin();
             allow update: if (request.auth != null && request.auth.uid == resource.data.userId && hasCourseAccess(courseId)) || isAdmin();
             allow delete: if (request.auth != null && request.auth.uid == resource.data.userId && hasCourseAccess(courseId)) || isAdmin();
@@ -84,7 +83,7 @@ service cloud.firestore {
 
           // --- Likes Subcollection ---
           match /likes/{userId} {
-            allow list, read: if isAdmin() || hasCourseAccess(courseId);
+            allow read, list: if hasCourseAccess(courseId) || isAdmin();
             allow create, delete: if request.auth != null && request.auth.uid == userId && hasCourseAccess(courseId);
           }
         }
