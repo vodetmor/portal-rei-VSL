@@ -60,21 +60,25 @@ export default function DashboardPage() {
       subtitle: heroSubtitle,
       imageUrl: heroImage,
     };
-    try {
-      await setDoc(layoutRef, dataToSave, { merge: true });
-    } catch (error) {
-      console.error("Error saving layout:", error);
-      const permissionError = new FirestorePermissionError({
-        path: layoutRef.path,
-        operation: 'write',
-        requestResourceData: dataToSave,
+    
+    // Use a non-blocking write and catch permission errors
+    setDoc(layoutRef, dataToSave, { merge: true })
+      .catch((error) => {
+        console.error("Error saving layout:", error); // Keep console error for debugging, but emit specific error.
+        const permissionError = new FirestorePermissionError({
+          path: layoutRef.path,
+          operation: 'write', // 'write' covers create and update with merge
+          requestResourceData: dataToSave,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        // Re-throw to be caught by the calling function in nav.tsx
+        throw permissionError;
       });
-      errorEmitter.emit('permission-error', permissionError);
-      throw error; // Re-throw to be caught by the nav button handler
-    }
+
   }, [firestore, heroTitle, heroSubtitle, heroImage, toast]);
 
   useEffect(() => {
+    // Register the save handler if the user is an admin
     if (isAdmin) {
       registerSaveHandler(handleSaveChanges);
     }
@@ -351,3 +355,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    

@@ -18,6 +18,7 @@ import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
 import { useEditMode } from '@/context/EditModeContext';
 import { useToast } from '@/hooks/use-toast';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 export function Nav() {
   const { user, loading } = useUser();
@@ -79,14 +80,20 @@ export function Nav() {
           title: "Sucesso!",
           description: "Alterações salvas no layout.",
         });
-        toggleEditMode(); // Toggles the mode off after saving
+        // We successfully saved, so we can exit edit mode.
+        toggleEditMode(); 
       } catch (error) {
-        console.error("Failed to save changes:", error);
-        toast({
-          variant: "destructive",
-          title: "Erro ao Salvar",
-          description: "Não foi possível salvar as alterações.",
-        });
+        // The specific error (including FirestorePermissionError) is emitted
+        // in the dashboard component. Here, we just handle the UI state.
+        // We don't show a toast because the FirebaseErrorListener will show the dev overlay.
+        if (!(error instanceof FirestorePermissionError)) {
+            toast({
+              variant: "destructive",
+              title: "Erro ao Salvar",
+              description: "Não foi possível salvar as alterações. Verifique o console para mais detalhes.",
+            });
+        }
+        // Do not exit edit mode if save fails, so the user can retry.
       } finally {
         setIsSaving(false);
       }
@@ -198,3 +205,5 @@ export function Nav() {
     </header>
   );
 }
+
+    
