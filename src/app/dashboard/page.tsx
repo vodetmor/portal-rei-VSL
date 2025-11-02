@@ -8,7 +8,7 @@ import { doc, getDoc, collection, getDocs, setDoc, deleteDoc, type DocumentData 
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Plus } from 'lucide-react';
+import { Plus, Pencil, Save, X, Trophy, Gem, Crown, Star, type LucideIcon } from 'lucide-react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -22,6 +22,8 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Course extends DocumentData {
   id: string;
@@ -34,6 +36,16 @@ interface Course extends DocumentData {
 const DEFAULT_HERO_TITLE = "Seu Reinado <span class='text-primary'>começa aqui</span>.";
 const DEFAULT_HERO_SUBTITLE = "No Rei da VSL, cada copy se torna uma conversão poderosa.";
 const DEFAULT_HERO_IMAGE = "https://picsum.photos/seed/hero-bg/1920/1080";
+const DEFAULT_MEMBERS_TITLE = "Área de Membros <span class='text-primary'>Premium</span>";
+const DEFAULT_MEMBERS_SUBTITLE = "Acesso exclusivo aos melhores conteúdos sobre VSL.";
+const DEFAULT_MEMBERS_ICON = 'Trophy';
+
+const iconMap: { [key: string]: LucideIcon } = {
+  Trophy,
+  Gem,
+  Crown,
+  Star,
+};
 
 export default function DashboardPage() {
   const { user, loading: userLoading } = useUser();
@@ -48,9 +60,118 @@ export default function DashboardPage() {
   const [heroTitle, setHeroTitle] = useState(DEFAULT_HERO_TITLE);
   const [heroSubtitle, setHeroSubtitle] = useState(DEFAULT_HERO_SUBTITLE);
   const [heroImage, setHeroImage] = useState(DEFAULT_HERO_IMAGE);
+  const [membersTitle, setMembersTitle] = useState(DEFAULT_MEMBERS_TITLE);
+  const [membersSubtitle, setMembersSubtitle] = useState(DEFAULT_MEMBERS_SUBTITLE);
+  const [membersIcon, setMembersIcon] = useState(DEFAULT_MEMBERS_ICON);
+
   const [courseToDelete, setCourseToDelete] = useState<string | null>(null);
 
   const [contentLoading, setContentLoading] = useState(true);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // States for temporary edits
+  const [tempHeroTitle, setTempHeroTitle] = useState(heroTitle);
+  const [tempHeroSubtitle, setTempHeroSubtitle] = useState(heroSubtitle);
+  const [tempHeroImage, setTempHeroImage] = useState(heroImage);
+  const [tempMembersTitle, setTempMembersTitle] = useState(membersTitle);
+  const [tempMembersSubtitle, setTempMembersSubtitle] = useState(membersSubtitle);
+  const [tempMembersIcon, setTempMembersIcon] = useState(membersIcon);
+  
+  const SelectedIcon = iconMap[isEditMode ? tempMembersIcon : membersIcon] || Trophy;
+
+
+  const fetchPageContent = useCallback(async () => {
+    if (!firestore) return;
+    setContentLoading(true);
+    const layoutRef = doc(firestore, 'layout', 'dashboard-hero');
+    try {
+      const docSnap = await getDoc(layoutRef);
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setHeroTitle(data.title || DEFAULT_HERO_TITLE);
+        setHeroSubtitle(data.subtitle || DEFAULT_HERO_SUBTITLE);
+        setHeroImage(data.imageUrl || DEFAULT_HERO_IMAGE);
+        setMembersTitle(data.membersTitle || DEFAULT_MEMBERS_TITLE);
+        setMembersSubtitle(data.membersSubtitle || DEFAULT_MEMBERS_SUBTITLE);
+        setMembersIcon(data.membersIcon || DEFAULT_MEMBERS_ICON);
+      } else {
+        // Set defaults if doc doesn't exist
+        setHeroTitle(DEFAULT_HERO_TITLE);
+        setHeroSubtitle(DEFAULT_HERO_SUBTITLE);
+        setHeroImage(DEFAULT_HERO_IMAGE);
+        setMembersTitle(DEFAULT_MEMBERS_TITLE);
+        setMembersSubtitle(DEFAULT_MEMBERS_SUBTITLE);
+        setMembersIcon(DEFAULT_MEMBERS_ICON);
+      }
+    } catch (error) {
+       console.error("Error fetching layout:", error);
+       // Set defaults on error
+       setHeroTitle(DEFAULT_HERO_TITLE);
+       setHeroSubtitle(DEFAULT_HERO_SUBTITLE);
+       setHeroImage(DEFAULT_HERO_IMAGE);
+       setMembersTitle(DEFAULT_MEMBERS_TITLE);
+       setMembersSubtitle(DEFAULT_MEMBERS_SUBTITLE);
+       setMembersIcon(DEFAULT_MEMBERS_ICON);
+    } finally {
+      setContentLoading(false);
+    }
+  }, [firestore]);
+
+  const enterEditMode = () => {
+    setTempHeroTitle(heroTitle);
+    setTempHeroSubtitle(heroSubtitle);
+    setTempHeroImage(heroImage);
+    setTempMembersTitle(membersTitle);
+    setTempMembersSubtitle(membersSubtitle);
+    setTempMembersIcon(membersIcon);
+    setIsEditMode(true);
+  };
+
+  const cancelEditMode = () => {
+    setIsEditMode(false);
+  };
+
+  const handleSaveChanges = async () => {
+    if (!firestore) return;
+    setIsSaving(true);
+    const layoutRef = doc(firestore, 'layout', 'dashboard-hero');
+    try {
+      const dataToSave = {
+        title: tempHeroTitle,
+        subtitle: tempHeroSubtitle,
+        imageUrl: tempHeroImage,
+        membersTitle: tempMembersTitle,
+        membersSubtitle: tempMembersSubtitle,
+        membersIcon: tempMembersIcon,
+      };
+      await setDoc(layoutRef, dataToSave, { merge: true });
+      
+      // Update live state with temp state
+      setHeroTitle(tempHeroTitle);
+      setHeroSubtitle(tempHeroSubtitle);
+      setHeroImage(tempHeroImage);
+      setMembersTitle(tempMembersTitle);
+      setMembersSubtitle(tempMembersSubtitle);
+      setMembersIcon(tempMembersIcon);
+
+      toast({
+        title: "Sucesso!",
+        description: "As alterações do layout foram salvas.",
+      });
+      setIsEditMode(false);
+    } catch (error) {
+      console.error("Error saving layout:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao Salvar",
+        description: "Não foi possível salvar as alterações. Verifique as permissões.",
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
 
   const fetchCourses = useCallback(async () => {
     if (!firestore) return;
@@ -99,32 +220,6 @@ export default function DashboardPage() {
   }, [user, userLoading, router]);
 
   useEffect(() => {
-    const fetchPageContent = async () => {
-      if (!firestore) return;
-      setContentLoading(true);
-      const layoutRef = doc(firestore, 'layout', 'dashboard-hero');
-      try {
-        const docSnap = await getDoc(layoutRef);
-        if (docSnap.exists()) {
-          const data = docSnap.data();
-          setHeroTitle(data.title || DEFAULT_HERO_TITLE);
-          setHeroSubtitle(data.subtitle || DEFAULT_HERO_SUBTITLE);
-          setHeroImage(data.imageUrl || DEFAULT_HERO_IMAGE);
-        } else {
-          setHeroTitle(DEFAULT_HERO_TITLE);
-          setHeroSubtitle(DEFAULT_HERO_SUBTITLE);
-          setHeroImage(DEFAULT_HERO_IMAGE);
-        }
-      } catch (error) {
-         console.error("Error fetching layout:", error);
-         setHeroTitle(DEFAULT_HERO_TITLE);
-         setHeroSubtitle(DEFAULT_HERO_SUBTITLE);
-         setHeroImage(DEFAULT_HERO_IMAGE);
-      } finally {
-        setContentLoading(false);
-      }
-    };
-    
     const checkAdminAndFetchData = async () => {
       if (user && firestore) {
         if (user.email === 'admin@reidavsl.com') {
@@ -149,7 +244,6 @@ export default function DashboardPage() {
         }
         
         await fetchPageContent();
-        
         await fetchCourses();
 
       } else {
@@ -162,7 +256,7 @@ export default function DashboardPage() {
     if (user && firestore) {
       checkAdminAndFetchData();
     }
-  }, [user, firestore, fetchCourses]);
+  }, [user, firestore, fetchCourses, fetchPageContent]);
 
   if (userLoading || !user) {
     return (
@@ -180,7 +274,7 @@ export default function DashboardPage() {
           {contentLoading ? <Skeleton className="absolute inset-0 z-0" /> : (
               <div className="absolute inset-0 z-0">
                 <Image
-                  src={heroImage}
+                  src={isEditMode ? tempHeroImage : heroImage}
                   alt="Hero background"
                   fill
                   className="object-cover"
@@ -192,13 +286,39 @@ export default function DashboardPage() {
           )}
 
           <div className="relative z-20 mx-auto flex max-w-4xl flex-col items-start px-4 text-left -mt-20">
-              <h1 className="text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl"
-                  dangerouslySetInnerHTML={{ __html: heroTitle }}
-              />
+              {isEditMode ? (
+                  <div className='w-full space-y-4'>
+                      <Input 
+                        data-editable="true"
+                        value={tempHeroTitle.replace(/<[^>]+>/g, '')} 
+                        onChange={(e) => setTempHeroTitle(e.target.value.replace(/<[^>]+>/g, '') + " <span class='text-primary'>começa aqui</span>.")} 
+                        className="text-4xl font-bold tracking-tight md:text-5xl lg:text-6xl bg-transparent border-dashed"
+                      />
+                      <Input
+                        data-editable="true"
+                        value={tempHeroSubtitle}
+                        onChange={(e) => setTempHeroSubtitle(e.target.value)}
+                        className="mt-4 max-w-2xl text-lg md:text-xl bg-transparent border-dashed"
+                      />
+                       <Input
+                        data-editable="true"
+                        value={tempHeroImage}
+                        onChange={(e) => setTempHeroImage(e.target.value)}
+                        className="mt-2 w-full text-xs bg-transparent border-dashed"
+                        placeholder='URL da imagem de fundo'
+                      />
+                  </div>
+              ) : (
+                <>
+                  <h1 className="text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl"
+                      dangerouslySetInnerHTML={{ __html: heroTitle }}
+                  />
 
-              <p className="mt-4 max-w-2xl text-lg text-muted-foreground md:text-xl">
-                {heroSubtitle}
-              </p>
+                  <p className="mt-4 max-w-2xl text-lg text-muted-foreground md:text-xl">
+                    {heroSubtitle}
+                  </p>
+                </>
+              )}
 
             <div className="mt-8">
               <Button asChild size="lg" variant="destructive" className="bg-primary hover:bg-primary/90 text-primary-foreground">
@@ -206,6 +326,24 @@ export default function DashboardPage() {
               </Button>
             </div>
           </div>
+          {isAdmin && !isEditMode && (
+            <div className="absolute top-24 right-8 z-30">
+              <Button onClick={enterEditMode} variant="outline">
+                <Pencil className="mr-2 h-4 w-4" /> Editar Página
+              </Button>
+            </div>
+          )}
+          {isAdmin && isEditMode && (
+             <div className="absolute top-24 right-8 z-30 flex gap-2">
+                <Button onClick={handleSaveChanges} disabled={isSaving}>
+                    <Save className="mr-2 h-4 w-4" /> {isSaving ? 'Salvando...' : 'Salvar'}
+                </Button>
+                <Button onClick={cancelEditMode} variant="secondary">
+                    <X className="mr-2 h-4 w-4" /> Cancelar
+                </Button>
+            </div>
+          )}
+
         </section>
 
         {/* Members Area Section */}
@@ -213,15 +351,46 @@ export default function DashboardPage() {
           
           {/* Featured Carousel */}
           <div>
-            <div className="mb-4 flex justify-between items-center">
-              <h2 className="text-2xl font-bold text-white">Cursos em Destaque</h2>
-              {isAdmin && (
-                <Button asChild variant="outline" size="sm">
-                  <Link href="/admin/add-course">
-                    <Plus className="mr-2 h-4 w-4" /> Adicionar Curso
-                  </Link>
-                </Button>
-              )}
+            <div className="mb-4 flex items-center gap-4">
+                {isEditMode ? (
+                  <div className='flex items-center gap-2'>
+                    <Select value={tempMembersIcon} onValueChange={setTempMembersIcon}>
+                      <SelectTrigger className="w-fit bg-transparent border-dashed h-12 px-3" data-editable="true">
+                        <SelectValue>
+                          <SelectedIcon className="h-8 w-8 text-primary" />
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="Trophy"><Trophy className="mr-2 h-4 w-4"/>Troféu</SelectItem>
+                        <SelectItem value="Gem"><Gem className="mr-2 h-4 w-4"/>Joia</SelectItem>
+                        <SelectItem value="Crown"><Crown className="mr-2 h-4 w-4"/>Coroa</SelectItem>
+                        <SelectItem value="Star"><Star className="mr-2 h-4 w-4"/>Estrela</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <div className='flex flex-col'>
+                      <Input
+                          data-editable="true"
+                          value={tempMembersTitle.replace(/<[^>]+>/g, '')}
+                          onChange={(e) => setTempMembersTitle(e.target.value.replace(/<[^>]+>/g, '') + " <span class='text-primary'>Premium</span>")}
+                          className="text-2xl font-bold bg-transparent border-dashed"
+                      />
+                       <Input
+                          data-editable="true"
+                          value={tempMembersSubtitle}
+                          onChange={(e) => setTempMembersSubtitle(e.target.value)}
+                          className="text-sm bg-transparent border-dashed"
+                      />
+                    </div>
+                  </div>
+                ) : (
+                    <>
+                    <SelectedIcon className="h-10 w-10 text-primary" />
+                    <div>
+                        <h2 className="text-2xl font-bold text-white" dangerouslySetInnerHTML={{ __html: membersTitle }} />
+                        <p className="text-sm text-muted-foreground">{membersSubtitle}</p>
+                    </div>
+                    </>
+                )}
             </div>
             
             {loading ? (
@@ -237,17 +406,15 @@ export default function DashboardPage() {
                 <CarouselContent className="-ml-4">
                   {courses.filter(c => c.isFeatured).map((course, index) => (
                     <CarouselItem key={course.id} className="md:basis-1/2 lg:basis-1/3 xl:basis-1/4 pl-4">
-                      <AlertDialogTrigger asChild>
-                          <CourseCard
-                            id={course.id}
-                            title={course.title}
-                            imageUrl={course.thumbnailUrl}
-                            imageHint={course.imageHint || 'abstract'}
-                            priority={index < 4}
-                            isAdmin={isAdmin}
-                            onDelete={() => setCourseToDelete(course.id)}
-                          />
-                      </AlertDialogTrigger>
+                        <CourseCard
+                          id={course.id}
+                          title={course.title}
+                          imageUrl={course.thumbnailUrl}
+                          imageHint={course.imageHint || 'abstract'}
+                          priority={index < 4}
+                          isAdmin={isAdmin}
+                          onDelete={() => setCourseToDelete(course.id)}
+                        />
                     </CarouselItem>
                   ))}
                 </CarouselContent>
@@ -259,7 +426,16 @@ export default function DashboardPage() {
           
           {/* All Courses Carousel */}
            <div>
-            <h2 className="text-2xl font-bold text-white mb-4">Todos os Cursos</h2>
+            <div className="flex justify-between items-center mb-4">
+                <h2 className="text-2xl font-bold text-white">Todos os Cursos</h2>
+                 {isAdmin && (
+                    <Button asChild variant="outline" size="sm">
+                        <Link href="/admin/add-course">
+                            <Plus className="mr-2 h-4 w-4" /> Adicionar Curso
+                        </Link>
+                    </Button>
+                )}
+            </div>
             {loading ? (
               <div className="flex space-x-4">
                   {Array.from({ length: 4 }).map((_, index) => (
@@ -273,17 +449,15 @@ export default function DashboardPage() {
                 <CarouselContent className="-ml-4">
                   {courses.map((course, index) => (
                     <CarouselItem key={course.id} className="md:basis-1/2 lg:basis-1/3 xl:basis-1/4 pl-4">
-                        <AlertDialogTrigger asChild>
-                           <CourseCard
-                            id={course.id}
-                            title={course.title}
-                            imageUrl={course.thumbnailUrl}
-                            imageHint={course.imageHint || 'abstract'}
-                            priority={index < 4}
-                            isAdmin={isAdmin}
-                            onDelete={() => setCourseToDelete(course.id)}
-                           />
-                        </AlertDialogTrigger>
+                        <CourseCard
+                          id={course.id}
+                          title={course.title}
+                          imageUrl={course.thumbnailUrl}
+                          imageHint={course.imageHint || 'abstract'}
+                          priority={index < 4}
+                          isAdmin={isAdmin}
+                          onDelete={() => setCourseToDelete(course.id)}
+                        />
                     </CarouselItem>
                   ))}
                 </CarouselContent>
@@ -309,3 +483,5 @@ export default function DashboardPage() {
     </AlertDialog>
   );
 }
+
+    

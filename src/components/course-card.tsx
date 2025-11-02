@@ -5,6 +5,10 @@ import Link from 'next/link';
 import { Button } from './ui/button';
 import { Pencil, Play, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 interface CourseCardProps {
   id: string;
@@ -62,12 +66,16 @@ export function CourseCard({ id, title, imageUrl, imageHint, priority = false, i
             </Link>
           </Button>
           {onDelete && (
-            <Button variant="destructive" size="icon" className="h-9 w-9 bg-black/60 hover:bg-destructive/80 border-white/20" onClick={handleDeleteClick}>
-              <Trash2 className="h-4 w-4" />
-            </Button>
+            <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="icon" className="h-9 w-9 bg-black/60 hover:bg-destructive/80 border-white/20" onClick={handleDeleteClick}>
+                    <Trash2 className="h-4 w-4" />
+                </Button>
+            </AlertDialogTrigger>
           )}
         </div>
       )}
     </motion.div>
   );
 }
+
+    
