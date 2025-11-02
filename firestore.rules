@@ -1,83 +1,47 @@
-/**
- * @file Firestore Security Rules for Portfólio Hades.
- * @core_philosophy This ruleset provides open read access to the 'videos', 'clients', and 'skills' collections,
- *  while restricting write access to authorized users (handled at the application level).
- *  The 'contactMessages' collection allows public creation, but restricts listing/reading to authorized users.
- *  The 'users' collection allows users to create their own document upon registration.
- * @data_structure The Firestore database consists of five top-level collections: 'videos', 'clients', 'skills', 'contactMessages', and 'users'.
- *  Each collection contains documents representing the corresponding entities.
- * @key_security_decisions Read access to the 'videos', 'clients', and 'skills' collections is public.
- *  Write access is restricted and must be handled by the application logic.
- *  Listing and reading of 'contactMessages' is not permitted via the rules.
- *  Users can create their own user document, and only read/update their own data.
- */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    /**
-     * @description Allows users to create their own user document and manage their own data.
-     * @path /users/{userId}
-     * @allow (create) A user can create their own user document.
-     * @allow (get, update) A user can only get or update their own document.
-     * @deny (list, delete) No one can list all users or delete user documents directly.
-     * @principle Owner-based access control.
-     */
+    // Helper function to check if the user is an admin
+    function isAdmin() {
+      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Users can only read and write to their own document
     match /users/{userId} {
-      function isOwner() {
-        return request.auth != null && request.auth.uid == userId;
-      }
+      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
       allow create: if request.auth != null;
-      allow get, update: if isOwner();
-      allow list, delete: if false;
+    }
+
+    // Courses can be read by any authenticated user, but only written by admins
+    match /courses/{courseId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin(); // create, update, delete
+    }
+
+    // Videos can be read by any authenticated user, but only written by admins
+    match /videos/{videoId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // Clients can be read by any authenticated user, but only written by admins
+    match /clients/{clientId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
     }
     
-    /**
-     * @description Allows public read access to video documents, but restricts write access.
-     * @path /videos/{videoId}
-     * @allow (get, list) Any user can read the video.
-     * @deny (create, update, delete) No user can create, update, or delete videos directly.
-     * @principle Public read, restricted writes.
-     */
-    match /videos/{videoId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
-    }
-
-    /**
-     * @description Allows public read access to client documents, but restricts write access.
-     * @path /clients/{clientId}
-     * @allow (get, list) Any user can read client data.
-     * @deny (create, update, delete) No user can create, update, or delete clients directly.
-     * @principle Public read, restricted writes.
-     */
-    match /clients/{clientId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
-    }
-
-    /**
-     * @description Allows public read access to skill documents, but restricts write access.
-     * @path /skills/{skillId}
-     * @allow (get, list) Any user can read skill data.
-     * @deny (create, update, delete) No user can create, update, or delete skills directly.
-     * @principle Public read, restricted writes.
-     */
+    // Skills can be read by any authenticated user, but only written by admins
     match /skills/{skillId} {
-      allow get, list: if true;
-      allow create, update, delete: if false;
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
     }
-
-    /**
-     * @description Allows anyone to create a contact message, but restricts reading and listing of messages.
-     * @path /contactMessages/{messageId}
-     * @allow (create) Any user can create a contact message.
-     * @deny (get, list, update, delete) No user can read, list, update, or delete contact messages directly.
-     * @principle Public create, restricted reads and writes.
-     */
+    
+    // Contact messages can be created by anyone, but only read/deleted by admins
     match /contactMessages/{messageId} {
       allow create: if true;
-      allow get, list, update, delete: if false;
+      allow read, delete: if isAdmin();
+      allow update: if false;
     }
   }
 }
