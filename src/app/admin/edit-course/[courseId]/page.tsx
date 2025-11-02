@@ -18,7 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Trash2, Save, Upload, Link2, GripVertical, FileVideo, Eye, CalendarDays, Send, BarChart2, Book, Bold, Italic, Underline, Palette, Pilcrow } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, Upload, Link2, GripVertical, FileVideo, Eye, CalendarDays, Send, BarChart2, Book, Bold, Italic, Underline } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
@@ -87,31 +87,10 @@ function EditCoursePageContent() {
   const [modules, setModules] = useState<Module[]>([]);
   
   const [activeEditor, setActiveEditor] = useState<string | null>(null);
-  const descriptionRef = useRef<HTMLDivElement>(null);
 
-
-    const applyFormat = (command: string, value?: string) => {
-        // For simple commands, execCommand is reliable.
-        if (command === 'bold' || command === 'italic' || command === 'underline' || command === 'foreColor') {
-            document.execCommand(command, false, value);
-        }
-        // For block-level commands like headings, this is more stable.
-        else if (command === 'formatBlock') {
-             document.execCommand(command, false, value);
-        }
-    };
-
-    useEffect(() => {
-        if (descriptionRef.current && course) {
-            descriptionRef.current.innerHTML = course.description;
-        }
-    }, [course]);
-
-    const handleDescriptionChange = () => {
-        if (descriptionRef.current) {
-            setTempDescription(descriptionRef.current.innerHTML);
-        }
-    };
+  const applyFormat = (command: string) => {
+    document.execCommand(command, false);
+  };
 
   const fetchCourse = useCallback(async () => {
     if (!firestore || !courseId) return;
@@ -226,9 +205,6 @@ function EditCoursePageContent() {
     if (!firestore || !courseId || !adminUser) return;
     setIsSaving(true);
     
-    // Get the latest HTML content from the contentEditable div
-    const finalDescription = descriptionRef.current?.innerHTML || tempDescription;
-    
     try {
       const courseRef = doc(firestore, 'courses', courseId);
       const modulesToSave = modules.map(({ ...rest }) => ({
@@ -244,7 +220,7 @@ function EditCoursePageContent() {
       const courseDataToSave = {
         title: tempTitle,
         subtitle: tempSubtitle,
-        description: finalDescription,
+        description: tempDescription,
         modules: modulesToSave,
         status: status,
         updatedAt: serverTimestamp(),
@@ -381,34 +357,15 @@ function EditCoursePageContent() {
                                 className="mt-1"
                             />
                         </div>
-                         <div className="relative space-y-2">
-                            <label htmlFor="course-description-editor" className="text-sm font-medium text-white">Descrição</label>
-                             <div
-                                id="course-description-editor"
-                                ref={descriptionRef}
-                                contentEditable={true}
-                                suppressContentEditableWarning
-                                onFocus={() => setActiveEditor('course-description-editor')}
-                                onBlur={() => {
-                                    setActiveEditor(null);
-                                    handleDescriptionChange();
-                                }}
-                                className={cn(
-                                    "min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
-                                    "prose prose-sm prose-invert max-w-none"
-                                )}
+                         <div>
+                            <label htmlFor="course-description" className="text-sm font-medium text-white">Descrição</label>
+                            <Textarea
+                                id="course-description"
+                                placeholder="Descreva seu curso..."
+                                value={tempDescription}
+                                onChange={(e) => setTempDescription(e.target.value)}
+                                className="mt-1 min-h-[120px]"
                             />
-                            {activeEditor === 'course-description-editor' && (
-                                <ActionToolbar
-                                    buttons={[
-                                        { label: "Negrito", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
-                                        { label: "Itálico", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
-                                        { label: "Sublinhado", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
-                                        { label: "Aumentar Fonte", icon: <Pilcrow className="size-4" />, onClick: () => applyFormat('formatBlock', 'h3') },
-                                        { label: "Colorir", icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor', 'yellow') },
-                                    ]}
-                                />
-                            )}
                         </div>
                     </CardContent>
                 </Card>
@@ -525,7 +482,7 @@ interface ModuleEditorProps {
     onUpdateLesson: (moduleId: string, lessonId: string, field: keyof Lesson, value: any) => void;
     onRemoveLesson: (moduleId: string, lessonId: string, lessonTitle: string) => void;
     onReorderLessons: (moduleId: string, reorderedLessons: Lesson[]) => void;
-    applyFormat: (command: string, value?: string) => void;
+    applyFormat: (command: string) => void;
 }
 
 function ModuleEditor({ module, onUpdate, onRemove, onAddLesson, onUpdateLesson, onRemoveLesson, onReorderLessons, applyFormat }: ModuleEditorProps) {
@@ -691,7 +648,7 @@ interface LessonEditorProps {
   moduleId: string;
   onUpdate: (moduleId: string, lessonId: string, field: keyof Lesson, value: any) => void;
   onRemove: (moduleId: string, lessonId: string, lessonTitle: string) => void;
-  applyFormat: (command: string, value?: string) => void;
+  applyFormat: (command: string) => void;
 }
 
 function LessonEditor({ lesson, moduleId, onUpdate, onRemove, applyFormat }: LessonEditorProps) {
@@ -827,8 +784,6 @@ function LessonEditor({ lesson, moduleId, onUpdate, onRemove, applyFormat }: Les
                         { label: "Negrito", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
                         { label: "Itálico", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
                         { label: "Sublinhado", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
-                        { label: "Aumentar Fonte", icon: <Pilcrow className="size-4" />, onClick: () => applyFormat('formatBlock', 'h3') },
-                        { label: "Colorir", icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor', 'yellow') },
                   ]}
               />
           )}
