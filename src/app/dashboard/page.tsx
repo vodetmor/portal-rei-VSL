@@ -6,7 +6,7 @@ import { CourseCard } from '@/components/course-card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { doc, getDoc, collection, getDocs, setDoc, deleteDoc, type DocumentData } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-import { LayoutContext, LayoutProvider, useLayout } from '@/context/layout-context';
+import { useLayout } from '@/context/layout-context';
 import { ActionToolbar } from '@/components/ui/action-toolbar';
 
 import Image from 'next/image';
@@ -135,6 +135,7 @@ function DashboardClientPage() {
   };
 
   const enterEditMode = () => {
+    // No more asterisks logic here
     setTempHeroTitle(layoutData.heroTitle);
     setTempHeroSubtitle(layoutData.heroSubtitle);
     setTempHeroImage(layoutData.heroImage);
@@ -216,18 +217,19 @@ function DashboardClientPage() {
         setIsSaving(false);
         return;
     }
-
-    const layoutRef = doc(firestore, 'layout', 'dashboard-hero');
-    try {
-      const dataToSave = {
+    
+    // The content from the editable divs is already in the temp states
+    const dataToSave = {
         title: tempHeroTitle,
         subtitle: tempHeroSubtitle,
         imageUrl: finalHeroImageUrl,
         membersTitle: tempMembersTitle,
         membersSubtitle: tempMembersSubtitle,
         membersIcon: tempMembersIcon,
-      };
-      
+    };
+    
+    const layoutRef = doc(firestore, 'layout', 'dashboard-hero');
+    try {
       await setDoc(layoutRef, dataToSave, { merge: true });
       
       setLayoutData(prev => ({ 
@@ -247,18 +249,10 @@ function DashboardClientPage() {
       setIsEditMode(false);
     } catch (error) {
       console.error("Error saving layout:", error);
-      const dataForError = {
-        title: tempHeroTitle,
-        subtitle: tempHeroSubtitle,
-        imageUrl: finalHeroImageUrl,
-        membersTitle: tempMembersTitle,
-        membersSubtitle: tempMembersSubtitle,
-        membersIcon: tempMembersIcon,
-      };
       const permissionError = new FirestorePermissionError({
         path: layoutRef.path,
         operation: 'write',
-        requestResourceData: dataForError,
+        requestResourceData: dataToSave,
       });
       errorEmitter.emit('permission-error', permissionError);
 
@@ -433,14 +427,14 @@ function DashboardClientPage() {
             </div>
           </div>
           {isAdmin && !isEditMode && (
-            <div className="absolute top-8 right-8 z-30">
+            <div className="absolute top-20 right-8 z-[60]">
               <Button onClick={enterEditMode} variant="outline">
                 <Pencil className="mr-2 h-4 w-4" /> Editar Página
               </Button>
             </div>
           )}
           {isAdmin && isEditMode && (
-             <div className="absolute top-8 right-8 z-30 flex flex-col items-end gap-4">
+             <div className="absolute top-20 right-8 z-[60] flex flex-col items-end gap-4">
                  <div className="flex gap-2">
                     <Button onClick={handleSaveChanges} disabled={isSaving}>
                         <Save className="mr-2 h-4 w-4" /> {isSaving ? 'Salvando...' : 'Salvar'}
@@ -556,7 +550,7 @@ function DashboardClientPage() {
                         <SelectedIcon className="h-10 w-10 text-primary" />
                         <div>
                             <h2 className="text-2xl font-bold text-white" dangerouslySetInnerHTML={{ __html: layoutData.membersTitle }} />
-                            <p className="text-sm text-muted-foreground">{layoutData.membersSubtitle}</p>
+                            <p className="text-sm text-muted-foreground" dangerouslySetInnerHTML={{ __html: layoutData.membersSubtitle }}/>
                         </div>
                     </div>
                 )}
@@ -667,8 +661,6 @@ function DashboardClientPage() {
 
 export default function DashboardPage() {
   return (
-    <LayoutProvider>
-      <DashboardClientPage />
-    </LayoutProvider>
+    <DashboardClientPage />
   )
 }
