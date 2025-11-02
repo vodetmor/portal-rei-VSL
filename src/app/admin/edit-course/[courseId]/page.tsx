@@ -365,12 +365,28 @@ function EditCoursePageContent() {
                         </div>
                          <div className='relative'>
                             <label htmlFor="course-description" className="text-sm font-medium text-white">Descrição</label>
-                            <Textarea
+                             {activeEditor === 'course-description' && (
+                                <ActionToolbar
+                                    className="absolute -top-12 z-10"
+                                    buttons={[
+                                       { label: 'Negrito', icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
+                                       { label: 'Itálico', icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
+                                       { label: 'Sublinhado', icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
+                                       { label: 'Cor', icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor', '#FFD700') },
+                                    ]}
+                                />
+                            )}
+                            <div
                                 id="course-description"
-                                placeholder="Descreva seu curso..."
-                                value={tempDescription}
-                                onChange={e => setTempDescription(e.target.value)}
-                                className="mt-1 min-h-[120px]"
+                                ref={descriptionRef}
+                                contentEditable
+                                suppressContentEditableWarning
+                                onFocus={() => setActiveEditor('course-description')}
+                                onBlur={(e) => {
+                                    setActiveEditor(null);
+                                    setTempDescription(e.currentTarget.innerHTML);
+                                }}
+                                className="mt-1 min-h-[120px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 prose prose-sm prose-invert max-w-none"
                             />
                         </div>
                     </CardContent>
@@ -771,7 +787,7 @@ function LessonEditor({ lesson, moduleId, onUpdate, onRemove, applyFormat }: Les
                            { label: 'Negrito', icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
                            { label: 'Itálico', icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
                            { label: 'Sublinhado', icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
-                           { label: 'Cor', icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor', 'yellow') },
+                           { label: 'Cor', icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor', '#FFD700') },
                         ]}
                     />
                 )}
@@ -792,6 +808,8 @@ function LessonEditor({ lesson, moduleId, onUpdate, onRemove, applyFormat }: Les
             {/* Main Video Section */}
             <div className="space-y-2 pt-2">
                 <h5 className="text-sm font-semibold text-white flex items-center gap-2"><FileVideo className="h-4 w-4 text-primary" />Vídeo Principal (Opcional)</h5>
+                 <p className="text-xs text-muted-foreground italic -mt-1">Caso nenhum vídeo seja adicionado, a aula será classificada como conteúdo de texto/extra.</p>
+
                 {lesson.videoUrl && !isDriveLink && (
                     <div className="aspect-video w-full rounded-md overflow-hidden bg-muted my-2">
                         <ReactPlayer
@@ -840,7 +858,7 @@ function LessonEditor({ lesson, moduleId, onUpdate, onRemove, applyFormat }: Les
 
             {/* Complementary Content Section */}
             <div className="space-y-3 pt-4 mt-4 border-t border-border/50">
-                <h5 className="text-sm font-semibold text-white flex items-center gap-2"><Book className="h-4 w-4 text-primary" />Conteúdo Complementar</h5>
+                <h5 className="text-sm font-semibold text-white flex items-center gap-2"><Book className="h-4 w-4 text-primary" />Conteúdo Complementar (Opcional)</h5>
                 {(lesson.complementaryMaterials || []).map((material) => (
                    <ComplementaryMaterialEditor 
                         key={material.id}
