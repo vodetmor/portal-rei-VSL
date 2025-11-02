@@ -91,7 +91,9 @@ export function Header() {
 	return (
 		<header
 			className={cn(
-				'sticky top-0 z-50 mx-auto w-full max-w-5xl border-b border-transparent md:rounded-lg md:transition-all md:ease-out',
+				'z-50 mx-auto w-full max-w-5xl md:transition-all md:ease-out',
+        !isEditMode && 'sticky top-0 border-b border-transparent md:rounded-lg',
+        isEditMode && 'border-b border-border',
 				{
 					'bg-background/80 supports-[backdrop-filter]:bg-background/60 border-border backdrop-blur-xl md:top-4 md:shadow-lg':
 						scrolled && !open && !isEditMode,
