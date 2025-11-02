@@ -88,21 +88,7 @@ function EditCoursePageContent() {
   const [activeEditor, setActiveEditor] = useState<string | null>(null);
   
   const applyFormat = (command: string, value: string | undefined = undefined) => {
-    if (command === 'formatBlock' && value === 'h3') {
-        const selection = window.getSelection();
-        if (!selection || selection.rangeCount === 0) return;
-        const range = selection.getRangeAt(0);
-        const parentElement = range.commonAncestorContainer.parentElement;
-        
-        // Se o pai já for h3, volta a ser p (ou div)
-        if (parentElement && parentElement.tagName === 'H3') {
-            document.execCommand('formatBlock', false, 'p');
-        } else {
-            document.execCommand('formatBlock', false, 'h3');
-        }
-    } else {
-        document.execCommand(command, false, value);
-    }
+    document.execCommand(command, false, value);
   };
 
   const fetchCourse = useCallback(async () => {
@@ -386,7 +372,6 @@ function EditCoursePageContent() {
                                         { label: 'Itálico', icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
                                         { label: 'Sublinhado', icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
                                         { label: 'Cor', icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor', 'yellow') },
-                                        { label: 'Aumentar', icon: <span className="font-bold text-lg">T</span>, onClick: () => applyFormat('formatBlock', 'h3') },
                                     ]}
                                 />
                             )}
@@ -802,7 +787,6 @@ function LessonEditor({ lesson, moduleId, onUpdate, onRemove, applyFormat }: Les
                            { label: 'Itálico', icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
                            { label: 'Sublinhado', icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
                            { label: 'Cor', icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor', 'yellow') },
-                           { label: 'Aumentar', icon: <span className="font-bold text-lg">T</span>, onClick: () => applyFormat('formatBlock', 'h3') },
                         ]}
                     />
                 )}
