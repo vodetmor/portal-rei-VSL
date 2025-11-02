@@ -91,11 +91,11 @@ export function Header() {
 	return (
 		<header
 			className={cn(
-				'w-full z-[100] transition-all ease-out',
+				'transition-all ease-out z-[100] w-full',
         !isEditMode && 'sticky top-0',
 				{
-					'bg-background/80 supports-[backdrop-filter]:bg-background/60 border-b border-border backdrop-blur-xl':
-						!open,
+					'bg-background/95 supports-[backdrop-filter]:bg-background/60 border-b border-border backdrop-blur-xl md:top-4 md:border md:rounded-xl md:max-w-4xl md:mx-auto':
+						scrolled && !open,
 					'bg-background/90': open,
 				},
 			)}
