@@ -9,10 +9,11 @@ export function useScroll(threshold: number) {
 			setScrolled(window.scrollY > threshold);
 		};
 
-        // Check scroll position on mount (client-side only)
+        // Check scroll position on mount (client-side only) and add listener
         onScroll();
-
 		window.addEventListener('scroll', onScroll);
+		
+        // Cleanup listener on unmount
 		return () => window.removeEventListener('scroll', onScroll);
 	}, [threshold]);
 
