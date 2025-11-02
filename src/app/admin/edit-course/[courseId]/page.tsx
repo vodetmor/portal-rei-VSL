@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
@@ -190,7 +191,7 @@ function EditCoursePageContent() {
           <Button asChild variant="outline" size="sm" className="mb-2">
             <Link href="/admin"><ArrowLeft className="mr-2 h-4 w-4" />Voltar para o Painel</Link>
           </Button>
-          <h1 className="text-2xl md:text-3xl font-bold text-white">Editor Unificado de Cursos</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-white">Editor de Curso</h1>
           <p className="text-muted-foreground">Edite todos os aspectos do seu curso em um só lugar.</p>
         </div>
         <div className="flex gap-2">
@@ -427,3 +428,5 @@ export default function EditCoursePage() {
         </AdminGuard>
     )
 }
+
+    
