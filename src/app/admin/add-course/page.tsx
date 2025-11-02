@@ -95,10 +95,8 @@ function AddCourseForm() {
     if (!firestore) return;
     setIsSubmitting(true);
     
-    // For simplicity, using a placeholder thumbnail and video URL.
-    // A real implementation would involve file uploads.
     const videoId = uuidv4();
-    const thumbnailUrl = `https://picsum.photos/seed/${videoId}/400/225`;
+    const thumbnailUrl = `https://picsum.photos/seed/${videoId}/400/600`;
     const videoUrl = ''; // Placeholder
 
     try {
@@ -107,6 +105,7 @@ function AddCourseForm() {
         description: data.description,
         videoUrl: videoUrl,
         thumbnailUrl: thumbnailUrl,
+        imageHint: 'abstract tech',
         createdAt: new Date(),
         modules: modules.map(({ id, ...rest }) => rest), // Don't save temporary UUIDs
       });

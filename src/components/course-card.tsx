@@ -13,7 +13,7 @@ import {
 interface CourseCardProps {
   id: string;
   title: string;
-  imageUrl: string;
+  imageUrl?: string;
   imageHint: string;
   priority?: boolean;
   isAdmin?: boolean;
@@ -29,6 +29,8 @@ export function CourseCard({ id, title, imageUrl, imageHint, priority = false, i
       onDelete(id);
     }
   }
+
+  const finalImageUrl = imageUrl || `https://picsum.photos/seed/${id}/400/600`;
   
   return (
     <motion.div 
@@ -40,7 +42,7 @@ export function CourseCard({ id, title, imageUrl, imageHint, priority = false, i
     >
       <Link href={`/courses/${id}`} className="block h-full w-full">
         <Image
-          src={imageUrl}
+          src={finalImageUrl}
           alt={title}
           width={400}
           height={600}
@@ -78,5 +80,3 @@ export function CourseCard({ id, title, imageUrl, imageHint, priority = false, i
     </motion.div>
   );
 }
-
-    
