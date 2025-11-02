@@ -62,10 +62,10 @@ export default function DashboardPage() {
         </div>
         <div className="relative z-10 mx-auto flex max-w-4xl flex-col items-start px-4 text-left">
           <h1 className="text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl">
-            <span className="text-primary">Inspire-se</span>, Aprenda, Cresça.
+            <span className="text-primary">Seu Reinado</span> começa aqui.
           </h1>
           <p className="mt-4 max-w-2xl text-lg text-muted-foreground md:text-xl">
-            Na Monster Copy, cada obstáculo se torna uma oportunidade de inovação e sucesso.
+            No Rei da VSL, cada copy se torna uma conversão poderosa.
           </p>
           <Button asChild size="lg" className="mt-8">
             <Link href="#">Começar Agora</Link>
@@ -80,7 +80,7 @@ export default function DashboardPage() {
             <Trophy className="h-7 w-7 text-primary" />
             Área de Membros Premium
           </h2>
-          <p className="text-muted-foreground">Monster Copy ®</p>
+          <p className="text-muted-foreground">Rei da VSL ®</p>
         </div>
         
         {loading ? (

@@ -8,7 +8,7 @@ import { Nav } from "@/components/nav";
 const inter = Inter({ subsets: ["latin"], variable: '--font-sans' });
 
 export const metadata: Metadata = {
-  title: "Portal Rei da VSL",
+  title: "Rei da VSL",
   description: "Sua plataforma para dominar a arte das VSLs.",
 };
 
