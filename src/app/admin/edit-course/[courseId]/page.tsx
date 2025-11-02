@@ -18,7 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Trash2, Save, Upload, Link2, GripVertical, FileVideo, Eye, CalendarDays, Send } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, Upload, Link2, GripVertical, FileVideo, Eye, CalendarDays, Send, BarChart2 } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
@@ -28,6 +28,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Separator } from '@/components/ui/separator';
 import { logAdminAction } from '@/lib/audit';
 import { Badge } from '@/components/ui/badge';
+import CourseAnalytics from '@/components/admin/course-analytics';
+
 
 interface Lesson {
   id: string;
@@ -260,80 +262,94 @@ function EditCoursePageContent() {
         </div>
       </div>
       
-      {/* Course Details Editor */}
-      <Card className="mb-8">
-        <CardHeader>
-            <CardTitle>Detalhes do Curso</CardTitle>
-            <CardDescription>Edite as informações principais que os alunos verão primeiro.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-            <div>
-                <label htmlFor="course-title" className="text-sm font-medium text-white">Título do Curso</label>
-                <Input 
-                    id="course-title"
-                    placeholder="Ex: VSL do Zero ao Lançamento" 
-                    value={tempTitle}
-                    onChange={(e) => setTempTitle(e.target.value)}
-                    className="mt-1"
-                />
-            </div>
-            <div>
-                <label htmlFor="course-subtitle" className="text-sm font-medium text-white">Subtítulo</label>
-                <Input 
-                    id="course-subtitle"
-                    placeholder="Ex: Rei da VSL®" 
-                    value={tempSubtitle}
-                    onChange={(e) => setTempSubtitle(e.target.value)}
-                    className="mt-1"
-                />
-            </div>
-            <div>
-                <label htmlFor="course-description" className="text-sm font-medium text-white">Descrição</label>
-                <Textarea 
-                    id="course-description"
-                    placeholder="Descreva o que o aluno irá aprender..." 
-                    value={tempDescription}
-                    onChange={(e) => setTempDescription(e.target.value)}
-                    className="mt-1"
-                    rows={4}
-                />
-            </div>
-        </CardContent>
-      </Card>
-      
-      <Separator className="my-8" />
+      <Tabs defaultValue="content" className="w-full">
+        <TabsList className="mb-6">
+            <TabsTrigger value="content"><FileVideo className="mr-2 h-4 w-4" />Conteúdo</TabsTrigger>
+            <TabsTrigger value="analytics"><BarChart2 className="mr-2 h-4 w-4" />Análise de Progresso</TabsTrigger>
+        </TabsList>
 
-      {/* Modules and Lessons Editor */}
-      <Card>
-        <CardHeader>
-            <div>
-                <CardTitle>Módulos e Aulas</CardTitle>
-                <CardDescription>Organize o conteúdo do seu curso. Arraste para reordenar, edite os detalhes e adicione aulas.</CardDescription>
+        <TabsContent value="content">
+            <div className="space-y-8">
+                {/* Course Details Editor */}
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Detalhes do Curso</CardTitle>
+                        <CardDescription>Edite as informações principais que os alunos verão primeiro.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <div>
+                            <label htmlFor="course-title" className="text-sm font-medium text-white">Título do Curso</label>
+                            <Input 
+                                id="course-title"
+                                placeholder="Ex: VSL do Zero ao Lançamento" 
+                                value={tempTitle}
+                                onChange={(e) => setTempTitle(e.target.value)}
+                                className="mt-1"
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="course-subtitle" className="text-sm font-medium text-white">Subtítulo</label>
+                            <Input 
+                                id="course-subtitle"
+                                placeholder="Ex: Rei da VSL®" 
+                                value={tempSubtitle}
+                                onChange={(e) => setTempSubtitle(e.target.value)}
+                                className="mt-1"
+                            />
+                        </div>
+                        <div>
+                            <label htmlFor="course-description" className="text-sm font-medium text-white">Descrição</label>
+                            <Textarea 
+                                id="course-description"
+                                placeholder="Descreva o que o aluno irá aprender..." 
+                                value={tempDescription}
+                                onChange={(e) => setTempDescription(e.target.value)}
+                                className="mt-1"
+                                rows={4}
+                            />
+                        </div>
+                    </CardContent>
+                </Card>
+                
+                <Separator />
+
+                {/* Modules and Lessons Editor */}
+                <Card>
+                    <CardHeader>
+                        <div>
+                            <CardTitle>Módulos e Aulas</CardTitle>
+                            <CardDescription>Organize o conteúdo do seu curso. Arraste para reordenar, edite os detalhes e adicione aulas.</CardDescription>
+                        </div>
+                    </CardHeader>
+                    <CardContent>
+                    <div className="space-y-4">
+                        <Reorder.Group axis="y" values={modules} onReorder={setModules} className="space-y-4">
+                            {modules.map((module) => (
+                            <ModuleEditor 
+                                key={module.id} 
+                                module={module}
+                                onUpdate={updateModuleField}
+                                onRemove={removeModule}
+                                onAddLesson={addLesson}
+                                onUpdateLesson={updateLessonField}
+                                onRemoveLesson={removeLesson}
+                                onReorderLessons={reorderLessons}
+                            />
+                            ))}
+                        </Reorder.Group>
+                        <Button onClick={addModule} size="sm" variant="outline" className="w-full mt-4">
+                            <Plus className="mr-2 h-4 w-4" /> Adicionar Módulo
+                        </Button>
+                    </div>
+                    </CardContent>
+                </Card>
             </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <Reorder.Group axis="y" values={modules} onReorder={setModules} className="space-y-4">
-                {modules.map((module) => (
-                  <ModuleEditor 
-                      key={module.id} 
-                      module={module}
-                      onUpdate={updateModuleField}
-                      onRemove={removeModule}
-                      onAddLesson={addLesson}
-                      onUpdateLesson={updateLessonField}
-                      onRemoveLesson={removeLesson}
-                      onReorderLessons={reorderLessons}
-                  />
-                ))}
-            </Reorder.Group>
-              <Button onClick={addModule} size="sm" variant="outline" className="w-full mt-4">
-                  <Plus className="mr-2 h-4 w-4" /> Adicionar Módulo
-              </Button>
-          </div>
-        </CardContent>
-      </Card>
-      
+        </TabsContent>
+        <TabsContent value="analytics">
+            <CourseAnalytics courseId={courseId} courseTitle={course.title} />
+        </TabsContent>
+      </Tabs>
+
       {/* Floating Action Bar */}
       <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-background/80 backdrop-blur-md border-t border-border">
           <div className="container mx-auto flex justify-end items-center gap-4">
