@@ -467,7 +467,7 @@ function DashboardClientPage() {
             </div>
           )}
           {isAdmin && isEditMode && (
-             <div className="absolute top-24 right-8 z-[60] flex flex-col items-end gap-4">
+             <div className="absolute bottom-8 right-8 z-[60] flex flex-col items-end gap-4">
                  <div className="flex gap-2">
                     <Button onClick={handleSaveChanges} disabled={isSaving}>
                         <Save className="mr-2 h-4 w-4" /> {isSaving ? 'Salvando...' : 'Salvar'}
