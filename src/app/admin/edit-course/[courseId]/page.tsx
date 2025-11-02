@@ -194,7 +194,7 @@ function EditCoursePageContent() {
   if (!course) return null;
 
   return (
-    <div className="container mx-auto px-4 py-8 md:px-8 pt-24 relative pb-32 md:pb-8">
+    <div className="container mx-auto px-4 py-8 md:px-8 pt-24 relative pb-32 md:pb-24">
       <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
         <div>
           <Button asChild variant="outline" size="sm" className="mb-2">
@@ -202,16 +202,6 @@ function EditCoursePageContent() {
           </Button>
           <h1 className="text-2xl md:text-3xl font-bold text-white">Editor de Curso</h1>
           <p className="text-muted-foreground">Edite todos os aspectos do seu curso em um só lugar.</p>
-        </div>
-        <div className="flex items-center gap-2">
-            <Button onClick={handleSaveChanges} disabled={isSaving}>
-                <Save className="mr-2 h-4 w-4" />{isSaving ? "Salvando..." : "Salvar Alterações"}
-            </Button>
-            <Button asChild variant="secondary">
-                <Link href={`/courses/${courseId}`}>
-                    <Eye className="mr-2 h-4 w-4" /> Visualizar Curso
-                </Link>
-            </Button>
         </div>
       </div>
       
@@ -275,6 +265,20 @@ function EditCoursePageContent() {
           </div>
         </CardContent>
       </Card>
+      
+      {/* Floating Action Bar */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-background/80 backdrop-blur-md border-t border-border">
+          <div className="container mx-auto flex justify-end items-center gap-4">
+               <Button asChild variant="secondary">
+                    <Link href={`/courses/${courseId}`}>
+                        <Eye className="mr-2 h-4 w-4" /> Visualizar Curso
+                    </Link>
+                </Button>
+                <Button onClick={handleSaveChanges} disabled={isSaving}>
+                    <Save className="mr-2 h-4 w-4" />{isSaving ? "Salvando..." : "Salvar Alterações"}
+                </Button>
+          </div>
+      </div>
     </div>
   );
 }
@@ -565,3 +569,5 @@ export default function EditCoursePage() {
         </AdminGuard>
     )
 }
+
+    
