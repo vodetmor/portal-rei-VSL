@@ -18,7 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Trash2, Save, Upload, Link2, GripVertical, FileVideo, Eye, CalendarDays, Send, BarChart2, Book, Bold, Italic, Underline } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, Upload, Link2, GripVertical, FileVideo, Eye, CalendarDays, Send, BarChart2, Book, Bold, Italic, Underline, Palette } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
@@ -84,9 +84,25 @@ function EditCoursePageContent() {
   const [tempSubtitle, setTempSubtitle] = useState('');
   const [tempDescription, setTempDescription] = useState('');
   const [modules, setModules] = useState<Module[]>([]);
+  const descriptionRef = useRef<HTMLDivElement>(null);
+  const [activeEditor, setActiveEditor] = useState<string | null>(null);
   
-  const applyFormat = (command: string) => {
-    document.execCommand(command, false);
+  const applyFormat = (command: string, value: string | undefined = undefined) => {
+    if (command === 'formatBlock' && value === 'h3') {
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0) return;
+        const range = selection.getRangeAt(0);
+        const parentElement = range.commonAncestorContainer.parentElement;
+        
+        // Se o pai já for h3, volta a ser p (ou div)
+        if (parentElement && parentElement.tagName === 'H3') {
+            document.execCommand('formatBlock', false, 'p');
+        } else {
+            document.execCommand('formatBlock', false, 'h3');
+        }
+    } else {
+        document.execCommand(command, false, value);
+    }
   };
 
   const fetchCourse = useCallback(async () => {
@@ -128,6 +144,12 @@ function EditCoursePageContent() {
   useEffect(() => {
     fetchCourse();
   }, [fetchCourse]);
+
+   useEffect(() => {
+        if (descriptionRef.current) {
+            descriptionRef.current.innerHTML = tempDescription;
+        }
+    }, [tempDescription]);
 
 
   const addModule = () => {
@@ -354,14 +376,31 @@ function EditCoursePageContent() {
                                 className="mt-1"
                             />
                         </div>
-                         <div>
+                         <div className='relative'>
                             <label htmlFor="course-description" className="text-sm font-medium text-white">Descrição</label>
-                            <Textarea
+                            {activeEditor === 'course-description' && (
+                                <ActionToolbar
+                                    className="absolute -top-12 z-10"
+                                    buttons={[
+                                        { label: 'Negrito', icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
+                                        { label: 'Itálico', icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
+                                        { label: 'Sublinhado', icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
+                                        { label: 'Cor', icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor', 'yellow') },
+                                        { label: 'Aumentar', icon: <span className="font-bold text-lg">T</span>, onClick: () => applyFormat('formatBlock', 'h3') },
+                                    ]}
+                                />
+                            )}
+                            <div
                                 id="course-description"
-                                placeholder="Descreva seu curso..."
-                                value={tempDescription}
-                                onChange={(e) => setTempDescription(e.target.value)}
-                                className="mt-1 min-h-[120px]"
+                                ref={descriptionRef}
+                                contentEditable
+                                suppressContentEditableWarning
+                                onFocus={() => setActiveEditor('course-description')}
+                                onBlur={(e) => {
+                                    setActiveEditor(null);
+                                    setTempDescription(e.currentTarget.innerHTML);
+                                }}
+                                className="mt-1 min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 prose prose-invert max-w-none"
                             />
                         </div>
                     </CardContent>
@@ -479,7 +518,7 @@ interface ModuleEditorProps {
     onUpdateLesson: (moduleId: string, lessonId: string, field: keyof Lesson, value: any) => void;
     onRemoveLesson: (moduleId: string, lessonId: string, lessonTitle: string) => void;
     onReorderLessons: (moduleId: string, reorderedLessons: Lesson[]) => void;
-    applyFormat: (command: string) => void;
+    applyFormat: (command: string, value?: string) => void;
 }
 
 function ModuleEditor({ module, onUpdate, onRemove, onAddLesson, onUpdateLesson, onRemoveLesson, onReorderLessons, applyFormat }: ModuleEditorProps) {
@@ -645,7 +684,7 @@ interface LessonEditorProps {
   moduleId: string;
   onUpdate: (moduleId: string, lessonId: string, field: keyof Lesson, value: any) => void;
   onRemove: (moduleId: string, lessonId: string, lessonTitle: string) => void;
-  applyFormat: (command: string) => void;
+  applyFormat: (command: string, value?:string) => void;
 }
 
 function LessonEditor({ lesson, moduleId, onUpdate, onRemove, applyFormat }: LessonEditorProps) {
@@ -659,11 +698,6 @@ function LessonEditor({ lesson, moduleId, onUpdate, onRemove, applyFormat }: Les
     const [activeEditor, setActiveEditor] = useState<string | null>(null);
     const lessonDescriptionRef = useRef<HTMLDivElement>(null);
 
-    const handleDescriptionChange = () => {
-        if (lessonDescriptionRef.current) {
-            onUpdate(moduleId, lesson.id, 'description', lessonDescriptionRef.current.innerHTML);
-        }
-    };
 
     useEffect(() => {
         if (lessonDescriptionRef.current) {
@@ -758,12 +792,33 @@ function LessonEditor({ lesson, moduleId, onUpdate, onRemove, applyFormat }: Les
                 </Button>
             </div>
 
-            <Textarea
-                placeholder="Adicione uma descrição para a aula..."
-                value={lesson.description}
-                onChange={(e) => onUpdate(moduleId, lesson.id, 'description', e.target.value)}
-                className="min-h-[80px]"
-            />
+            <div className="relative">
+                <label className="text-xs text-muted-foreground">Descrição da aula</label>
+                 {activeEditor === lesson.id && (
+                    <ActionToolbar
+                        className="absolute -top-12 z-10"
+                        buttons={[
+                           { label: 'Negrito', icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
+                           { label: 'Itálico', icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
+                           { label: 'Sublinhado', icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
+                           { label: 'Cor', icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor', 'yellow') },
+                           { label: 'Aumentar', icon: <span className="font-bold text-lg">T</span>, onClick: () => applyFormat('formatBlock', 'h3') },
+                        ]}
+                    />
+                )}
+                <div
+                    id={`lesson-desc-${lesson.id}`}
+                    ref={lessonDescriptionRef}
+                    contentEditable
+                    suppressContentEditableWarning
+                    onFocus={() => setActiveEditor(lesson.id)}
+                    onBlur={(e) => {
+                        setActiveEditor(null);
+                        onUpdate(moduleId, lesson.id, 'description', e.currentTarget.innerHTML);
+                    }}
+                    className="mt-1 min-h-[100px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 prose prose-sm prose-invert max-w-none"
+                />
+            </div>
 
             {/* Main Video Section */}
             <div className="space-y-2 pt-2">
@@ -868,6 +923,9 @@ function ComplementaryMaterialEditor({ material, moduleId, lessonId, onUpdate, o
                 () => {
                     getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
                         onUpdate(material.id, 'url', downloadURL);
+                        if (!material.title) {
+                            onUpdate(material.id, 'title', selectedFile.name);
+                        }
                         toast({ title: "Sucesso!", description: "Material complementar enviado." });
                         setUploadProgress(null);
                         setFile(null);
@@ -891,7 +949,7 @@ function ComplementaryMaterialEditor({ material, moduleId, lessonId, onUpdate, o
                 </Button>
             </div>
 
-            <Tabs defaultValue="url" className="w-full">
+            <Tabs defaultValue="upload" className="w-full">
                 <TabsList className="grid w-full grid-cols-2 h-8">
                     <TabsTrigger value="upload" className="text-xs">Enviar Arquivo</TabsTrigger>
                     <TabsTrigger value="url" className="text-xs">Usar URL</TabsTrigger>
@@ -923,5 +981,3 @@ export default function EditCoursePage() {
         </AdminGuard>
     )
 }
-
-    
