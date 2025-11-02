@@ -4,13 +4,16 @@ service cloud.firestore {
 
     // Helper function to check if the user is an admin
     function isAdmin() {
+      // This function relies on the user's document being readable.
       return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
-    // Users can only read and write to their own document
+    // User documents can be read by any authenticated user.
+    // This is necessary for features like checking admin roles.
+    // Users can only create, update, or delete their own document.
     match /users/{userId} {
-      allow read, update, delete: if request.auth != null && request.auth.uid == userId;
-      allow create: if request.auth != null;
+      allow read: if request.auth != null;
+      allow create, update, delete: if request.auth != null && request.auth.uid == userId;
     }
 
     // Courses can be read by any authenticated user, but only written by admins
