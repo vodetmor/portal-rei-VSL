@@ -21,13 +21,25 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
         return;
       }
       
+      // Force grant admin role if email matches, as a fallback.
+      if (user.email === 'admin@reidavsl.com') {
+        setIsAdmin(true);
+        setIsChecking(false);
+        return;
+      }
+
       if (firestore) {
-        const userDocRef = doc(firestore, 'users', user.uid);
-        const userDoc = await getDoc(userDocRef);
-        if (userDoc.exists() && userDoc.data().role === 'admin') {
-          setIsAdmin(true);
-        } else {
-          router.replace('/dashboard');
+        try {
+            const userDocRef = doc(firestore, 'users', user.uid);
+            const userDoc = await getDoc(userDocRef);
+            if (userDoc.exists() && userDoc.data().role === 'admin') {
+              setIsAdmin(true);
+            } else {
+              router.replace('/dashboard');
+            }
+        } catch (error) {
+            console.error("Error checking admin role:", error);
+            router.replace('/dashboard');
         }
       }
       setIsChecking(false);
