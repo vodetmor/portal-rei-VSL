@@ -437,14 +437,14 @@ function DashboardClientPage() {
             </div>
           </div>
           {isAdmin && !isEditMode && (
-            <div className="absolute top-24 right-8 z-[60]">
+            <div className="absolute top-24 right-8 z-20">
               <Button onClick={enterEditMode} variant="outline">
                 <Pencil className="mr-2 h-4 w-4" /> Editar Página
               </Button>
             </div>
           )}
           {isAdmin && isEditMode && (
-             <div className="absolute top-24 right-8 z-[60] flex flex-col items-end gap-4">
+             <div className="absolute top-24 right-8 z-20 flex flex-col items-end gap-4">
                  <Collapsible open={openCollapsible === 'banner'} onOpenChange={(isOpen) => setOpenCollapsible(isOpen ? 'banner' : null)} className="w-full max-w-xs">
                     <CollapsibleTrigger asChild>
                         <Button variant="outline"><Pencil className="mr-2 h-4 w-4" /> Editar Banner</Button>
@@ -510,7 +510,7 @@ function DashboardClientPage() {
                 )}
             </div>
             {loading ? (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                   {Array.from({ length: 4 }).map((_, index) => (
                       <div key={index}>
                           <Skeleton className="aspect-[2/3] w-full rounded-lg" />
@@ -518,7 +518,7 @@ function DashboardClientPage() {
                   ))}
                 </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                   {courses.map((course, index) => (
                     <CourseCard
                         key={course.id}

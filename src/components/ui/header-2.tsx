@@ -91,7 +91,7 @@ export function Header() {
 	return (
 		<header
 			className={cn(
-				'z-50 mx-auto w-full max-w-5xl md:transition-all md:ease-out',
+				'z-[100] mx-auto w-full max-w-5xl md:transition-all md:ease-out',
         !isEditMode && 'sticky top-0 border-b border-transparent md:rounded-lg',
         isEditMode && 'border-b border-border',
 				{
