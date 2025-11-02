@@ -5,8 +5,6 @@ service cloud.firestore {
 
     // Helper function to check if the user is an admin
     function isAdmin() {
-      // The primary admin email has rights regardless of the document role.
-      // Additionally, check for users with the 'admin' role in their user document.
       return request.auth != null && 
         (request.auth.token.email == 'admin@reidavsl.com' || 
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
@@ -57,21 +55,38 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     
-    // Engagement features: Comments and Reactions
-    // These collections are nested under a path that includes the course and lesson.
-    match /courses/{courseId}/lessons/{lessonId}/comments/{commentId} {
-      allow list, read: if hasCourseAccess(courseId) || isAdmin();
-      // Users with access can create comments, as can admins.
-      allow create: if (request.auth != null && hasCourseAccess(courseId)) || isAdmin();
-      // Users can only update/delete their own comments. Admins can delete any.
-      allow update: if request.auth.uid == resource.data.userId && hasCourseAccess(courseId);
-      allow delete: if (request.auth.uid == resource.data.userId && hasCourseAccess(courseId)) || isAdmin();
-    }
+    // --- Lesson Engagement Features ---
+    match /courses/{courseId}/lessons/{lessonId} {
 
-    match /courses/{courseId}/lessons/{lessonId}/reactions/{reactionId} {
-      allow read, list: if hasCourseAccess(courseId) || isAdmin();
-      // Admins can write, or users with access can write to their own reaction document.
-      allow write: if isAdmin() || (request.auth.uid == reactionId && hasCourseAccess(courseId));
+        // Comments Subcollection
+        match /comments/{commentId} {
+          allow list, read: if hasCourseAccess(courseId) || isAdmin();
+          allow create: if (request.auth != null && hasCourseAccess(courseId)) || isAdmin();
+          allow update(pin): if isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isPinned']);
+          allow update(text): if request.auth.uid == resource.data.userId && hasCourseAccess(courseId);
+          allow delete: if (request.auth.uid == resource.data.userId && hasCourseAccess(courseId)) || isAdmin();
+
+            // Replies Sub-subcollection
+            match /replies/{replyId} {
+                allow list, read: if hasCourseAccess(courseId) || isAdmin();
+                allow create: if (request.auth != null && hasCourseAccess(courseId)) || isAdmin();
+                allow update: if request.auth.uid == resource.data.userId && hasCourseAccess(courseId);
+                allow delete: if (request.auth.uid == resource.data.userId && hasCourseAccess(courseId)) || isAdmin();
+            }
+
+            // Likes Sub-subcollection
+            match /likes/{userId} {
+                 allow read: if hasCourseAccess(courseId) || isAdmin();
+                 // User can only like/unlike as themselves
+                 allow create, delete: if request.auth.uid == userId && hasCourseAccess(courseId);
+            }
+        }
+
+        // Reactions Subcollection
+        match /reactions/{reactionId} {
+          allow read, list: if hasCourseAccess(courseId) || isAdmin();
+          allow write: if isAdmin() || (request.auth.uid == reactionId && hasCourseAccess(courseId));
+        }
     }
 
 

@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useFirestore, useUser, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { doc, getDoc, updateDoc, serverTimestamp, setDoc, addDoc, collection, query, orderBy, deleteDoc, writeBatch } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, serverTimestamp, setDoc, addDoc, collection, query, orderBy, deleteDoc, writeBatch, runTransaction, increment } from 'firebase/firestore';
 import ReactPlayer from 'react-player/lazy';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -13,7 +13,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { CheckCircle, Circle, Lock, ArrowLeft, ArrowRight, X, Download, Link2, FileText, Check, ThumbsUp, ThumbsDown, Send, MessageSquare, BookOpen, Trash2 } from 'lucide-react';
+import { CheckCircle, Circle, Lock, ArrowLeft, ArrowRight, X, Download, Link2, FileText, Check, ThumbsUp, Send, MessageSquare, BookOpen, Trash2, Pin, PinOff, CornerDownRight } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
@@ -66,6 +66,9 @@ interface LessonComment {
     userPhotoURL: string;
     text: string;
     timestamp: any;
+    isPinned?: boolean;
+    likeCount?: number;
+    replyCount?: number;
 }
 
 interface LessonReaction {
@@ -78,12 +81,18 @@ const urlRegex = /(https?:\/\/[^\s]+)/g;
 
 function makeLinksClickable(text: string) {
     if(!text) return '';
-    return text.replace(urlRegex, (url) => `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">${url}</a>`);
+    const parts = text.split(urlRegex);
+    return parts.map((part, i) => {
+        if (part.match(urlRegex)) {
+            return <a key={i} href={part} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{part}</a>;
+        }
+        return part;
+    });
 }
 
 function GoogleDriveIcon(props: React.ComponentProps<'svg'>) {
     return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
             <path d="M18.88 9.94l-3.32-5.4A2 2 0 0 0 13.88 4H10.1a2 2 0 0 0-1.7 1.52l-3.3 5.44a2 2 0 0 0 .34 2.2l5.88 8.64a2 2 0 0 0 3.36 0l5.88-8.64a2 2 0 0 0 .32-2.22Z"/>
         </svg>
     )
@@ -104,13 +113,12 @@ export default function LessonPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [isDescriptionOpen, setIsDescriptionOpen] = useState(true);
   const [newComment, setNewComment] = useState('');
   const [isSubmittingComment, setIsSubmittingComment] = useState(false);
 
   const commentsQuery = useMemoFirebase(() => {
     if (!firestore || !courseId || !lessonId) return null;
-    return query(collection(firestore, `courses/${courseId}/lessons/${lessonId}/comments`), orderBy('timestamp', 'desc'));
+    return query(collection(firestore, `courses/${courseId}/lessons/${lessonId}/comments`), orderBy('isPinned', 'desc'), orderBy('timestamp', 'desc'));
   }, [firestore, courseId, lessonId]);
   const { data: comments, isLoading: commentsLoading } = useCollection<LessonComment>(commentsQuery);
 
@@ -320,6 +328,9 @@ export default function LessonPage() {
         userPhotoURL: user.photoURL,
         text: newComment,
         timestamp: serverTimestamp(),
+        isPinned: false,
+        likeCount: 0,
+        replyCount: 0
     };
 
     addDoc(commentsCollectionRef, commentData)
@@ -510,9 +521,6 @@ export default function LessonPage() {
                         <Button size="sm" variant="ghost" onClick={() => handleReaction('like')} className={cn("rounded-full h-8 px-3", userReaction === 'like' && 'bg-primary/20 text-primary')}>
                             <ThumbsUp className="mr-2 h-4 w-4" /> {likes}
                         </Button>
-                        <Button size="sm" variant="ghost" onClick={() => handleReaction('dislike')} className={cn("rounded-full h-8 px-3", userReaction === 'dislike' && 'bg-destructive/20 text-destructive')}>
-                            <ThumbsDown className="mr-2 h-4 w-4" /> {dislikes}
-                        </Button>
                       </div>
                       {!currentLesson.videoUrl && !isCurrentLessonCompleted && (
                          <Button onClick={markAsCompleted}>
@@ -529,7 +537,7 @@ export default function LessonPage() {
                     </TabsList>
                     <TabsContent value="description" className="py-6">
                         {currentLesson.description && (
-                            <div className="prose prose-invert max-w-none text-muted-foreground" dangerouslySetInnerHTML={{ __html: processedDescription }}></div>
+                            <div className="prose prose-invert max-w-none text-muted-foreground">{processedDescription}</div>
                         )}
                         
                         {currentLesson.complementaryMaterials && currentLesson.complementaryMaterials.length > 0 && (
@@ -569,7 +577,7 @@ export default function LessonPage() {
                         )}
                     </TabsContent>
                     <TabsContent value="comments" className="py-6">
-                        <h2 className="text-xl font-semibold text-white mb-4">Comentários</h2>
+                        <h2 className="text-xl font-semibold text-white mb-4">Comentários ({comments?.length || 0})</h2>
                         <form onSubmit={handleCommentSubmit} className="flex flex-col gap-3 mb-8">
                              <div className="flex gap-3">
                                 <Avatar className="h-10 w-10 mt-1">
@@ -597,26 +605,14 @@ export default function LessonPage() {
                                 <Skeleton className="h-20 w-full" />
                             ) : comments && comments.length > 0 ? (
                                 comments.map(comment => (
-                                    <div key={comment.id} className="flex items-start gap-4">
-                                        <Avatar className="h-10 w-10">
-                                            <AvatarImage src={comment.userPhotoURL} />
-                                            <AvatarFallback>{comment.userDisplayName.charAt(0)}</AvatarFallback>
-                                        </Avatar>
-                                        <div className="flex-1">
-                                            <div className="flex items-baseline justify-between">
-                                                <p className="font-semibold text-white">{comment.userDisplayName}</p>
-                                                <div className="flex items-center gap-2">
-                                                    <p className="text-xs text-muted-foreground">{comment.timestamp ? formatDistanceToNow(comment.timestamp.toDate(), { addSuffix: true, locale: ptBR }) : ''}</p>
-                                                    {(isAdmin || user?.uid === comment.userId) && (
-                                                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleDeleteComment(comment.id)}>
-                                                        <Trash2 className="h-3 w-3 text-destructive/70" />
-                                                      </Button>
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <p className="text-muted-foreground whitespace-pre-wrap">{comment.text}</p>
-                                        </div>
-                                    </div>
+                                    <Comment
+                                        key={comment.id}
+                                        comment={comment}
+                                        courseId={courseId as string}
+                                        lessonId={lessonId as string}
+                                        currentUserId={user?.uid}
+                                        isAdmin={isAdmin}
+                                    />
                                 ))
                             ) : (
                                 <p className="text-center text-muted-foreground py-4">Seja o primeiro a comentar!</p>
@@ -630,4 +626,198 @@ export default function LessonPage() {
       </main>
     </div>
   );
+}
+
+// --- Comment Component and its sub-components ---
+
+interface CommentProps {
+    comment: LessonComment;
+    courseId: string;
+    lessonId: string;
+    currentUserId?: string;
+    isAdmin?: boolean;
+}
+
+function Comment({ comment, courseId, lessonId, currentUserId, isAdmin }: CommentProps) {
+    const firestore = useFirestore();
+    const { toast } = useToast();
+    const [showReplies, setShowReplies] = useState(false);
+
+    const handleTogglePin = () => {
+        if (!isAdmin || !firestore) return;
+        const commentRef = doc(firestore, `courses/${courseId}/lessons/${lessonId}/comments`, comment.id);
+        updateDoc(commentRef, { isPinned: !comment.isPinned })
+            .catch(err => console.error("Pin error:", err));
+    };
+
+    const handleLike = () => {
+        if (!currentUserId || !firestore) return;
+
+        const commentRef = doc(firestore, `courses/${courseId}/lessons/${lessonId}/comments`, comment.id);
+        const likeRef = doc(firestore, `courses/${courseId}/lessons/${lessonId}/comments/${comment.id}/likes`, currentUserId);
+
+        runTransaction(firestore, async (transaction) => {
+            const likeDoc = await transaction.get(likeRef);
+            if (likeDoc.exists()) {
+                // User has already liked, so unlike
+                transaction.delete(likeRef);
+                transaction.update(commentRef, { likeCount: increment(-1) });
+            } else {
+                // User has not liked, so like
+                transaction.set(likeRef, { userId: currentUserId, timestamp: serverTimestamp() });
+                transaction.update(commentRef, { likeCount: increment(1) });
+            }
+        }).catch(err => console.error("Like transaction error: ", err));
+    };
+
+    return (
+        <div className={cn("flex items-start gap-4", comment.isPinned && "bg-secondary/30 p-4 rounded-lg")}>
+            <Avatar className="h-10 w-10">
+                <AvatarImage src={comment.userPhotoURL} />
+                <AvatarFallback>{comment.userDisplayName.charAt(0)}</AvatarFallback>
+            </Avatar>
+            <div className="flex-1">
+                <div className="flex items-baseline justify-between">
+                    <p className="font-semibold text-white">{comment.userDisplayName}</p>
+                    <div className="flex items-center gap-2">
+                        {comment.isPinned && <Pin className="h-4 w-4 text-primary" />}
+                        <p className="text-xs text-muted-foreground">{comment.timestamp ? formatDistanceToNow(comment.timestamp.toDate(), { addSuffix: true, locale: ptBR }) : ''}</p>
+                        {(isAdmin || currentUserId === comment.userId) && (
+                            <Trash2 className="h-3 w-3 text-destructive/70 cursor-pointer" onClick={() => {
+                                 if (!firestore) return;
+                                 deleteDoc(doc(firestore, `courses/${courseId}/lessons/${lessonId}/comments`, comment.id))
+                                    .then(() => toast({ title: 'Comentário excluído.' }))
+                                    .catch(err => console.error(err));
+                            }}/>
+                        )}
+                    </div>
+                </div>
+                <div className="text-muted-foreground whitespace-pre-wrap prose-sm prose-invert max-w-none">
+                    {makeLinksClickable(comment.text)}
+                </div>
+                <div className="mt-2 flex items-center gap-4">
+                    <Button variant="ghost" size="sm" onClick={handleLike} className="flex items-center gap-1.5 text-muted-foreground h-auto p-1">
+                        <ThumbsUp className="h-4 w-4" /> {comment.likeCount || 0}
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => setShowReplies(!showReplies)} className="flex items-center gap-1.5 text-muted-foreground h-auto p-1">
+                        <MessageSquare className="h-4 w-4" /> {comment.replyCount || 0} Respostas
+                    </Button>
+                    {isAdmin && (
+                        <Button variant="ghost" size="sm" onClick={handleTogglePin} className="flex items-center gap-1.5 text-muted-foreground h-auto p-1">
+                           {comment.isPinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
+                        </Button>
+                    )}
+                </div>
+                {showReplies && (
+                    <div className="mt-4 space-y-4">
+                        <ReplyForm courseId={courseId} lessonId={lessonId} commentId={comment.id} currentUserId={currentUserId} />
+                        <ReplyList courseId={courseId} lessonId={lessonId} commentId={comment.id} />
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+interface ReplyListProps {
+    courseId: string;
+    lessonId: string;
+    commentId: string;
+}
+
+function ReplyList({ courseId, lessonId, commentId }: ReplyListProps) {
+    const firestore = useFirestore();
+    const repliesQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(collection(firestore, `courses/${courseId}/lessons/${lessonId}/comments/${commentId}/replies`), orderBy('timestamp', 'asc'));
+    }, [firestore, courseId, lessonId, commentId]);
+
+    const { data: replies, isLoading } = useCollection(repliesQuery);
+
+    if (isLoading) return <Skeleton className="h-10 w-full" />;
+
+    return (
+        <div className="space-y-4 pl-8 border-l border-border/50">
+            {replies?.map(reply => (
+                <div key={reply.id} className="flex items-start gap-3">
+                    <Avatar className="h-8 w-8">
+                        <AvatarImage src={reply.userPhotoURL} />
+                        <AvatarFallback>{reply.userDisplayName.charAt(0)}</AvatarFallback>
+                    </Avatar>
+                     <div className="flex-1">
+                        <div className="flex items-baseline gap-2">
+                             <p className="font-semibold text-white text-sm">{reply.userDisplayName}</p>
+                              <p className="text-xs text-muted-foreground">{reply.timestamp ? formatDistanceToNow(reply.timestamp.toDate(), { addSuffix: true, locale: ptBR }) : ''}</p>
+                        </div>
+                        <div className="text-muted-foreground text-sm whitespace-pre-wrap prose-sm prose-invert max-w-none">{makeLinksClickable(reply.text)}</div>
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+interface ReplyFormProps {
+    courseId: string;
+    lessonId: string;
+    commentId: string;
+    currentUserId?: string;
+}
+
+function ReplyForm({ courseId, lessonId, commentId, currentUserId }: ReplyFormProps) {
+    const firestore = useFirestore();
+    const { user } = useUser();
+    const [replyText, setReplyText] = useState('');
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!firestore || !user || !replyText.trim()) return;
+
+        setIsSubmitting(true);
+        const replyCollectionRef = collection(firestore, `courses/${courseId}/lessons/${lessonId}/comments/${commentId}/replies`);
+        const commentRef = doc(firestore, `courses/${courseId}/lessons/${lessonId}/comments`, commentId);
+
+        const replyData = {
+            userId: user.uid,
+            userDisplayName: user.displayName,
+            userPhotoURL: user.photoURL,
+            text: replyText,
+            timestamp: serverTimestamp(),
+        };
+
+        runTransaction(firestore, async (transaction) => {
+            transaction.set(doc(replyCollectionRef), replyData);
+            transaction.update(commentRef, { replyCount: increment(1) });
+        }).then(() => {
+            setReplyText('');
+        }).catch(err => {
+            console.error("Reply transaction error: ", err);
+        }).finally(() => {
+            setIsSubmitting(false);
+        });
+    };
+
+    return (
+        <form onSubmit={handleSubmit} className="flex items-start gap-3 pl-8">
+            <Avatar className="h-8 w-8">
+                <AvatarImage src={user?.photoURL || undefined} />
+                <AvatarFallback>{user?.displayName?.charAt(0)}</AvatarFallback>
+            </Avatar>
+            <div className="flex-1 space-y-2">
+                <Textarea 
+                    placeholder="Escreva sua resposta..."
+                    value={replyText}
+                    onChange={(e) => setReplyText(e.target.value)}
+                    className="flex-1 bg-secondary/80 text-sm"
+                    rows={2}
+                />
+                <div className="flex justify-end">
+                    <Button type="submit" size="sm" disabled={isSubmitting}>
+                        {isSubmitting ? "Enviando..." : "Responder"}
+                    </Button>
+                </div>
+            </div>
+        </form>
+    );
 }

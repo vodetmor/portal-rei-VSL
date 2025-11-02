@@ -195,9 +195,38 @@
           "userDisplayName": { "type": "string" },
           "userPhotoURL": { "type": "string", "format": "uri" },
           "text": { "type": "string" },
-          "timestamp": { "type": "string", "format": "date-time" }
+          "timestamp": { "type": "string", "format": "date-time" },
+          "isPinned": { "type": "boolean", "description": "Whether the comment is pinned by an admin." },
+          "likeCount": { "type": "number", "description": "The number of likes on the comment." },
+          "replyCount": { "type": "number", "description": "The number of replies to the comment." }
         },
         "required": ["id", "userId", "userDisplayName", "text", "timestamp"]
+    },
+    "CommentReply": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CommentReply",
+      "type": "object",
+      "description": "Represents a reply to a comment.",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "userDisplayName": { "type": "string" },
+        "userPhotoURL": { "type": "string", "format": "uri" },
+        "text": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "userDisplayName", "text", "timestamp"]
+    },
+    "CommentLike": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CommentLike",
+      "type": "object",
+      "description": "Represents a user's like on a comment.",
+      "properties": {
+        "userId": { "type": "string" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "timestamp"]
     },
     "LessonReaction": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -246,6 +275,34 @@
             { "name": "lessonId", "description": "The ID of the lesson." },
             { "name": "commentId", "description": "The unique ID of the comment." }
           ]
+        }
+      },
+      {
+        "path": "/courses/{courseId}/lessons/{lessonId}/comments/{commentId}/replies/{replyId}",
+        "definition": {
+            "entityName": "CommentReply",
+            "schema": { "$ref": "#/backend/entities/CommentReply" },
+            "description": "Stores replies to a specific comment.",
+            "params": [
+                { "name": "courseId", "description": "The ID of the course." },
+                { "name": "lessonId", "description": "The ID of the lesson." },
+                { "name": "commentId", "description": "The ID of the parent comment." },
+                { "name": "replyId", "description": "The unique ID of the reply." }
+            ]
+        }
+      },
+      {
+        "path": "/courses/{courseId}/lessons/{lessonId}/comments/{commentId}/likes/{userId}",
+        "definition": {
+            "entityName": "CommentLike",
+            "schema": { "$ref": "#/backend/entities/CommentLike" },
+            "description": "Indicates that a user has liked a specific comment.",
+            "params": [
+                { "name": "courseId", "description": "The ID of the course." },
+                { "name": "lessonId", "description": "The ID of the lesson." },
+                { "name": "commentId", "description": "The ID of the comment being liked." },
+                { "name": "userId", "description": "The ID of the user who liked the comment." }
+            ]
         }
       },
       {
