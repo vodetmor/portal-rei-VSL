@@ -14,7 +14,6 @@ const DEFAULT_DEFAULTS = {
 }
 
 interface LayoutData {
-  logoUrl: string;
   heroTitle: string;
   heroSubtitle: string;
   heroImage: string;
@@ -56,7 +55,6 @@ export const LayoutProvider = ({ children }: { children: ReactNode }) => {
             membersTitle: data.membersTitle || prev.defaults.membersTitle,
             membersSubtitle: data.membersSubtitle || prev.defaults.membersSubtitle,
             membersIcon: data.membersIcon || prev.defaults.membersIcon,
-            logoUrl: data.logoUrl || prev.defaults.logoUrl,
         }));
       }
     } catch (error) {

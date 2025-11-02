@@ -11,7 +11,7 @@ import { LayoutContext, LayoutProvider, useLayout } from '@/context/layout-conte
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Plus, Pencil, Save, X, Trophy, Gem, Crown, Star, type LucideIcon, Upload, Link2, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Save, X, Trophy, Gem, Crown, Star, type LucideIcon, Upload, Link2, Trash2, ChevronDown } from 'lucide-react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -30,6 +30,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { EditCourseModal } from '@/components/admin/edit-course-modal';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { cn } from '@/lib/utils';
+
 
 interface Course extends DocumentData {
   id: string;
@@ -72,18 +75,14 @@ function DashboardClientPage() {
   const [tempMembersTitle, setTempMembersTitle] = useState(layoutData.membersTitle);
   const [tempMembersSubtitle, setTempMembersSubtitle] = useState(layoutData.membersSubtitle);
   const [tempMembersIcon, setTempMembersIcon] = useState(layoutData.membersIcon);
-  const [tempLogoUrl, setTempLogoUrl] = useState(layoutData.logoUrl);
 
   
   const [heroImageFile, setHeroImageFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [imageInputMode, setImageInputMode] = useState<'upload' | 'url'>('upload');
   const [tempHeroImageUrlInput, setTempHeroImageUrlInput] = useState('');
-  
-  const [logoFile, setLogoFile] = useState<File | null>(null);
-  const [logoUploadProgress, setLogoUploadProgress] = useState<number | null>(null);
-  const [logoInputMode, setLogoInputMode] = useState<'upload' | 'url'>('upload');
-  const [tempLogoUrlInput, setTempLogoUrlInput] = useState('');
+
+  const [openCollapsible, setOpenCollapsible] = useState<string | null>(null);
 
   
   const SelectedIcon = iconMap[isEditMode ? tempMembersIcon : layoutData.membersIcon] || Trophy;
@@ -96,24 +95,19 @@ function DashboardClientPage() {
     setTempMembersTitle(layoutData.membersTitle);
     setTempMembersSubtitle(layoutData.membersSubtitle);
     setTempMembersIcon(layoutData.membersIcon);
-    setTempLogoUrl(layoutData.logoUrl);
     
     setTempHeroImageUrlInput(layoutData.heroImage);
-    setTempLogoUrlInput(layoutData.logoUrl);
 
     setImageInputMode('upload');
     setHeroImageFile(null);
     setUploadProgress(null);
-
-    setLogoInputMode('upload');
-    setLogoFile(null);
-    setLogoUploadProgress(null);
 
     setIsEditMode(true);
   };
 
   const cancelEditMode = () => {
     setIsEditMode(false);
+    setOpenCollapsible(null);
   };
 
   // Hero Image Handlers
@@ -143,34 +137,6 @@ function DashboardClientPage() {
     setHeroImageFile(null);
   };
 
-  // Logo Image Handlers
-  const handleLogoFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setLogoFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setTempLogoUrl(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-  
-  const handleLogoUrlInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const newUrl = event.target.value;
-    setTempLogoUrlInput(newUrl);
-    if (newUrl.startsWith('http://') || newUrl.startsWith('https://')) {
-      setTempLogoUrl(newUrl);
-    }
-  };
-  
-  const handleRemoveLogo = () => {
-    setTempLogoUrl(layoutData.defaults.logoUrl);
-    setTempLogoUrlInput('');
-    setLogoFile(null);
-  };
-
-
   const uploadImage = async (file: File, path: string, progressSetter: (p: number) => void): Promise<string> => {
     const storage = getStorage();
     const storageRef = ref(storage, `${path}/${Date.now()}-${file.name}`);
@@ -194,7 +160,6 @@ function DashboardClientPage() {
     if (!firestore) return;
     setIsSaving(true);
     setUploadProgress(null);
-    setLogoUploadProgress(null);
 
     let finalHeroImageUrl = tempHeroImage;
     if (imageInputMode === 'upload' && heroImageFile) {
@@ -203,15 +168,8 @@ function DashboardClientPage() {
         finalHeroImageUrl = tempHeroImageUrlInput;
     }
     
-    let finalLogoUrl = tempLogoUrl;
-    if (logoInputMode === 'upload' && logoFile) {
-        finalLogoUrl = await uploadImage(logoFile, 'layout/logo', setLogoUploadProgress);
-    } else if (logoInputMode === 'url') {
-        finalLogoUrl = tempLogoUrlInput;
-    }
-
-    if (!finalHeroImageUrl || !finalLogoUrl) {
-        toast({ variant: "destructive", title: "Erro", description: "Uma das imagens não foi fornecida." });
+    if (!finalHeroImageUrl) {
+        toast({ variant: "destructive", title: "Erro", description: "A imagem do banner não foi fornecida." });
         setIsSaving(false);
         return;
     }
@@ -225,7 +183,6 @@ function DashboardClientPage() {
         membersTitle: tempMembersTitle,
         membersSubtitle: tempMembersSubtitle,
         membersIcon: tempMembersIcon,
-        logoUrl: finalLogoUrl,
       };
 
       await setDoc(layoutRef, dataToSave, { merge: true });
@@ -254,9 +211,7 @@ function DashboardClientPage() {
     } finally {
       setIsSaving(false);
       setUploadProgress(null);
-      setLogoUploadProgress(null);
       setHeroImageFile(null);
-      setLogoFile(null);
     }
   };
 
@@ -377,7 +332,7 @@ function DashboardClientPage() {
 
           <div className="relative z-10 mx-auto flex max-w-4xl flex-col items-start px-4 text-left">
               {isEditMode ? (
-                  <div className='w-full space-y-4 rounded-xl bg-background/50 p-4 border border-border backdrop-blur-sm'>
+                  <div className='w-full max-w-lg space-y-4 rounded-xl bg-background/50 p-4 border border-border backdrop-blur-sm'>
                       <Input 
                         data-editable="true"
                         value={tempHeroTitle.replace(/<[^>]+>/g, '')} 
@@ -390,89 +345,55 @@ function DashboardClientPage() {
                         onChange={(e) => setTempHeroSubtitle(e.target.value)}
                         className="mt-4 max-w-2xl text-lg md:text-xl bg-transparent border-dashed"
                       />
-                     <div className="mt-2 w-full space-y-2">
-                      <p className="text-sm font-medium">Imagem do Banner</p>
-                      <Tabs value={imageInputMode} onValueChange={(value) => setImageInputMode(value as 'upload' | 'url')} className="w-full">
-                        <TabsList className="grid w-full grid-cols-2">
-                          <TabsTrigger value="upload">Enviar Arquivo</TabsTrigger>
-                          <TabsTrigger value="url">Usar URL</TabsTrigger>
-                        </TabsList>
-                        <TabsContent value="upload" className="mt-4">
-                          <label htmlFor="hero-image-upload" className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-white border border-dashed rounded-md p-3 justify-center bg-background/50">
-                              <Upload className="h-4 w-4" />
-                              <span>{heroImageFile ? heroImageFile.name : 'Clique para selecionar a imagem'}</span>
-                          </label>
-                          <Input
-                              id="hero-image-upload"
-                              type="file"
-                              accept="image/*"
-                              onChange={handleHeroFileChange}
-                              className="hidden"
-                          />
-                           {uploadProgress !== null && imageInputMode === 'upload' && (
-                              <Progress value={uploadProgress} className="w-full h-2 mt-2" />
-                          )}
-                        </TabsContent>
-                        <TabsContent value="url" className="mt-4">
-                           <div className="relative">
-                            <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                              type="text"
-                              placeholder="https://exemplo.com/imagem.png"
-                              value={tempHeroImageUrlInput}
-                              onChange={handleHeroUrlInputChange}
-                              className="w-full bg-background/50 pl-9"
-                            />
-                           </div>
-                        </TabsContent>
-                      </Tabs>
-                        <Button onClick={handleRemoveHeroImage} variant="outline" size="sm" className="w-full gap-2 text-destructive border-destructive/50 hover:bg-destructive/10 hover:text-destructive">
-                           <Trash2 className="h-4 w-4" />
-                            Remover Imagem do Banner
-                        </Button>
-                    </div>
+                     <Collapsible open={openCollapsible === 'banner'} onOpenChange={(isOpen) => setOpenCollapsible(isOpen ? 'banner' : null)}>
+                        <CollapsibleTrigger className="w-full">
+                            <div className="flex justify-between items-center w-full p-2 rounded-lg hover:bg-secondary/50">
+                                <p className="text-sm font-medium">Imagem do Banner</p>
+                                <ChevronDown className={cn("h-5 w-5 transition-transform", openCollapsible === 'banner' && 'rotate-180')} />
+                            </div>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent className="mt-2 w-full space-y-2 px-2">
+                            <Tabs value={imageInputMode} onValueChange={(value) => setImageInputMode(value as 'upload' | 'url')} className="w-full">
+                                <TabsList className="grid w-full grid-cols-2">
+                                <TabsTrigger value="upload">Enviar Arquivo</TabsTrigger>
+                                <TabsTrigger value="url">Usar URL</TabsTrigger>
+                                </TabsList>
+                                <TabsContent value="upload" className="mt-4">
+                                <label htmlFor="hero-image-upload" className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-white border border-dashed rounded-md p-3 justify-center bg-background/50">
+                                    <Upload className="h-4 w-4" />
+                                    <span>{heroImageFile ? heroImageFile.name : 'Clique para selecionar a imagem'}</span>
+                                </label>
+                                <Input
+                                    id="hero-image-upload"
+                                    type="file"
+                                    accept="image/*"
+                                    onChange={handleHeroFileChange}
+                                    className="hidden"
+                                />
+                                {uploadProgress !== null && imageInputMode === 'upload' && (
+                                    <Progress value={uploadProgress} className="w-full h-2 mt-2" />
+                                )}
+                                </TabsContent>
+                                <TabsContent value="url" className="mt-4">
+                                <div className="relative">
+                                    <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                    <Input
+                                    type="text"
+                                    placeholder="https://exemplo.com/imagem.png"
+                                    value={tempHeroImageUrlInput}
+                                    onChange={handleHeroUrlInputChange}
+                                    className="w-full bg-background/50 pl-9"
+                                    />
+                                </div>
+                                </TabsContent>
+                            </Tabs>
+                            <Button onClick={handleRemoveHeroImage} variant="outline" size="sm" className="w-full gap-2 text-destructive border-destructive/50 hover:bg-destructive/10 hover:text-destructive">
+                                <Trash2 className="h-4 w-4" />
+                                Remover Imagem do Banner
+                            </Button>
+                        </CollapsibleContent>
+                    </Collapsible>
 
-                    <div className="mt-4 w-full space-y-2 pt-4 border-t border-border">
-                      <p className="text-sm font-medium">Logo</p>
-                      <Tabs value={logoInputMode} onValueChange={(value) => setLogoInputMode(value as 'upload' | 'url')} className="w-full">
-                        <TabsList className="grid w-full grid-cols-2">
-                          <TabsTrigger value="upload">Enviar Arquivo</TabsTrigger>
-                          <TabsTrigger value="url">Usar URL</TabsTrigger>
-                        </TabsList>
-                        <TabsContent value="upload" className="mt-4">
-                          <label htmlFor="logo-image-upload" className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-white border border-dashed rounded-md p-3 justify-center bg-background/50">
-                              <Upload className="h-4 w-4" />
-                              <span>{logoFile ? logoFile.name : 'Clique para selecionar o logo'}</span>
-                          </label>
-                          <Input
-                              id="logo-image-upload"
-                              type="file"
-                              accept="image/*"
-                              onChange={handleLogoFileChange}
-                              className="hidden"
-                          />
-                           {logoUploadProgress !== null && logoInputMode === 'upload' && (
-                              <Progress value={logoUploadProgress} className="w-full h-2 mt-2" />
-                          )}
-                        </TabsContent>
-                        <TabsContent value="url" className="mt-4">
-                           <div className="relative">
-                            <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                              type="text"
-                              placeholder="https://exemplo.com/logo.png"
-                              value={tempLogoUrlInput}
-                              onChange={handleLogoUrlInputChange}
-                              className="w-full bg-background/50 pl-9"
-                            />
-                           </div>
-                        </TabsContent>
-                      </Tabs>
-                        <Button onClick={handleRemoveLogo} variant="outline" size="sm" className="w-full gap-2 text-destructive border-destructive/50 hover:bg-destructive/10 hover:text-destructive">
-                           <Trash2 className="h-4 w-4" />
-                            Remover Logo
-                        </Button>
-                    </div>
                   </div>
               ) : (
                 <>

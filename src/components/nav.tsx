@@ -95,9 +95,9 @@ export function Nav() {
       >
         <div className="flex items-center gap-8">
             <Link href="/dashboard" className="relative h-10 w-48">
-              {layoutData.logoUrl && (
+              {!layoutData.isLoading && (
                   <Image 
-                    src={layoutData.logoUrl} 
+                    src={layoutData.defaults.logoUrl} 
                     alt="Portal Rei da VSL Logo"
                     fill
                     sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
