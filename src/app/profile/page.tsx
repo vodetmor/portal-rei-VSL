@@ -53,10 +53,18 @@ export default function ProfilePage() {
   
   const profileForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
+    defaultValues: {
+        displayName: '',
+    }
   });
 
   const passwordForm = useForm<PasswordFormValues>({
     resolver: zodResolver(passwordSchema),
+    defaultValues: {
+        currentPassword: '',
+        newPassword: '',
+        confirmPassword: '',
+    }
   });
 
   useEffect(() => {
