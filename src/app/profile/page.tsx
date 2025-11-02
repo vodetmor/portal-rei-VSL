@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
@@ -18,7 +19,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
-import { Camera, ShieldCheck, UserCircle } from 'lucide-react';
+import { Camera, ShieldCheck, UserCircle, Upload, Link2 } from 'lucide-react';
 
 const profileSchema = z.object({
   displayName: z.string().min(3, 'O nome deve ter pelo menos 3 caracteres.'),
@@ -50,6 +51,8 @@ export default function ProfilePage() {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [imageInputMode, setImageInputMode] = useState<'upload' | 'url'>('upload');
+  const [avatarUrlInput, setAvatarUrlInput] = useState('');
   
   const profileForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -73,13 +76,15 @@ export default function ProfilePage() {
     }
     if (user) {
       profileForm.reset({ displayName: user.displayName || '' });
+      setAvatarPreview(user.photoURL || null);
     }
   }, [user, userLoading, router, profileForm]);
   
-  const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       setAvatarFile(file);
+      setAvatarUrlInput(''); // clear url input
       const reader = new FileReader();
       reader.onloadend = () => {
         setAvatarPreview(reader.result as string);
@@ -87,6 +92,15 @@ export default function ProfilePage() {
       reader.readAsDataURL(file);
     }
   };
+
+  const handleAvatarUrlChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const url = e.target.value;
+    setAvatarUrlInput(url);
+    setAvatarFile(null); // clear file input
+    if(url.startsWith('http://') || url.startsWith('https://')) {
+        setAvatarPreview(url);
+    }
+  }
 
   const uploadAvatar = useCallback(async () => {
     if (!avatarFile || !user) return null;
@@ -119,11 +133,13 @@ export default function ProfilePage() {
     try {
       let photoURL = user.photoURL;
 
-      if (avatarFile) {
+      if (imageInputMode === 'upload' && avatarFile) {
         const newPhotoURL = await uploadAvatar();
         if (newPhotoURL) {
           photoURL = newPhotoURL;
         }
+      } else if (imageInputMode === 'url' && avatarUrlInput) {
+        photoURL = avatarUrlInput;
       }
 
       await updateProfile(user, {
@@ -139,9 +155,8 @@ export default function ProfilePage() {
 
       toast({ title: "Sucesso!", description: "Seu perfil foi atualizado." });
       setAvatarFile(null);
-      setAvatarPreview(null);
       setUploadProgress(null);
-      // Force a reload of the user object to see changes
+      
       await auth.currentUser?.reload(); 
       router.refresh();
 
@@ -216,23 +231,39 @@ export default function ProfilePage() {
                   <CardDescription>Essas informações podem ser exibidas publicamente.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
-                  <div className="flex items-center gap-6">
-                    <div className="relative group">
-                       <Avatar className="h-24 w-24">
-                        <AvatarImage src={avatarPreview || user.photoURL || undefined} alt={user.displayName || 'User'} />
-                        <AvatarFallback>{user.displayName?.charAt(0).toUpperCase()}</AvatarFallback>
-                      </Avatar>
-                      <label htmlFor="avatar-upload" className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer rounded-full">
-                          <Camera className="h-8 w-8 text-white" />
-                      </label>
-                      <Input id="avatar-upload" type="file" accept="image/*" className="hidden" onChange={handleAvatarChange} />
+                    <div className="flex flex-col items-center gap-6 sm:flex-row">
+                        <div className="relative group">
+                        <Avatar className="h-24 w-24">
+                            <AvatarImage src={avatarPreview || undefined} alt={user.displayName || 'User'} />
+                            <AvatarFallback>{user.displayName?.charAt(0).toUpperCase()}</AvatarFallback>
+                        </Avatar>
+                        </div>
+                        <div className="w-full flex-1">
+                            <Tabs value={imageInputMode} onValueChange={(v) => setImageInputMode(v as 'upload' | 'url')} className="w-full">
+                                <TabsList className="grid w-full grid-cols-2">
+                                    <TabsTrigger value="upload"><Upload className="mr-2 h-4 w-4"/>Enviar</TabsTrigger>
+                                    <TabsTrigger value="url"><Link2 className="mr-2 h-4 w-4"/>URL</TabsTrigger>
+                                </TabsList>
+                                <TabsContent value="upload" className="mt-4">
+                                     <label htmlFor="avatar-upload" className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-white border border-dashed rounded-md p-3 justify-center bg-background/50">
+                                        <Camera className="h-4 w-4" />
+                                        <span>{avatarFile ? avatarFile.name : 'Clique para selecionar'}</span>
+                                    </label>
+                                    <Input id="avatar-upload" type="file" accept="image/*" className="hidden" onChange={handleAvatarFileChange} />
+                                    {uploadProgress !== null && <Progress value={uploadProgress} className="mt-2 h-2" />}
+                                </TabsContent>
+                                <TabsContent value="url" className="mt-4">
+                                    <Input 
+                                        type="text" 
+                                        placeholder="https://exemplo.com/sua-imagem.png"
+                                        value={avatarUrlInput}
+                                        onChange={handleAvatarUrlChange}
+                                        className="bg-background/50"
+                                    />
+                                </TabsContent>
+                            </Tabs>
+                        </div>
                     </div>
-                    <div className="flex-1">
-                      <h3 className="font-semibold text-lg">{user.displayName}</h3>
-                      <p className="text-sm text-muted-foreground">{user.email}</p>
-                      {uploadProgress !== null && <Progress value={uploadProgress} className="mt-2 h-2" />}
-                    </div>
-                  </div>
                   <FormField
                     control={profileForm.control}
                     name="displayName"
@@ -314,3 +345,5 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+    
