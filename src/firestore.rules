@@ -69,8 +69,8 @@ service cloud.firestore {
             match /replies/{replyId} {
                 allow list, read: if hasCourseAccess(courseId) || isAdmin();
                 allow create: if (request.auth != null && hasCourseAccess(courseId)) || isAdmin();
-                allow update: if (request.auth != null && request.auth.uid == resource.data.userId && hasCourseAccess(courseId)) || isAdmin();
-                allow delete: if (request.auth != null && request.auth.uid == resource.data.userId && hasCourseAccess(courseId)) || isAdmin();
+                allow update: if (request.auth != null && request.auth.uid == resource.data.userId) || isAdmin();
+                allow delete: if (request.auth != null && request.auth.uid == resource.data.userId) || isAdmin();
             }
 
             // Likes Sub-subcollection
