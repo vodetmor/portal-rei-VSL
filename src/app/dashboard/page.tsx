@@ -467,7 +467,7 @@ export default function DashboardPage() {
         </section>
 
         {/* Members Area Section */}
-        <section className="container mx-auto px-4 py-16 md:px-8 -mt-20 space-y-12">
+        <section className="container mx-auto px-4 py-24 md:px-8 -mt-20 space-y-12">
           
           {/* Featured Carousel */}
           <div>
@@ -525,7 +525,7 @@ export default function DashboardPage() {
               <Carousel opts={{ align: "start", loop: courses.filter(c => c.isFeatured).length > 4 }} className="w-full">
                 <CarouselContent className="-ml-4">
                   {courses.filter(c => c.isFeatured).map((course, index) => (
-                    <CarouselItem key={course.id} className="md:basis-1/2 lg:basis-1/3 xl:basis-1/4 pl-4">
+                    <CarouselItem key={course.id} className="md:basis-1/2 lg:basis-1/3 xl:basis-1/5 pl-4">
                         <CourseCard
                           id={course.id}
                           title={course.title}
@@ -568,7 +568,7 @@ export default function DashboardPage() {
               <Carousel opts={{ align: "start", loop: courses.length > 4 }} className="w-full">
                 <CarouselContent className="-ml-4">
                   {courses.map((course, index) => (
-                    <CarouselItem key={course.id} className="md:basis-1/2 lg:basis-1/3 xl:basis-1/4 pl-4">
+                    <CarouselItem key={course.id} className="md:basis-1/2 lg:basis-1/3 xl:basis-1/5 pl-4">
                         <CourseCard
                           id={course.id}
                           title={course.title}

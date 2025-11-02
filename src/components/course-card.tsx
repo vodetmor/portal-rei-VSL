@@ -36,16 +36,17 @@ export function CourseCard({ id, title, imageUrl, imageHint, priority = false, i
       animate={{ opacity: 1, y: 0 }}
       whileHover={{ scale: 1.05, zIndex: 10 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
-      className="group relative block aspect-video w-full cursor-pointer overflow-hidden rounded-lg bg-card shadow-lg transition-transform"
+      className="group relative block aspect-[2/3] w-full cursor-pointer overflow-hidden rounded-lg bg-card shadow-lg transition-transform"
     >
       <Link href={`/courses/${id}`} className="block h-full w-full">
         <Image
           src={imageUrl}
           alt={title}
-          fill
+          width={400}
+          height={600}
           data-ai-hint={imageHint}
           priority={priority}
-          className="object-cover transition-transform duration-300 ease-in-out"
+          className="object-cover transition-transform duration-300 ease-in-out h-full w-full"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
         
