@@ -5,9 +5,9 @@ service cloud.firestore {
 
     // Helper function to check if the user is an admin
     function isAdmin() {
-      return request.auth != null && 
-        (request.auth.token.email == 'admin@reidavsl.com' || 
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      // Use a simple, direct check against the admin email.
+      // This is more performant for list queries than using get().
+      return request.auth != null && request.auth.token.email == 'admin@reidavsl.com';
     }
 
     // Helper function to check if a user has been granted access to a specific course.
@@ -22,6 +22,7 @@ service cloud.firestore {
       allow read: if (request.auth != null && request.auth.uid == userId) || isAdmin();
       allow list: if isAdmin();
       allow create: if request.auth != null && request.auth.uid == userId;
+      // Allow user to update their own profile, and admin to update any profile (e.g., change role)
       allow update: if (request.auth != null && request.auth.uid == userId) || isAdmin();
       allow delete: if isAdmin();
     }
@@ -55,19 +56,19 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
     
-    // --- Lesson Engagement Features ---
+    // --- Lesson Engagement Features (Corrected) ---
     match /courses/{courseId}/lessons/{lessonId} {
 
         // Comments Subcollection
         match /comments/{commentId} {
-          allow list, read: if hasCourseAccess(courseId) || isAdmin();
+          allow list, read: if isAdmin() || hasCourseAccess(courseId);
           allow create: if (request.auth != null && hasCourseAccess(courseId)) || isAdmin();
           allow update: if (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isPinned'])) || (request.auth.uid == resource.data.userId && hasCourseAccess(courseId));
           allow delete: if (request.auth.uid == resource.data.userId && hasCourseAccess(courseId)) || isAdmin();
 
             // Replies Sub-subcollection
             match /replies/{replyId} {
-                allow list, read: if hasCourseAccess(courseId) || isAdmin();
+                allow list, read: if isAdmin() || hasCourseAccess(courseId);
                 allow create: if (request.auth != null && hasCourseAccess(courseId)) || isAdmin();
                 allow update: if (request.auth.uid == resource.data.userId && hasCourseAccess(courseId)) || isAdmin();
                 allow delete: if (request.auth.uid == resource.data.userId && hasCourseAccess(courseId)) || isAdmin();
@@ -75,7 +76,7 @@ service cloud.firestore {
 
             // Likes Sub-subcollection
             match /likes/{userId} {
-                 allow read, list: if hasCourseAccess(courseId) || isAdmin();
+                 allow read, list: if isAdmin() || hasCourseAccess(courseId);
                  // User can only like/unlike as themselves
                  allow create, delete: if request.auth.uid == userId && hasCourseAccess(courseId);
             }
@@ -83,11 +84,12 @@ service cloud.firestore {
 
         // Reactions Subcollection
         match /reactions/{reactionId} {
-          allow read, list: if hasCourseAccess(courseId) || isAdmin();
+          allow read, list: if isAdmin() || hasCourseAccess(courseId);
           allow write: if isAdmin() || (request.auth.uid == reactionId && hasCourseAccess(courseId));
         }
     }
 
+    // --- Other Collections ---
 
     // Videos can be read by any authenticated user, but only written by admins
     match /videos/{videoId} {
