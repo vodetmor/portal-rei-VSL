@@ -12,19 +12,18 @@ service cloud.firestore {
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
     }
 
-    // User documents can be read by their owner.
+    // User documents can be read by their owner or an admin.
     // Admins can list all users.
     // Users can only create, update, or delete their own document.
     match /users/{userId} {
-      allow read: if request.auth != null && request.auth.uid == userId;
+      allow read: if (request.auth != null && request.auth.uid == userId) || isAdmin();
       allow list: if isAdmin();
       allow create, update, delete: if request.auth != null && request.auth.uid == userId;
     }
 
-    // Course access records can only be managed by admins.
-    // Users can read their own access records.
+    // Course access records can be read by their owner or managed by admins.
     match /users/{userId}/courseAccess/{courseId} {
-        allow read: if request.auth != null && request.auth.uid == userId;
+        allow read: if (request.auth != null && request.auth.uid == userId) || isAdmin();
         allow write: if isAdmin();
         allow list: if isAdmin();
     }
