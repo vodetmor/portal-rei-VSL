@@ -28,6 +28,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { EditCourseModal } from '@/components/admin/edit-course-modal';
 
 
 interface Course extends DocumentData {
@@ -70,6 +71,8 @@ export default function DashboardPage() {
   const [membersIcon, setMembersIcon] = useState(DEFAULT_MEMBERS_ICON);
 
   const [courseToDelete, setCourseToDelete] = useState<string | null>(null);
+  const [courseToEdit, setCourseToEdit] = useState<Course | null>(null);
+
 
   const [contentLoading, setContentLoading] = useState(true);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -309,6 +312,10 @@ export default function DashboardPage() {
     }
   };
 
+  const handleEdit = (course: Course) => {
+    setCourseToEdit(course);
+  };
+
 
   useEffect(() => {
     if (!userLoading && !user) {
@@ -543,6 +550,7 @@ export default function DashboardPage() {
                           imageHint={course.imageHint || 'abstract'}
                           priority={index < 4}
                           isAdmin={isAdmin}
+                          onEdit={() => handleEdit(course)}
                           onDelete={() => setCourseToDelete(course.id)}
                         />
                     </CarouselItem>
@@ -586,6 +594,7 @@ export default function DashboardPage() {
                           imageHint={course.imageHint || 'abstract'}
                           priority={index < 4}
                           isAdmin={isAdmin}
+                          onEdit={() => handleEdit(course)}
                           onDelete={() => setCourseToDelete(course.id)}
                         />
                     </CarouselItem>
@@ -597,6 +606,16 @@ export default function DashboardPage() {
             )}
           </div>
         </section>
+
+        {courseToEdit && (
+            <EditCourseModal
+                isOpen={!!courseToEdit}
+                onClose={() => setCourseToEdit(null)}
+                course={courseToEdit}
+                onCourseUpdate={fetchCourses}
+            />
+        )}
+        
         <AlertDialogContent>
             <AlertDialogHeader>
             <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
@@ -613,5 +632,3 @@ export default function DashboardPage() {
     </AlertDialog>
   );
 }
-
-    

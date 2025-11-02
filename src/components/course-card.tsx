@@ -17,10 +17,11 @@ interface CourseCardProps {
   imageHint: string;
   priority?: boolean;
   isAdmin?: boolean;
+  onEdit?: (id: string) => void;
   onDelete?: (id: string) => void;
 }
 
-export function CourseCard({ id, title, imageUrl, imageHint, priority = false, isAdmin = false, onDelete }: CourseCardProps) {
+export function CourseCard({ id, title, imageUrl, imageHint, priority = false, isAdmin = false, onEdit, onDelete }: CourseCardProps) {
   
   const handleDeleteClick = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -29,6 +30,15 @@ export function CourseCard({ id, title, imageUrl, imageHint, priority = false, i
       onDelete(id);
     }
   }
+
+  const handleEditClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onEdit) {
+      onEdit(id);
+    }
+  };
+
 
   const finalImageUrl = imageUrl || `https://picsum.photos/seed/${id}/400/600`;
   
@@ -63,10 +73,12 @@ export function CourseCard({ id, title, imageUrl, imageHint, priority = false, i
       
       {isAdmin && (
         <div className="absolute top-3 right-3 z-20 flex flex-col items-center gap-2 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-          <Button asChild size="icon" className="h-9 w-9 bg-black/60 hover:bg-primary border-white/20">
-            <Link href={`/admin/edit-course/${id}`} onClick={(e) => e.stopPropagation()}>
+          <Button 
+            size="icon" 
+            className="h-9 w-9 bg-black/60 hover:bg-primary border-white/20"
+            onClick={onEdit ? handleEditClick : undefined}
+          >
               <Pencil className="h-4 w-4" />
-            </Link>
           </Button>
           {onDelete && (
             <AlertDialogTrigger asChild>

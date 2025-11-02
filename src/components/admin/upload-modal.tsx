@@ -22,6 +22,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Progress } from '../ui/progress';
+import { Label } from '../ui/label';
 
 const ACCEPTED_VIDEO_TYPES = ["video/mp4", "video/webm", "video/ogg"];
 
