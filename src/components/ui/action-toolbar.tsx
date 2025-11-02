@@ -122,5 +122,3 @@ export function ActionToolbar({ buttons, compact = false, className = "" }: Acti
     </div>
   );
 }
-
-    

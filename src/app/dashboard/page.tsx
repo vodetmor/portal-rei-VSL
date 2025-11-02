@@ -89,54 +89,45 @@ function DashboardClientPage() {
   
   const SelectedIcon = iconMap[isEditMode ? tempMembersIcon : layoutData.membersIcon] || Trophy;
 
-  // Converts saved HTML (with span) to editable markdown (with *)
-  const htmlToMarkdown = (html: string) => {
-    if (!html) return '';
-    // This regex now handles multiple highlighted words
-    return html.replace(/<span class='text-primary'>(.*?)<\/span>/g, '*$1*');
-  };
-
-  // Converts editable markdown (with *) to saveable HTML (with span)
-  const markdownToHtml = (markdown: string) => {
-    if (!markdown) return '';
-    // This regex now handles multiple highlighted words
-    return markdown.replace(/\*(.*?)\*/g, "<span class='text-primary'>$1</span>");
-  };
-
- const applyFormat = (command: string, value: string | null = null) => {
-    // For 'foreColor', we will use the highlight syntax instead.
+  const applyFormat = (command: string) => {
     if (command === 'foreColor') {
       const selection = window.getSelection();
       if (!selection || selection.rangeCount === 0) return;
-
+  
       const range = selection.getRangeAt(0);
       const selectedText = range.toString();
-
+  
       if (selectedText) {
-        const newNode = document.createTextNode(`*${selectedText}*`);
+        const span = document.createElement('span');
+        span.className = 'text-primary';
+        span.textContent = selectedText;
+  
         range.deleteContents();
-        range.insertNode(newNode);
-        
-        // Manually update the state since direct DOM manipulation isn't tracked by React
+        range.insertNode(span);
+
+        // This is a workaround to update the state after DOM manipulation
         const parentElement = range.commonAncestorContainer.parentElement;
         if (parentElement?.isContentEditable) {
-           if (parentElement.isSameNode(document.getElementById('hero-title-editor'))) {
+           if (parentElement.id === 'hero-title-editor') {
              setTempHeroTitle(parentElement.innerHTML);
-           } else if (parentElement.isSameNode(document.getElementById('members-title-editor'))) {
+           } else if (parentElement.id === 'members-title-editor') {
              setTempMembersTitle(parentElement.innerHTML);
            }
         }
       }
       return;
     }
-
-    document.execCommand(command, false, value);
-    
-    // We need to trigger a state update after execCommand
+  
+    document.execCommand(command, false, undefined);
+     // Trigger state update after execCommand
     const heroTitleEl = document.getElementById('hero-title-editor');
     if (heroTitleEl) setTempHeroTitle(heroTitleEl.innerHTML);
+    const heroSubtitleEl = document.getElementById('hero-subtitle-editor');
+    if (heroSubtitleEl) setTempHeroSubtitle(heroSubtitleEl.innerHTML);
     const membersTitleEl = document.getElementById('members-title-editor');
     if (membersTitleEl) setTempMembersTitle(membersTitleEl.innerHTML);
+    const membersSubtitleEl = document.getElementById('members-subtitle-editor');
+    if (membersSubtitleEl) setTempMembersSubtitle(membersSubtitleEl.innerHTML);
   };
   
   const handleAlignment = (alignment: 'left' | 'center' | 'right') => {
@@ -144,10 +135,10 @@ function DashboardClientPage() {
   };
 
   const enterEditMode = () => {
-    setTempHeroTitle(htmlToMarkdown(layoutData.heroTitle));
+    setTempHeroTitle(layoutData.heroTitle);
     setTempHeroSubtitle(layoutData.heroSubtitle);
     setTempHeroImage(layoutData.heroImage);
-    setTempMembersTitle(htmlToMarkdown(layoutData.membersTitle));
+    setTempMembersTitle(layoutData.membersTitle);
     setTempMembersSubtitle(layoutData.membersSubtitle);
     setTempMembersIcon(layoutData.membersIcon);
     setTempHeroImageUrlInput(layoutData.heroImage);
@@ -229,10 +220,10 @@ function DashboardClientPage() {
     const layoutRef = doc(firestore, 'layout', 'dashboard-hero');
     try {
       const dataToSave = {
-        title: markdownToHtml(tempHeroTitle),
+        title: tempHeroTitle,
         subtitle: tempHeroSubtitle,
         imageUrl: finalHeroImageUrl,
-        membersTitle: markdownToHtml(tempMembersTitle),
+        membersTitle: tempMembersTitle,
         membersSubtitle: tempMembersSubtitle,
         membersIcon: tempMembersIcon,
       };
@@ -257,10 +248,10 @@ function DashboardClientPage() {
     } catch (error) {
       console.error("Error saving layout:", error);
       const dataForError = {
-        title: markdownToHtml(tempHeroTitle),
+        title: tempHeroTitle,
         subtitle: tempHeroSubtitle,
         imageUrl: finalHeroImageUrl,
-        membersTitle: markdownToHtml(tempMembersTitle),
+        membersTitle: tempMembersTitle,
         membersSubtitle: tempMembersSubtitle,
         membersIcon: tempMembersIcon,
       };
@@ -424,16 +415,16 @@ function DashboardClientPage() {
                 />
 
               <p 
+                id="hero-subtitle-editor"
                 contentEditable={isEditMode}
                 suppressContentEditableWarning={true}
-                onInput={(e) => setTempHeroSubtitle(e.currentTarget.innerText)}
+                onInput={(e) => setTempHeroSubtitle(e.currentTarget.innerHTML)}
                 className={cn(
                   "mt-4 max-w-2xl text-lg text-muted-foreground md:text-xl",
                   isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
                 )}
-              >
-                {isEditMode ? tempHeroSubtitle : layoutData.heroSubtitle}
-              </p>
+                dangerouslySetInnerHTML={{ __html: isEditMode ? tempHeroSubtitle : layoutData.heroSubtitle }}
+              />
 
             <div className="mt-8">
               <Button asChild size="lg" variant="default" className="bg-primary hover:bg-primary/90 text-primary-foreground">
@@ -551,13 +542,13 @@ function DashboardClientPage() {
                           dangerouslySetInnerHTML={{ __html: isEditMode ? tempMembersTitle : layoutData.membersTitle }}
                        />
                        <p
+                          id="members-subtitle-editor"
                           contentEditable={isEditMode}
                           suppressContentEditableWarning={true}
-                          onInput={(e) => setTempMembersSubtitle(e.currentTarget.innerText)}
+                          onInput={(e) => setTempMembersSubtitle(e.currentTarget.innerHTML)}
                           className="text-sm bg-transparent border-none outline-none focus:ring-2 focus:ring-primary rounded-md p-1 -m-1 text-muted-foreground"
-                       >
-                          {isEditMode ? tempMembersSubtitle : layoutData.membersSubtitle}
-                        </p>
+                          dangerouslySetInnerHTML={{ __html: isEditMode ? tempMembersSubtitle : layoutData.membersSubtitle }}
+                       />
                     </div>
                   </div>
                 ) : (
@@ -681,5 +672,3 @@ export default function DashboardPage() {
     </LayoutProvider>
   )
 }
-
-    
