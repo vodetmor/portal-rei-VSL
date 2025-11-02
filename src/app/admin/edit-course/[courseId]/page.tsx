@@ -289,14 +289,11 @@ function EditCoursePageContent() {
 
       {/* Modules and Lessons Editor */}
       <Card>
-        <CardHeader className="flex flex-row justify-between items-center">
+        <CardHeader>
             <div>
                 <CardTitle>Módulos e Aulas</CardTitle>
                 <CardDescription>Organize o conteúdo do seu curso. Arraste para reordenar, edite os detalhes e adicione aulas.</CardDescription>
             </div>
-            <Button onClick={addModule} size="sm">
-                <Plus className="mr-2 h-4 w-4" /> Adicionar Módulo
-            </Button>
         </CardHeader>
         <CardContent className="space-y-4">
           <Reorder.Group axis="y" values={modules} onReorder={setModules} className="space-y-4">
@@ -313,6 +310,9 @@ function EditCoursePageContent() {
                 />
               ))}
           </Reorder.Group>
+            <Button onClick={addModule} size="sm" variant="outline" className="w-full mt-4">
+                <Plus className="mr-2 h-4 w-4" /> Adicionar Módulo
+            </Button>
         </CardContent>
       </Card>
       
