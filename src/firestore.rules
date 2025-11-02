@@ -75,7 +75,7 @@ service cloud.firestore {
 
             // Likes Sub-subcollection
             match /likes/{userId} {
-                 allow read: if hasCourseAccess(courseId) || isAdmin();
+                 allow read, list: if hasCourseAccess(courseId) || isAdmin();
                  // User can only like/unlike as themselves
                  allow create, delete: if request.auth.uid == userId && hasCourseAccess(courseId);
             }
