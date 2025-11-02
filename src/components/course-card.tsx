@@ -18,23 +18,25 @@ import {
 } from "@/components/ui/alert-dialog"
 
 interface CourseCardProps {
-  id: string;
-  title: string;
-  imageUrl?: string;
-  imageHint: string;
+  course: {
+    id: string;
+    title: string;
+    thumbnailUrl?: string;
+    imageHint: string;
+  };
   priority?: boolean;
   isAdmin?: boolean;
-  onEdit?: (id: string) => void;
+  onEdit?: (course: CourseCardProps['course']) => void;
   onDelete?: (id: string) => void;
 }
 
-export function CourseCard({ id, title, imageUrl, imageHint, priority = false, isAdmin = false, onEdit, onDelete }: CourseCardProps) {
+export function CourseCard({ course, priority = false, isAdmin = false, onEdit, onDelete }: CourseCardProps) {
   
   const handleEditClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (onEdit) {
-      onEdit(id);
+      onEdit(course);
     }
   };
 
@@ -42,12 +44,12 @@ export function CourseCard({ id, title, imageUrl, imageHint, priority = false, i
     e.preventDefault();
     e.stopPropagation();
     if (onDelete) {
-        onDelete(id);
+        onDelete(course.id);
     }
   };
 
 
-  const finalImageUrl = imageUrl || `https://picsum.photos/seed/${id}/400/600`;
+  const finalImageUrl = course.thumbnailUrl || `https://picsum.photos/seed/${course.id}/400/600`;
   
   return (
     <motion.div 
@@ -57,13 +59,13 @@ export function CourseCard({ id, title, imageUrl, imageHint, priority = false, i
       transition={{ duration: 0.3, ease: "easeOut" }}
       className="group relative block aspect-[2/3] w-full cursor-pointer overflow-hidden rounded-lg bg-card shadow-lg transition-transform"
     >
-      <Link href={`/courses/${id}`} className="block h-full w-full">
+      <Link href={`/courses/${course.id}`} className="block h-full w-full">
         <Image
           src={finalImageUrl}
-          alt={title}
+          alt={course.title}
           width={400}
           height={600}
-          data-ai-hint={imageHint}
+          data-ai-hint={course.imageHint}
           priority={priority}
           className="object-cover transition-transform duration-300 ease-in-out h-full w-full"
         />
@@ -74,7 +76,7 @@ export function CourseCard({ id, title, imageUrl, imageHint, priority = false, i
         </div>
 
         <div className="absolute bottom-0 left-0 p-4">
-            <h3 className="font-semibold text-white transition-all duration-300 group-hover:text-primary">{title}</h3>
+            <h3 className="font-semibold text-white transition-all duration-300 group-hover:text-primary">{course.title}</h3>
         </div>
       </Link>
       
@@ -83,7 +85,7 @@ export function CourseCard({ id, title, imageUrl, imageHint, priority = false, i
           <Button 
             size="icon" 
             className="h-9 w-9 bg-black/60 hover:bg-primary border-white/20 text-white"
-            onClick={onEdit ? handleEditClick : undefined}
+            onClick={handleEditClick}
           >
               <Pencil className="h-4 w-4" />
           </Button>

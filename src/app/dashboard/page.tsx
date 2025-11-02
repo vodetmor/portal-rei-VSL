@@ -460,14 +460,14 @@ function DashboardClientPage() {
             </div>
           </div>
           {isAdmin && !isEditMode && (
-            <div className="absolute top-20 right-8 z-[60]">
+            <div className="absolute top-24 right-8 z-[60]">
               <Button onClick={enterEditMode} variant="outline">
                 <Pencil className="mr-2 h-4 w-4" /> Editar Página
               </Button>
             </div>
           )}
           {isAdmin && isEditMode && (
-             <div className="absolute top-20 right-8 z-[60] flex flex-col items-end gap-4">
+             <div className="absolute top-24 right-8 z-[60] flex flex-col items-end gap-4">
                  <div className="flex gap-2">
                     <Button onClick={handleSaveChanges} disabled={isSaving}>
                         <Save className="mr-2 h-4 w-4" /> {isSaving ? 'Salvando...' : 'Salvar'}
@@ -536,7 +536,7 @@ function DashboardClientPage() {
           <div>
             <div className="mb-8 flex items-center gap-4 relative">
                 {isEditMode ? (
-                  <div className='flex items-center gap-2 p-2 rounded-lg bg-background/50 border border-dashed border-border'>
+                  <div className='flex w-full items-center gap-2 p-2 rounded-lg bg-background/50 border border-dashed border-border'>
                     <Select value={tempMembersIcon} onValueChange={setTempMembersIcon}>
                       <SelectTrigger className="w-fit bg-transparent border-none h-12 px-3" data-editable="true">
                         <SelectValue>
@@ -550,7 +550,7 @@ function DashboardClientPage() {
                         <SelectItem value="Star"><Star className="mr-2 h-4 w-4"/>Estrela</SelectItem>
                       </SelectContent>
                     </Select>
-                    <div className='flex flex-col relative'>
+                    <div className='flex flex-col relative w-full'>
                       <div
                           id="members-title-editor"
                           contentEditable={isEditMode}
@@ -609,13 +609,10 @@ function DashboardClientPage() {
                   {courses.filter(c => c.isFeatured).map((course, index) => (
                     <CarouselItem key={course.id} className="md:basis-1/2 lg:basis-1/3 xl:basis-1/5 pl-4">
                         <CourseCard
-                          id={course.id}
-                          title={course.title}
-                          imageUrl={course.thumbnailUrl}
-                          imageHint={course.imageHint || 'abstract'}
+                          course={course}
                           priority={index < 4}
                           isAdmin={isAdmin}
-                          onEdit={() => handleEdit(course)}
+                          onEdit={handleEdit}
                           onDelete={handleConfirmDelete}
                         />
                     </CarouselItem>
@@ -653,13 +650,10 @@ function DashboardClientPage() {
                   {courses.map((course, index) => (
                     <CarouselItem key={course.id} className="md:basis-1/2 lg:basis-1/3 xl:basis-1/5 pl-4">
                         <CourseCard
-                          id={course.id}
-                          title={course.title}
-                          imageUrl={course.thumbnailUrl}
-                          imageHint={course.imageHint || 'abstract'}
+                          course={course}
                           priority={index < 4}
                           isAdmin={isAdmin}
-                          onEdit={() => handleEdit(course)}
+                          onEdit={handleEdit}
                           onDelete={handleConfirmDelete}
                         />
                     </CarouselItem>
@@ -689,5 +683,3 @@ export default function DashboardPage() {
     <DashboardClientPage />
   )
 }
-
-    
