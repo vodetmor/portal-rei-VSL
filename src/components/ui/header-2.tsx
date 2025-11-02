@@ -95,7 +95,8 @@ export function Header() {
                 !isEditMode && 'sticky top-0',
 				{
 					'bg-transparent': !scrolled && !open,
-					'bg-background/80 supports-[backdrop-filter]:bg-background/60 backdrop-blur-xl': scrolled || open
+					'bg-background/80': scrolled || open,
+					'glass-effect': scrolled || open,
 				}
 			)}
 		>
@@ -186,7 +187,7 @@ export function Header() {
 				)}
 				</div>
 				<Button size="icon" variant="outline" onClick={() => setOpen(!open)} className="md:hidden">
-					<MenuToggleIcon open={open} className="size-5" duration={300} />
+					<MenuToggleIcon open={open} className="size-5" duration={500} />
 				</Button>
 			</nav>
 
