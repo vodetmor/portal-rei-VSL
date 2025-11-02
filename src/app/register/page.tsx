@@ -41,7 +41,10 @@ export default function RegisterPage() {
   }, [user, loading, router]);
 
   const onSubmit = async (data: RegisterFormValues) => {
-    if (!auth || !firestore) return;
+    if (!auth || !firestore) {
+        setAuthError('O serviço de autenticação não está disponível. Tente novamente mais tarde.');
+        return;
+    };
     setAuthError(null);
     try {
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
