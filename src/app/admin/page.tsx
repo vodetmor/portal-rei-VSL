@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useFirestore, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
 import AdminGuard from '@/components/admin/admin-guard';
-import { collection, getDocs, deleteDoc, doc, addDoc, setDoc, DocumentData, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, deleteDoc, doc, addDoc, setDoc, DocumentData, serverTimestamp, getDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Plus, Trash2, Users, Pencil, BookOpen, Link as LinkIcon, Copy, History } from 'lucide-react';
 import Image from 'next/image';
@@ -37,6 +37,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { logAdminAction } from '@/lib/audit';
 import { Badge } from '@/components/ui/badge';
+import { v4 as uuidv4 } from 'uuid';
 
 interface Course extends DocumentData {
   id: string;
@@ -148,6 +149,73 @@ function AdminDashboard() {
         title: "Erro ao Criar Rascunho",
         description: "Não foi possível criar o rascunho do curso."
       });
+    }
+  };
+
+  const handleDuplicateCourse = async (courseId: string) => {
+    if (!firestore || !user) return;
+
+    try {
+        const originalCourseRef = doc(firestore, 'courses', courseId);
+        const originalCourseSnap = await getDoc(originalCourseRef);
+
+        if (!originalCourseSnap.exists()) {
+            toast({ variant: 'destructive', title: 'Erro', description: 'Curso original não encontrado.' });
+            return;
+        }
+
+        const originalCourseData = originalCourseSnap.data();
+        
+        // Deep copy modules and lessons, regenerating IDs
+        const newModules = (originalCourseData.modules || []).map((module: any) => ({
+            ...module,
+            id: uuidv4(),
+            lessons: (module.lessons || []).map((lesson: any) => ({
+                ...lesson,
+                id: uuidv4(),
+                complementaryMaterials: (lesson.complementaryMaterials || []).map((material: any) => ({
+                    ...material,
+                    id: uuidv4(),
+                })),
+            })),
+        }));
+
+        const newCourseData = {
+            ...originalCourseData,
+            title: `Cópia de ${originalCourseData.title}`,
+            status: 'draft',
+            createdAt: serverTimestamp(),
+            updatedAt: serverTimestamp(),
+            modules: newModules,
+        };
+        
+        // Remove original ID from data
+        delete newCourseData.id; 
+
+        const newCourseRef = await addDoc(collection(firestore, 'courses'), newCourseData);
+
+        await logAdminAction(firestore, user, 'course_duplicated', {
+            type: 'Course',
+            id: newCourseRef.id,
+            title: newCourseData.title,
+        });
+        
+        toast({
+            title: 'Curso Duplicado!',
+            description: `Uma cópia foi criada e está pronta para edição.`,
+        });
+
+        router.push(`/admin/edit-course/${newCourseRef.id}`);
+
+    } catch (error) {
+        console.error('Error duplicating course:', error);
+        const permissionError = new FirestorePermissionError({
+            path: 'courses',
+            operation: 'create',
+            requestResourceData: { title: `Cópia de...` },
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        toast({ variant: 'destructive', title: 'Erro ao Duplicar', description: 'Não foi possível duplicar o curso.' });
     }
   };
 
@@ -364,6 +432,9 @@ function AdminDashboard() {
                       </div>
                     </div>
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="outline" size="icon" onClick={() => handleDuplicateCourse(course.id)}>
+                        <Copy className="h-4 w-4" />
+                      </Button>
                       <Button asChild variant="outline" size="icon">
                         <Link href={`/admin/edit-course/${course.id}`}>
                           <Pencil className="h-4 w-4" />
