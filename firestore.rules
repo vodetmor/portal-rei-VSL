@@ -1,34 +1,64 @@
+/**
+ * @file Firestore Security Rules for Portfólio Hades.
+ * @core_philosophy This ruleset provides open read access to the 'videos', 'clients', and 'skills' collections,
+ *  while restricting write access to authorized users (handled at the application level).
+ *  The 'contactMessages' collection allows public creation, but restricts listing/reading to authorized users.
+ * @data_structure The Firestore database consists of four top-level collections: 'videos', 'clients', 'skills', and 'contactMessages'.
+ *  Each collection contains documents representing the corresponding entities.
+ * @key_security_decisions Read access to the 'videos', 'clients', and 'skills' collections is public.
+ *  Write access is restricted and must be handled by the application logic.
+ *  Listing and reading of 'contactMessages' is not permitted via the rules.
+ */
 rules_version = '2';
-
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    function isOwner(userId) {
-      return request.auth != null && request.auth.uid == userId;
+    /**
+     * @description Allows public read access to video documents, but restricts write access.
+     * @path /videos/{videoId}
+     * @allow (get, list) Any user can read the video.
+     * @deny (create, update, delete) No user can create, update, or delete videos directly.
+     * @principle Public read, restricted writes.
+     */
+    match /videos/{videoId} {
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
-    function isAdmin() {
-      return request.auth != null && request.auth.token.admin == true;
-    }
-    
-    match /users/{userId} {
-      allow read: if request.auth != null;
-      allow write: if isOwner(userId);
-    }
-
-    match /courses/{courseId} {
-      allow read: if request.auth != null;
-      allow write: if isAdmin();
+    /**
+     * @description Allows public read access to client documents, but restricts write access.
+     * @path /clients/{clientId}
+     * @allow (get, list) Any user can read client data.
+     * @deny (create, update, delete) No user can create, update, or delete clients directly.
+     * @principle Public read, restricted writes.
+     */
+    match /clients/{clientId} {
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
-    match /courses/{courseId}/modules/{moduleId} {
-      allow read: if request.auth != null;
-      allow write: if isAdmin();
+    /**
+     * @description Allows public read access to skill documents, but restricts write access.
+     * @path /skills/{skillId}
+     * @allow (get, list) Any user can read skill data.
+     * @deny (create, update, delete) No user can create, update, or delete skills directly.
+     * @principle Public read, restricted writes.
+     */
+    match /skills/{skillId} {
+      allow get, list: if true;
+      allow create, update, delete: if false;
     }
 
-    match /courses/{courseId}/modules/{moduleId}/lessons/{lessonId} {
-      allow read: if request.auth != null;
-      allow write: if isAdmin();
+    /**
+     * @description Allows anyone to create a contact message, but restricts reading and listing of messages.
+     * @path /contactMessages/{messageId}
+     * @allow (create) Any user can create a contact message.
+     * @deny (get, list, update, delete) No user can read, list, update, or delete contact messages directly.
+     * @principle Public create, restricted reads and writes.
+     */
+    match /contactMessages/{messageId} {
+      allow create: if true;
+      allow get, list, update, delete: if false;
     }
   }
 }
