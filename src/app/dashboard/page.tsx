@@ -376,7 +376,7 @@ export default function DashboardPage() {
               </div>
           )}
 
-          <div className="relative z-20 mx-auto flex max-w-4xl flex-col items-start px-4 text-left -mt-20">
+          <div className="relative z-10 mx-auto flex max-w-4xl flex-col items-start px-4 text-left">
               {isEditMode ? (
                   <div className='w-full space-y-4 rounded-xl bg-background/50 p-4 border border-border backdrop-blur-sm'>
                       <Input 
@@ -467,7 +467,7 @@ export default function DashboardPage() {
         </section>
 
         {/* Members Area Section */}
-        <section className="container mx-auto px-4 py-24 md:px-8 -mt-20 space-y-12">
+        <section className="container mx-auto px-4 py-16 md:px-8 space-y-12">
           
           {/* Featured Carousel */}
           <div>
