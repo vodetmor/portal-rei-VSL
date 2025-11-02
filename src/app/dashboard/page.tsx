@@ -17,7 +17,6 @@ import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { UploadModal } from '@/components/admin/upload-modal';
 
 
 interface Course extends DocumentData {
@@ -65,7 +64,6 @@ export default function DashboardPage() {
 
   const [isUploading, setIsUploading] = useState(false);
   const [contentLoading, setContentLoading] = useState(true);
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -90,10 +88,6 @@ export default function DashboardPage() {
     }
   }, [firestore]);
   
-  const handleUploadSuccess = () => {
-    fetchCourses();
-    setIsModalOpen(false);
-  }
 
 
   const handleSaveChanges = useCallback(async () => {
@@ -418,8 +412,10 @@ export default function DashboardPage() {
              </div>
           </div>
           {isAdmin && (
-            <Button onClick={() => setIsModalOpen(true)}>
-              <Plus className="mr-2 h-4 w-4" /> Adicionar Curso
+            <Button asChild>
+              <Link href="/admin/add-course">
+                <Plus className="mr-2 h-4 w-4" /> Adicionar Curso
+              </Link>
             </Button>
           )}
         </div>
@@ -461,14 +457,6 @@ export default function DashboardPage() {
           </Carousel>
         )}
       </section>
-
-      <UploadModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)}
-        onUploadSuccess={handleUploadSuccess}
-      />
     </div>
   );
 }
-
-    

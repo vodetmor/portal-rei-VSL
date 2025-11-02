@@ -5,9 +5,9 @@ import AdminGuard from '@/components/admin/admin-guard';
 import { collection, getDocs, deleteDoc, doc, DocumentData } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Plus, Trash2, Users } from 'lucide-react';
-import { UploadModal } from '@/components/admin/upload-modal';
 import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import Link from 'next/link';
 
 interface Course extends DocumentData {
   id: string;
@@ -19,7 +19,6 @@ function AdminDashboard() {
   const firestore = useFirestore();
   const [courses, setCourses] = useState<Course[]>([]);
   const [userCount, setUserCount] = useState(0);
-  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const fetchCourses = async () => {
     if (!firestore) return;
@@ -60,17 +59,15 @@ function AdminDashboard() {
     }
   };
   
-  const handleUploadSuccess = () => {
-    fetchCourses();
-    setIsModalOpen(false);
-  }
 
   return (
     <div className="container mx-auto px-4 py-8 pt-24 md:px-8">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold text-white">Painel do Administrador</h1>
-        <Button onClick={() => setIsModalOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" /> Adicionar Curso
+        <Button asChild>
+          <Link href="/admin/add-course">
+            <Plus className="mr-2 h-4 w-4" /> Adicionar Curso
+          </Link>
         </Button>
       </div>
 
@@ -107,12 +104,6 @@ function AdminDashboard() {
           {courses.length === 0 && <p className="text-muted-foreground text-center py-4">Nenhum curso encontrado.</p>}
         </div>
       </div>
-
-      <UploadModal 
-        isOpen={isModalOpen} 
-        onClose={() => setIsModalOpen(false)}
-        onUploadSuccess={handleUploadSuccess}
-      />
     </div>
   );
 }
