@@ -5,9 +5,9 @@ service cloud.firestore {
 
     // Helper function to check if the user is an admin
     function isAdmin() {
-      return request.auth != null && 
-        (request.auth.token.email == 'admin@reidavsl.com' || 
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
+      // Use a simple, direct check against the admin email for performance.
+      // The get() call is expensive and can fail on list queries.
+      return request.auth != null && request.auth.token.email == 'admin@reidavsl.com';
     }
 
     // Helper function to check if a user has been granted access to a specific course.
