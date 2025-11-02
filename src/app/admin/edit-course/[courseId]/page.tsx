@@ -97,7 +97,7 @@ function EditCoursePageContent() {
   const [heroImageDesktopFile, setHeroImageDesktopFile] = useState<File | null>(null);
   const [heroImageMobileFile, setHeroImageMobileFile] = useState<File | null>(null);
   const [heroImageUrlInputDesktop, setHeroImageUrlInputDesktop] = useState('');
-  const [heroImageUrlInputMobile, setHeroImageUrlInputMobile] useState('');
+  const [heroImageUrlInputMobile, setHeroImageUrlInputMobile] = useState('');
   const [imageInputMode, setImageInputMode] = useState<'desktop' | 'mobile'>('desktop');
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   
