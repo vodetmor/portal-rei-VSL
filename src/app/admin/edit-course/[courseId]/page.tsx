@@ -48,7 +48,7 @@ interface Course {
   modules: Module[];
 }
 
-const DEFAULT_MODULE_IMAGE = "https://placehold.co/400x600/0f0f0f/b3b3b3?text=Module";
+const DEFAULT_MODULE_IMAGE = "https://picsum.photos/seed/default-module/400/600";
 
 function EditCoursePageContent() {
   const firestore = useFirestore();
