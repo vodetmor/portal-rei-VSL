@@ -70,7 +70,6 @@ export default function RegisterPage() {
         displayName: newUser.email?.split('@')[0] || 'Novo Usuário',
         photoURL: '',
         role: userRole,
-        createdAt: new Date().toISOString(),
       });
 
       router.push('/dashboard');
