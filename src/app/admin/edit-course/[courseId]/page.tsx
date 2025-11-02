@@ -572,26 +572,15 @@ function ModuleEditor({ module, onUpdate, onRemove, onAddLesson, onUpdateLesson,
                                 <Input id={`module-img-${module.id}`} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
                                 {uploadProgress !== null && (<Progress value={uploadProgress} className="w-full h-1 mt-2" />)}
                             </TabsContent>
-                            <TabsContent value="url" className="mt-2">
-                                 <Popover>
-                                    <PopoverTrigger asChild>
-                                        <Button variant="outline" size="sm" className="w-full h-9 text-xs gap-2">
-                                            <Link2 className="h-3 w-3" /> Colar URL da Capa
-                                        </Button>
-                                    </PopoverTrigger>
-                                    <PopoverContent className="w-64 p-2" side="bottom" align="start">
-                                        <div className="grid gap-2">
-                                        <p className="text-xs text-muted-foreground">Cole a URL da imagem</p>
-                                        <Input 
-                                            type="text" 
-                                            placeholder="https://exemplo.com/capa.png" 
-                                            value={module.thumbnailUrl === DEFAULT_MODULE_IMAGE ? '' : module.thumbnailUrl} 
-                                            onChange={(e) => handleUrlChange(e.target.value)} 
-                                            className="w-full bg-background/50 pl-2 text-xs h-8"
-                                        />
-                                        </div>
-                                    </PopoverContent>
-                                </Popover>
+                            <TabsContent value="url" className="mt-2 relative">
+                                <Link2 className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                                <Input 
+                                    type="text" 
+                                    placeholder="https://exemplo.com/capa.png" 
+                                    value={module.thumbnailUrl === DEFAULT_MODULE_IMAGE ? '' : module.thumbnailUrl} 
+                                    onChange={(e) => handleUrlChange(e.target.value)} 
+                                    className="w-full bg-background/50 pl-8 text-xs h-9"
+                                />
                             </TabsContent>
                         </Tabs>
                     </div>
@@ -842,5 +831,3 @@ export default function EditCoursePage() {
         </AdminGuard>
     )
 }
-
-    
