@@ -13,7 +13,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Bell, Home, Menu, ShieldCheck } from 'lucide-react';
+import { Bell, Home, Menu, ShieldCheck, Edit } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Sheet, SheetContent, SheetTrigger } from './ui/sheet';
 
@@ -68,10 +68,15 @@ export function Nav() {
     <>
       <Link href="/dashboard" className="text-neutral-200 hover:text-white transition-colors block py-2" onClick={() => setIsSheetOpen(false)}>Início</Link>
       {isAdmin && (
-        <Link href="/admin" className="flex items-center gap-2 text-neutral-200 hover:text-white transition-colors block py-2" onClick={() => setIsSheetOpen(false)}>
-          <ShieldCheck className="h-4 w-4" />
-          Painel Admin
-        </Link>
+        <>
+          <Link href="/admin" className="flex items-center gap-2 text-neutral-200 hover:text-white transition-colors block py-2" onClick={() => setIsSheetOpen(false)}>
+            <ShieldCheck className="h-4 w-4" />
+            Painel Admin
+          </Link>
+          <Button variant="outline" size="sm" className="w-full justify-start mt-2">
+            <Edit className="mr-2 h-4 w-4" /> Editar Layout
+          </Button>
+        </>
       )}
     </>
   );
@@ -91,26 +96,22 @@ export function Nav() {
             <div className="h-8 w-8 animate-pulse rounded-full bg-muted"></div>
           ) : user ? (
             <>
-              <div className="hidden md:flex items-center gap-2 text-sm">
-                <span className="text-muted-foreground">Nível Iniciante</span>
-                <span className="h-2 w-2 rounded-full bg-primary"></span>
-              </div>
+              {isAdmin && (
+                <div className="hidden md:flex items-center gap-2">
+                   <Button variant="outline" size="sm">
+                      <Edit className="mr-2 h-4 w-4" /> Editar Layout
+                  </Button>
+                </div>
+              )}
               <nav className="hidden md:flex items-center gap-2">
                 <Button variant="ghost" size="icon" asChild>
                   <Link href="/dashboard"><Home className="h-5 w-5" /></Link>
                 </Button>
-                <Sheet>
-                  <SheetTrigger asChild>
-                    <Button variant="ghost" size="icon">
-                      <Menu className="h-5 w-5" />
+                 {isAdmin && (
+                    <Button variant="ghost" size="icon" asChild>
+                        <Link href="/admin"><ShieldCheck className="h-5 w-5" /></Link>
                     </Button>
-                  </SheetTrigger>
-                  <SheetContent>
-                      <nav className="flex flex-col gap-4 text-lg font-medium mt-10">
-                        {navLinks}
-                      </nav>
-                  </SheetContent>
-                </Sheet>
+                 )}
               </nav>
 
               <DropdownMenu>
