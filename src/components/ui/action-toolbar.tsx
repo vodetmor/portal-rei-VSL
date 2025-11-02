@@ -33,8 +33,7 @@ export function ActionToolbar({ buttons, compact = false, className = "" }: Acti
   );
 
   const handleButtonClick = (index: number, onClick?: () => void) => {
-    // For toggle-like buttons, you might want to manage their active state
-    // For now, we just execute the onClick
+    // For simple buttons, just call onClick. State for toggle buttons is not managed here.
     if (onClick) {
       onClick();
     }
@@ -48,10 +47,11 @@ export function ActionToolbar({ buttons, compact = false, className = "" }: Acti
       )}
     >
       {buttons.map((btn, index) => {
-        const isActive = activeStates[index];
+        const isActive = activeStates[index]; // Note: This state is currently not updated for non-toggle buttons
 
         const buttonClasses = cn(
           "flex items-center gap-2 px-3 h-9 rounded-xl transition-all duration-200",
+           // Active state styling might need adjustment based on button type
           isActive
             ? "bg-primary text-primary-foreground shadow-sm"
             : "hover:bg-muted/80 hover:text-foreground text-muted-foreground"
@@ -61,13 +61,13 @@ export function ActionToolbar({ buttons, compact = false, className = "" }: Acti
           return (
             <div key={index} className="flex items-center">
               <Button
-                onMouseDown={(e) => e.preventDefault()}
+                onMouseDown={(e) => e.preventDefault()} // Prevents loss of text selection
                 onClick={() => handleButtonClick(index, btn.onClick)}
                 variant="ghost"
                 className={cn(buttonClasses, compact && "px-2")}
               >
                 {btn.icon}
-                <span className="font-medium">{btn.label}</span>
+                {!compact && <span className="font-medium">{btn.label}</span>}
                 {btn.count !== undefined && (
                   <Badge
                     variant={isActive ? "secondary" : "outline"}
@@ -101,7 +101,7 @@ export function ActionToolbar({ buttons, compact = false, className = "" }: Acti
         return (
           <Button
             key={index}
-            onMouseDown={(e) => e.preventDefault()}
+            onMouseDown={(e) => e.preventDefault()} // Prevents loss of text selection
             onClick={() => handleButtonClick(index, btn.onClick)}
             variant="ghost"
             className={cn(buttonClasses, compact && "px-2")}
@@ -122,3 +122,5 @@ export function ActionToolbar({ buttons, compact = false, className = "" }: Acti
     </div>
   );
 }
+
+    

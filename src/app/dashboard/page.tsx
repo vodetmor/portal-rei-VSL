@@ -12,7 +12,7 @@ import { ActionToolbar } from '@/components/ui/action-toolbar';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Plus, Pencil, Save, X, Trophy, Gem, Crown, Star, type LucideIcon, Upload, Link2, Trash2, ChevronDown, AlignCenter, AlignLeft, AlignRight, Edit3, Bold } from 'lucide-react';
+import { Plus, Pencil, Save, X, Trophy, Gem, Crown, Star, type LucideIcon, Upload, Link2, Trash2, ChevronDown, AlignCenter, AlignLeft, AlignRight, Edit3, Bold, Italic, Underline, Palette } from 'lucide-react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -92,17 +92,51 @@ function DashboardClientPage() {
   // Converts saved HTML (with span) to editable markdown (with *)
   const htmlToMarkdown = (html: string) => {
     if (!html) return '';
+    // This regex now handles multiple highlighted words
     return html.replace(/<span class='text-primary'>(.*?)<\/span>/g, '*$1*');
   };
 
   // Converts editable markdown (with *) to saveable HTML (with span)
   const markdownToHtml = (markdown: string) => {
     if (!markdown) return '';
+    // This regex now handles multiple highlighted words
     return markdown.replace(/\*(.*?)\*/g, "<span class='text-primary'>$1</span>");
   };
 
-  const applyFormat = (command: string, value: string | null = null) => {
+ const applyFormat = (command: string, value: string | null = null) => {
+    // For 'foreColor', we will use the highlight syntax instead.
+    if (command === 'foreColor') {
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0) return;
+
+      const range = selection.getRangeAt(0);
+      const selectedText = range.toString();
+
+      if (selectedText) {
+        const newNode = document.createTextNode(`*${selectedText}*`);
+        range.deleteContents();
+        range.insertNode(newNode);
+        
+        // Manually update the state since direct DOM manipulation isn't tracked by React
+        const parentElement = range.commonAncestorContainer.parentElement;
+        if (parentElement?.isContentEditable) {
+           if (parentElement.isSameNode(document.getElementById('hero-title-editor'))) {
+             setTempHeroTitle(parentElement.innerHTML);
+           } else if (parentElement.isSameNode(document.getElementById('members-title-editor'))) {
+             setTempMembersTitle(parentElement.innerHTML);
+           }
+        }
+      }
+      return;
+    }
+
     document.execCommand(command, false, value);
+    
+    // We need to trigger a state update after execCommand
+    const heroTitleEl = document.getElementById('hero-title-editor');
+    if (heroTitleEl) setTempHeroTitle(heroTitleEl.innerHTML);
+    const membersTitleEl = document.getElementById('members-title-editor');
+    if (membersTitleEl) setTempMembersTitle(membersTitleEl.innerHTML);
   };
   
   const handleAlignment = (alignment: 'left' | 'center' | 'right') => {
@@ -378,6 +412,7 @@ function DashboardClientPage() {
 
           <div className={heroContainerClasses}>
               <h1 
+                  id="hero-title-editor"
                   contentEditable={isEditMode}
                   suppressContentEditableWarning={true}
                   onInput={(e) => setTempHeroTitle(e.currentTarget.innerHTML)}
@@ -385,7 +420,7 @@ function DashboardClientPage() {
                     "text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl",
                     isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
                   )}
-                  dangerouslySetInnerHTML={{ __html: isEditMode ? tempHeroTitle.replace(/\*(.*?)\*/g, "<span>$1</span>") : layoutData.heroTitle }}
+                  dangerouslySetInnerHTML={{ __html: isEditMode ? tempHeroTitle : layoutData.heroTitle }}
                 />
 
               <p 
@@ -425,6 +460,9 @@ function DashboardClientPage() {
                 </div>
                 <ActionToolbar buttons={[
                     { label: "Bold", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
+                    { label: "Italic", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
+                    { label: "Underline", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
+                    { label: "Color", icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor') },
                     { label: "Left", icon: <AlignLeft className="size-4" />, onClick: () => handleAlignment('left') },
                     { label: "Center", icon: <AlignCenter className="size-4" />, onClick: () => handleAlignment('center') },
                     { label: "Right", icon: <AlignRight className="size-4" />, onClick: () => handleAlignment('right') },
@@ -504,18 +542,22 @@ function DashboardClientPage() {
                       </SelectContent>
                     </Select>
                     <div className='flex flex-col'>
-                      <Input
-                          data-editable="true"
-                          value={tempMembersTitle}
-                          onChange={(e) => setTempMembersTitle(e.target.value)}
-                          className="text-2xl font-bold bg-transparent border-none"
-                      />
-                       <Input
-                          data-editable="true"
-                          value={tempMembersSubtitle}
-                          onChange={(e) => setTempMembersSubtitle(e.target.value)}
-                          className="text-sm bg-transparent border-none"
-                      />
+                      <div
+                          id="members-title-editor"
+                          contentEditable={isEditMode}
+                          suppressContentEditableWarning={true}
+                          onInput={(e) => setTempMembersTitle(e.currentTarget.innerHTML)}
+                          className="text-2xl font-bold bg-transparent border-none outline-none focus:ring-2 focus:ring-primary rounded-md p-1 -m-1"
+                          dangerouslySetInnerHTML={{ __html: isEditMode ? tempMembersTitle : layoutData.membersTitle }}
+                       />
+                       <p
+                          contentEditable={isEditMode}
+                          suppressContentEditableWarning={true}
+                          onInput={(e) => setTempMembersSubtitle(e.currentTarget.innerText)}
+                          className="text-sm bg-transparent border-none outline-none focus:ring-2 focus:ring-primary rounded-md p-1 -m-1 text-muted-foreground"
+                       >
+                          {isEditMode ? tempMembersSubtitle : layoutData.membersSubtitle}
+                        </p>
                     </div>
                   </div>
                 ) : (
@@ -639,3 +681,5 @@ export default function DashboardPage() {
     </LayoutProvider>
   )
 }
+
+    
