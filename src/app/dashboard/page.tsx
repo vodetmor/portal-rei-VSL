@@ -58,6 +58,8 @@ function DashboardClientPage() {
   const [tempHeroTitle, setTempHeroTitle] = useState(layoutData.heroTitle);
   const [tempHeroSubtitle, setTempHeroSubtitle] = useState(layoutData.heroSubtitle);
   const [tempHeroImage, setTempHeroImage] = useState(layoutData.heroImage);
+  const [tempCtaText, setTempCtaText] = useState(layoutData.ctaText);
+  const [heroAlignment, setHeroAlignment] = useState(layoutData.heroAlignment);
   
   const [heroImageFile, setHeroImageFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
@@ -68,6 +70,7 @@ function DashboardClientPage() {
   
   const titleRef = useRef<HTMLDivElement>(null);
   const subtitleRef = useRef<HTMLDivElement>(null);
+  const coursesSectionRef = useRef<HTMLDivElement>(null);
 
 
   const applyFormat = (command: string) => {
@@ -91,20 +94,12 @@ function DashboardClientPage() {
   
         range.deleteContents();
         range.insertNode(span);
-
-        // Update state after DOM manipulation
-        if (editorId === 'hero-title-editor') setTempHeroTitle(editorElement.innerHTML);
-        else if (editorId === 'hero-subtitle-editor') setTempHeroSubtitle(editorElement.innerHTML);
       }
       return;
     }
   
     // For other commands like bold, italic, just use execCommand
     document.execCommand(command, false, undefined);
-  
-    // This part is crucial to make React aware of the DOM changes from execCommand
-    if (editorId === 'hero-title-editor') setTempHeroTitle(editorElement.innerHTML);
-    else if (editorId === 'hero-subtitle-editor') setTempHeroSubtitle(editorElement.innerHTML);
   };
   
   
@@ -112,6 +107,8 @@ function DashboardClientPage() {
     setTempHeroTitle(layoutData.heroTitle);
     setTempHeroSubtitle(layoutData.heroSubtitle);
     setTempHeroImage(layoutData.heroImage);
+    setTempCtaText(layoutData.ctaText);
+    setHeroAlignment(layoutData.heroAlignment);
     setTempHeroImageUrlInput(layoutData.heroImage);
     setImageInputMode('upload');
     setHeroImageFile(null);
@@ -124,9 +121,6 @@ function DashboardClientPage() {
     setIsEditMode(false);
     setActiveEditor(null);
     setOpenCollapsible(null);
-     // Reset the innerHTML of the editable divs to their original state
-    if (titleRef.current) titleRef.current.innerHTML = layoutData.heroTitle;
-    if (subtitleRef.current) subtitleRef.current.innerHTML = layoutData.heroSubtitle;
   };
 
   // Hero Image Handlers
@@ -192,11 +186,15 @@ function DashboardClientPage() {
         return;
     }
     
-    // The content from the editable divs is already in the temp states
+    const titleContent = titleRef.current?.innerHTML || tempHeroTitle;
+    const subtitleContent = subtitleRef.current?.innerHTML || tempHeroSubtitle;
+
     const dataToSave = {
-        title: tempHeroTitle,
-        subtitle: tempHeroSubtitle,
+        title: titleContent,
+        subtitle: subtitleContent,
         imageUrl: finalHeroImageUrl,
+        ctaText: tempCtaText,
+        heroAlignment: heroAlignment,
     };
     
     const layoutRef = doc(firestore, 'layout', 'dashboard-hero');
@@ -208,6 +206,8 @@ function DashboardClientPage() {
           heroTitle: dataToSave.title,
           heroSubtitle: dataToSave.subtitle,
           heroImage: dataToSave.imageUrl,
+          ctaText: dataToSave.ctaText,
+          heroAlignment: dataToSave.heroAlignment,
       }));
 
       toast({
@@ -334,11 +334,16 @@ function DashboardClientPage() {
     }
   }, [user, firestore, fetchCourses]);
   
-  // Effect to set initial content of contentEditable divs
+  // Effect to set initial content of contentEditable divs & sync state
   useEffect(() => {
-    if (titleRef.current) titleRef.current.innerHTML = layoutData.heroTitle;
-    if (subtitleRef.current) subtitleRef.current.innerHTML = layoutData.heroSubtitle;
-  }, [layoutData.heroTitle, layoutData.heroSubtitle]);
+    if (isEditMode) {
+      if (titleRef.current) titleRef.current.innerHTML = tempHeroTitle;
+      if (subtitleRef.current) subtitleRef.current.innerHTML = tempHeroSubtitle;
+    } else {
+      if (titleRef.current) titleRef.current.innerHTML = layoutData.heroTitle;
+      if (subtitleRef.current) subtitleRef.current.innerHTML = layoutData.heroSubtitle;
+    }
+  }, [isEditMode, layoutData.heroTitle, layoutData.heroSubtitle, tempHeroTitle, tempHeroSubtitle]);
 
 
   if (userLoading || !user || layoutData.isLoading) {
@@ -349,7 +354,28 @@ function DashboardClientPage() {
     );
   }
   
-  const heroContainerClasses = cn("relative z-10 mx-auto flex max-w-4xl flex-col items-start px-4 pt-24 text-left");
+  const heroContainerClasses = cn(
+    "relative z-10 mx-auto flex max-w-4xl flex-col items-start px-4",
+    {
+      'items-start': heroAlignment === 'left',
+      'items-center': heroAlignment === 'center',
+      'items-end': heroAlignment === 'end'
+    }
+  );
+
+  const textContainerClasses = cn(
+    {
+      'text-left': heroAlignment === 'left',
+      'text-center': heroAlignment === 'center',
+      'text-right': heroAlignment === 'end'
+    }
+  );
+
+  const handleCtaClick = () => {
+    if (isEditMode) return;
+    coursesSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
+
 
   return (
       <div className="w-full">
@@ -373,47 +399,48 @@ function DashboardClientPage() {
           )}
 
           <div className={heroContainerClasses}>
-              <div className="relative w-full">
+              <div className={cn("relative w-full", textContainerClasses)}>
                  <div
                   id="hero-title-editor"
                   ref={titleRef}
                   contentEditable={isEditMode}
                   suppressContentEditableWarning={true}
+                  defaultValue={tempHeroTitle}
                   onFocus={() => setActiveEditor('hero-title-editor')}
-                  onBlur={() => setActiveEditor(null)}
-                  onInput={(e) => setTempHeroTitle(e.currentTarget.innerHTML)}
+                  onBlur={() => { setActiveEditor(null); if (titleRef.current) setTempHeroTitle(titleRef.current.innerHTML); }}
                   className={cn(
                     "text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl",
-                    isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2",
-                     "text-left"
+                    isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
                   )}
                 />
                 {isEditMode && activeEditor === 'hero-title-editor' && (
                   <ActionToolbar
                     className="absolute -top-14"
                     buttons={[
+                      { label: "Esquerda", icon: <AlignLeft className="size-4" />, onClick: () => setHeroAlignment('left') },
+                      { label: "Centro", icon: <AlignCenter className="size-4" />, onClick: () => setHeroAlignment('center') },
+                      { label: "Direita", icon: <AlignRight className="size-4" />, onClick: () => setHeroAlignment('end') },
                       { label: "Bold", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
                       { label: "Italic", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
                       { label: "Underline", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
-                      { label: "Color", icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor') },
+                      { label: "Cor", icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor') },
                     ]}
                   />
                 )}
               </div>
 
-              <div className="relative w-full mt-4">
+              <div className={cn("relative w-full mt-4", textContainerClasses)}>
                 <div
                   id="hero-subtitle-editor"
                   ref={subtitleRef}
                   contentEditable={isEditMode}
                   suppressContentEditableWarning={true}
+                  defaultValue={tempHeroSubtitle}
                   onFocus={() => setActiveEditor('hero-subtitle-editor')}
-                  onBlur={() => setActiveEditor(null)}
-                  onInput={(e) => setTempHeroSubtitle(e.currentTarget.innerHTML)}
+                  onBlur={() => { setActiveEditor(null); if (subtitleRef.current) setTempHeroSubtitle(subtitleRef.current.innerHTML); }}
                   className={cn(
                     "max-w-2xl text-lg text-muted-foreground md:text-xl",
-                    isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2",
-                     "text-left"
+                    isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
                   )}
                 />
                  {isEditMode && activeEditor === 'hero-subtitle-editor' && (
@@ -423,16 +450,27 @@ function DashboardClientPage() {
                             { label: "Bold", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
                             { label: "Italic", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
                             { label: "Underline", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
-                            { label: "Color", icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor') },
+                            { label: "Cor", icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor') },
                         ]}
                     />
                 )}
               </div>
 
             <div className="mt-8 w-full">
-              <Button asChild size="lg" variant="default" className="bg-primary hover:bg-primary/90 text-primary-foreground">
-                <Link href="#">Assistir Agora</Link>
-              </Button>
+              {isEditMode ? (
+                 <div
+                    contentEditable={true}
+                    suppressContentEditableWarning={true}
+                    onInput={(e) => setTempCtaText(e.currentTarget.textContent || '')}
+                    className="inline-block px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-md text-lg font-semibold outline-none focus:ring-2 focus:ring-ring"
+                 >
+                    {tempCtaText}
+                 </div>
+              ) : (
+                <Button onClick={handleCtaClick} size="lg" variant="default" className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                    {layoutData.ctaText}
+                </Button>
+              )}
             </div>
           </div>
           {isAdmin && !isEditMode && (
@@ -495,7 +533,7 @@ function DashboardClientPage() {
         </section>
 
         {/* All Courses Section */}
-        <section className="container mx-auto px-4 py-16 md:px-8 space-y-12">
+        <section ref={coursesSectionRef} className="container mx-auto px-4 py-16 md:px-8 space-y-12">
           
            <div>
             <div className="flex justify-between items-center mb-4">

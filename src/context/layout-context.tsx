@@ -8,12 +8,16 @@ const DEFAULT_DEFAULTS = {
     heroTitle: "Seu Reinado <span class='text-primary'>começa aqui</span>.",
     heroSubtitle: "No Rei da VSL, cada copy se torna uma conversão poderosa.",
     heroImage: "https://picsum.photos/seed/hero-bg/1920/1080",
+    ctaText: "Assistir Agora",
+    heroAlignment: "left" as "left" | "center" | "end",
 }
 
 interface LayoutData {
   heroTitle: string;
   heroSubtitle: string;
   heroImage: string;
+  ctaText: string;
+  heroAlignment: "left" | "center" | "end";
   isLoading: boolean;
   defaults: Omit<typeof DEFAULT_DEFAULTS, 'membersTitle' | 'membersSubtitle' | 'membersIcon'>;
 }
@@ -50,6 +54,8 @@ export const LayoutProvider = ({ children }: { children: ReactNode }) => {
             heroTitle: data.title || prev.defaults.heroTitle,
             heroSubtitle: data.subtitle || prev.defaults.heroSubtitle,
             heroImage: data.imageUrl || prev.defaults.heroImage,
+            ctaText: data.ctaText || prev.defaults.ctaText,
+            heroAlignment: data.heroAlignment || prev.defaults.heroAlignment,
         }));
       }
     } catch (error) {
