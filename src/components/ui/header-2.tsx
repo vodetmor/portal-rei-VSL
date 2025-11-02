@@ -91,19 +91,13 @@ export function Header() {
 	return (
 		<header
 			className={cn(
-				'transition-all ease-out duration-500 z-[100] w-full',
-                !isEditMode && 'sticky top-0',
-				{
-					'bg-transparent': true,
-				}
+				'fixed top-0 left-0 right-0 z-[100] transition-all ease-out duration-300',
+				scrolled && !open && !isEditMode ? 'bg-background/80 backdrop-blur-md' : 'bg-transparent'
 			)}
 		>
 			<nav
 				className={cn(
-					'flex h-16 w-full items-center justify-between px-4 md:transition-all md:ease-out md:duration-500 max-w-5xl mx-auto',
-					{
-						'md:px-3 md:max-w-4xl md:mx-auto md:border md:rounded-xl md:border-border md:top-4 md:h-14 relative': scrolled,
-					},
+					'flex h-20 w-full items-center justify-between px-4 max-w-5xl mx-auto transition-all duration-300'
 				)}
 			>
 				<Link href="/dashboard" className="relative h-10 w-32">
@@ -191,7 +185,7 @@ export function Header() {
 
 			<div
 				className={cn(
-					'bg-background/90 fixed top-16 right-0 bottom-0 left-0 z-50 flex flex-col overflow-hidden border-y md:hidden',
+					'bg-background/90 fixed top-20 right-0 bottom-0 left-0 z-50 flex flex-col overflow-hidden border-y md:hidden',
 					open ? 'block' : 'hidden',
 				)}
 			>

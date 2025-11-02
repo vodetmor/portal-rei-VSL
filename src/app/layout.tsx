@@ -28,7 +28,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className={poppins.className}>
+      <body className={`${poppins.className} pt-20`}>
         <FirebaseClientProvider>
           <LayoutProvider>
             <Header />
@@ -40,3 +40,5 @@ export default function RootLayout({
     </html>
   );
 }
+
+    

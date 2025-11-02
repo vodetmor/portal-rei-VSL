@@ -387,7 +387,7 @@ function DashboardClientPage() {
       <div className="w-full">
         {/* Hero Section */}
         <section className={cn(
-          "relative flex h-[60vh] min-h-[500px] w-full flex-col justify-center",
+          "relative flex h-[60vh] min-h-[500px] w-full flex-col justify-center -mt-20",
           isEditMode && "border-2 border-dashed border-primary/50"
         )}>
           {layoutData.isLoading ? <Skeleton className="absolute inset-0 z-0" /> : (
@@ -405,7 +405,7 @@ function DashboardClientPage() {
           )}
 
           <div className={heroContainerClasses}>
-              <div className={cn("relative", textContainerClasses)}>
+              <div className={cn("relative w-full", textContainerClasses)}>
                  <div
                     id="hero-title-editor"
                     ref={titleRef}
@@ -435,7 +435,7 @@ function DashboardClientPage() {
                 )}
               </div>
 
-              <div className={cn("relative mt-4", textContainerClasses)}>
+              <div className={cn("relative mt-4 w-full", textContainerClasses)}>
                 <div
                     id="hero-subtitle-editor"
                     ref={subtitleRef}
@@ -469,8 +469,8 @@ function DashboardClientPage() {
                     ref={ctaRef}
                     contentEditable={true}
                     suppressContentEditableWarning={true}
-                    onBlur={() => {}}
-                    onInput={(e) => setTempCtaText(e.currentTarget.innerHTML)}
+                    onBlur={(e) => setTempCtaText(e.currentTarget.innerHTML)}
+                    dangerouslySetInnerHTML={{ __html: tempCtaText }}
                     className="inline-block px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-md text-lg font-semibold outline-none focus:ring-2 focus:ring-ring"
                  >
                  </div>
@@ -541,7 +541,7 @@ function DashboardClientPage() {
         </section>
 
         {/* All Courses Section */}
-        <section ref={coursesSectionRef} className="container mx-auto px-4 py-16 md:px-8 space-y-12 pt-20">
+        <section ref={coursesSectionRef} className="container mx-auto px-4 py-16 md:px-8 space-y-12">
           
            <div>
             <div className="flex justify-between items-center mb-4">
@@ -596,3 +596,5 @@ export default function DashboardPage() {
     <DashboardClientPage />
   )
 }
+
+    
