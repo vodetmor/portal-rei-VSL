@@ -12,8 +12,7 @@ import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
-import { CourseCard } from '@/components/course-card';
-import { Plus, Pencil, Save, X, Upload, Link2, Smartphone, Monitor, Lock, Trophy, AlignCenter, AlignLeft, AlignRight, Bold, Italic, Underline, Palette, Pilcrow } from 'lucide-react';
+import { Plus, Pencil, Save, X, Upload, Link2, Smartphone, Monitor, Lock, Trophy, AlignCenter, AlignLeft, AlignRight, Bold, Italic, Underline, Palette } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -74,7 +73,6 @@ export default function CoursePlayerPage() {
   const [courseAccessInfo, setCourseAccessInfo] = useState<CourseAccessInfo | null>(null);
   const [userProgress, setUserProgress] = useState<UserProgress | null>(null);
 
-
   // Temp states for editing
   const [tempHeroImageDesktop, setTempHeroImageDesktop] = useState(DEFAULT_HERO_IMAGE_DESKTOP);
   const [tempHeroImageMobile, setTempHeroImageMobile] = useState(DEFAULT_HERO_IMAGE_MOBILE);
@@ -97,30 +95,25 @@ export default function CoursePlayerPage() {
 
   const checkAdminStatus = useCallback(async () => {
     if (!user || !firestore) return false;
-    // The most reliable check is the custom claim on the token.
     try {
         const idTokenResult = await user.getIdTokenResult();
         const isAdminClaim = idTokenResult.claims.admin === true;
         
-        // Fallback for the primary admin email, just in case.
         if (isAdminClaim || user.email === 'admin@reidavsl.com') {
             return true;
         }
 
-        // Final check against the user document as a last resort.
         const userDocRef = doc(firestore, 'users', user.uid);
         const userDoc = await getDoc(userDocRef);
         return userDoc.exists() && userDoc.data().role === 'admin';
     } catch (error) {
         console.error("Error checking admin status:", error);
-        // If checking claims or doc fails, check email as a final fallback.
         return user.email === 'admin@reidavsl.com';
     }
 }, [user, firestore]);
 
 
   useEffect(() => {
-    // This effect runs when user status changes or firestore is available
     const checkAccessAndFetchData = async () => {
       if (userLoading) return;
 
@@ -137,15 +130,16 @@ export default function CoursePlayerPage() {
         setIsAdmin(userIsAdmin);
 
         let hasAccess = userIsAdmin;
-        let accessTimestamp: Date | null = null;
 
         if (!userIsAdmin) {
             const accessRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId);
             const accessSnap = await getDoc(accessRef);
             if (accessSnap.exists()) {
                 hasAccess = true;
-                accessTimestamp = accessSnap.data().grantedAt.toDate();
-                setCourseAccessInfo({ grantedAt: accessTimestamp!.toISOString() });
+                const accessTimestamp = accessSnap.data().grantedAt?.toDate();
+                if (accessTimestamp) {
+                  setCourseAccessInfo({ grantedAt: accessTimestamp.toISOString() });
+                }
             }
         } else {
              setCourseAccessInfo({ grantedAt: new Date().toISOString() });
@@ -159,16 +153,22 @@ export default function CoursePlayerPage() {
 
         const courseRef = doc(firestore, 'courses', courseId);
         const courseSnap = await getDoc(courseRef);
-        if (!courseSnap.exists()) {
-          toast({ variant: "destructive", title: "Erro", description: "Curso não encontrado."});
-          router.push('/dashboard');
-          return;
+        if (!courseSnap.exists() && !userIsAdmin) { // Allow admin to see even if deleted or draft
+            toast({ variant: "destructive", title: "Erro", description: "Curso não encontrado."});
+            router.push('/dashboard');
+            return;
         }
 
         const courseData = { id: courseSnap.id, ...courseSnap.data() } as Course;
         
+        // Admins can see drafts, users cannot unless they have specific access (which we assume implies visibility)
+        if (courseData.status === 'draft' && !userIsAdmin) {
+           toast({ variant: "destructive", title: "Curso Indisponível", description: "Este curso ainda não foi publicado."});
+           router.push('/dashboard');
+           return;
+        }
+        
         setCourse(courseData);
-        // Initialize editing states
         setTempTitle(courseData.title);
         setTempSubtitle(courseData.subtitle || 'Rei da VSL®');
         setTempDescription(courseData.description);
@@ -201,10 +201,8 @@ export default function CoursePlayerPage() {
     }
   }, [user, userLoading, firestore, courseId, router, toast, auth, checkAdminStatus]);
 
-  // Edit Mode Handlers
   const enterEditMode = () => {
     setIsEditMode(true);
-    // Ensure the content is set correctly when entering edit mode
     if (course) {
         setTempTitle(course.title);
         setTempSubtitle(course.subtitle || 'Rei da VSL®');
@@ -212,7 +210,7 @@ export default function CoursePlayerPage() {
         setTempHeroImageDesktop(course.heroImageUrlDesktop || DEFAULT_HERO_IMAGE_DESKTOP);
         setTempHeroImageMobile(course.heroImageUrlMobile || DEFAULT_HERO_IMAGE_MOBILE);
         setHeroImageUrlInputDesktop(course.heroImageUrlDesktop || '');
-        setHeroImageUrlInputMobile(course.heroImageUrlInputMobile || '');
+        setHeroImageUrlInputMobile(course.heroImageUrlMobile || '');
     }
   };
 
@@ -225,7 +223,7 @@ export default function CoursePlayerPage() {
       setTempHeroImageDesktop(course.heroImageUrlDesktop || DEFAULT_HERO_IMAGE_DESKTOP);
       setTempHeroImageMobile(course.heroImageUrlMobile || DEFAULT_HERO_IMAGE_MOBILE);
       setHeroImageUrlInputDesktop(course.heroImageUrlDesktop || '');
-      setHeroImageUrlInputMobile(course.heroImageUrlInputMobile || '');
+      setHeroImageUrlInputMobile(course.heroImageUrlMobile || '');
     }
     setHeroImageDesktopFile(null);
     setHeroImageMobileFile(null);
@@ -295,9 +293,9 @@ export default function CoursePlayerPage() {
 
         const courseRef = doc(firestore, 'courses', courseId);
         const dataToSave = {
-            title: titleRef.current?.innerHTML || tempTitle,
+            title: tempTitle,
             subtitle: tempSubtitle,
-            description: descriptionRef.current?.innerHTML || tempDescription,
+            description: tempDescription,
             heroImageUrlDesktop: finalHeroImageUrlDesktop,
             heroImageUrlMobile: finalHeroImageUrlMobile,
         };
@@ -324,10 +322,10 @@ export default function CoursePlayerPage() {
   };
 
   const isModuleUnlocked = useCallback((module: Module) => {
-    if (isAdmin) return true; // Admins see everything
-    if (!courseAccessInfo) return false; // No access info means no access
+    if (isAdmin) return true;
+    if (!courseAccessInfo) return false;
     const delay = module.releaseDelayDays || 0;
-    if (delay === 0) return true; // No delay means instant access
+    if (delay === 0) return true;
 
     const grantedDate = parseISO(courseAccessInfo.grantedAt);
     const releaseDate = addDays(grantedDate, delay);
@@ -344,7 +342,7 @@ export default function CoursePlayerPage() {
     const releaseDate = addDays(grantedDate, delay);
     const daysRemaining = differenceInDays(releaseDate, new Date());
     
-    return daysRemaining >= 0 ? daysRemaining : null; // Return null if date has passed
+    return daysRemaining >= 0 ? daysRemaining : null;
   };
 
   const calculateModuleProgress = (module: Module) => {
@@ -373,7 +371,6 @@ export default function CoursePlayerPage() {
         }
     }, [isEditMode, tempTitle, tempDescription, course]);
 
-
   if (loading || userLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -383,7 +380,6 @@ export default function CoursePlayerPage() {
   }
 
   if (!course) {
-    // This state is hit while loading or if access is denied and redirection is pending
     return (
       <div className="flex min-h-screen items-center justify-center">
         <p>Carregando curso ou verificando permissões...</p>
@@ -391,9 +387,10 @@ export default function CoursePlayerPage() {
     );
   }
 
+  const firstLessonId = course.modules?.[0]?.lessons?.[0]?.id;
+
   return (
     <div className="w-full">
-      {/* Hero Section */}
       <section className={cn(
         "relative flex h-[60vh] min-h-[450px] w-full items-center justify-center text-center py-12",
         isEditMode && "border-2 border-dashed border-primary/50"
@@ -415,59 +412,55 @@ export default function CoursePlayerPage() {
 
         <div className="relative z-10 p-4 max-w-3xl mx-auto">
              <div
-                id="course-title-editor"
                 ref={titleRef}
                 contentEditable={isEditMode}
                 suppressContentEditableWarning
-                onFocus={() => setActiveEditor('course-title-editor')}
-                onBlur={() => {
+                onFocus={() => setActiveEditor('title')}
+                onBlur={(e) => {
                     setActiveEditor(null);
-                    if (titleRef.current) setTempTitle(titleRef.current.innerHTML);
+                    setTempTitle(e.currentTarget.innerHTML);
                 }}
                 className={cn(
                     "text-4xl md:text-6xl font-bold tracking-tight text-white",
                     "prose prose-xl prose-invert max-w-none",
                     isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
                 )}
+                dangerouslySetInnerHTML={{ __html: isEditMode ? tempTitle : course.title }}
               />
-              {isEditMode && activeEditor === 'course-title-editor' && (
+              {isEditMode && activeEditor === 'title' && (
                 <ActionToolbar
                     className="absolute -top-14"
                     buttons={[
                         { label: "Negrito", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
                         { label: "Itálico", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
                         { label: "Sublinhado", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
-                        { label: "Aumentar Fonte", icon: <Pilcrow className="size-4" />, onClick: () => applyFormat('formatBlock', 'h3') },
-                        { label: "Colorir", icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor', 'yellow') },
                     ]}
                 />
               )}
 
              <div
-                id="course-description-editor"
                 ref={descriptionRef}
                 contentEditable={isEditMode}
                 suppressContentEditableWarning
-                onFocus={() => setActiveEditor('course-description-editor')}
-                onBlur={() => {
+                onFocus={() => setActiveEditor('description')}
+                onBlur={(e) => {
                     setActiveEditor(null);
-                    if (descriptionRef.current) setTempDescription(descriptionRef.current.innerHTML);
+                    setTempDescription(e.currentTarget.innerHTML);
                 }}
                 className={cn(
                     "mt-4 text-lg text-muted-foreground",
                     "prose prose-invert max-w-none",
                     isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
                 )}
+                dangerouslySetInnerHTML={{ __html: isEditMode ? tempDescription : course.description }}
              />
-              {isEditMode && activeEditor === 'course-description-editor' && (
+              {isEditMode && activeEditor === 'description' && (
                   <ActionToolbar
                       className="absolute -bottom-14"
                       buttons={[
                         { label: "Negrito", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
                         { label: "Itálico", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
                         { label: "Sublinhado", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
-                        { label: "Aumentar Fonte", icon: <Pilcrow className="size-4" />, onClick: () => applyFormat('formatBlock', 'h3') },
-                        { label: "Colorir", icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor', 'yellow') },
                       ]}
                   />
               )}
@@ -475,7 +468,7 @@ export default function CoursePlayerPage() {
         
         {isAdmin && !isEditMode && (
           <div className="absolute top-24 right-8 z-20">
-            <Button onClick={enterEditMode} variant="outline"><Pencil className="mr-2 h-4 w-4" /> Editar Curso</Button>
+            <Button onClick={enterEditMode} variant="outline"><Pencil className="mr-2 h-4 w-4" /> Editar Página</Button>
           </div>
         )}
 
@@ -539,7 +532,6 @@ export default function CoursePlayerPage() {
         )}
       </section>
 
-      {/* Modules Carousel */}
       <section className="container mx-auto px-4 py-12 md:px-8">
         <div className="flex justify-between items-center mb-6">
             <div className="flex items-center gap-3">
@@ -581,29 +573,57 @@ export default function CoursePlayerPage() {
                   const unlocked = isModuleUnlocked(module);
                   const daysRemaining = getDaysUntilRelease(module);
                   const progress = unlocked ? calculateModuleProgress(module) : null;
+                  const firstLessonId = module.lessons?.[0]?.id;
 
                   return (
                     <CarouselItem key={module.id || index} className="basis-1/2 md:basis-1/3 lg:basis-1/4 xl:basis-1/5">
-                      <div className="relative p-1">
-                        <CourseCard
-                          course={{ ...module, id: module.id || `module-${index}` }}
-                          progress={progress}
-                          priority={index < 5}
-                          isAdmin={false} 
-                          isLocked={!unlocked}
-                        />
-                        {!unlocked && (
-                          <div className="absolute inset-1 bg-black/70 rounded-lg flex flex-col items-center justify-center text-center p-4">
-                              <Lock className="h-8 w-8 text-primary mb-2" />
-                              <p className="text-white font-semibold">Bloqueado</p>
-                              <p className="text-xs text-muted-foreground">
-                                  {daysRemaining !== null 
-                                      ? `Libera em ${daysRemaining} ${daysRemaining === 1 ? 'dia' : 'dias'}`
-                                      : 'Em breve'}
-                              </p>
-                          </div>
-                        )}
-                      </div>
+                        <Link 
+                            href={unlocked && firstLessonId ? `/courses/${courseId}/${firstLessonId}` : '#'}
+                            className={cn("block", !unlocked && "pointer-events-none")}
+                        >
+                            <div className="relative p-1">
+                                <div className={cn(
+                                    "group relative block aspect-[2/3] w-full overflow-hidden rounded-lg bg-card shadow-lg transition-all",
+                                    !unlocked && "cursor-not-allowed"
+                                )}>
+                                    <Image
+                                        src={module.thumbnailUrl || `https://picsum.photos/seed/${module.id}/400/600`}
+                                        alt={module.title}
+                                        width={400}
+                                        height={600}
+                                        data-ai-hint={module.imageHint}
+                                        priority={index < 5}
+                                        className={cn(
+                                            "object-cover transition-transform duration-300 ease-in-out h-full w-full",
+                                            unlocked && "group-hover:scale-105",
+                                            !unlocked && "grayscale"
+                                        )}
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
+                                    <div className="absolute bottom-0 left-0 p-4 w-full">
+                                        <h3 className="font-semibold text-white transition-colors duration-300 group-hover:text-primary">{module.title}</h3>
+                                        {progress !== null && progress >= 0 && (
+                                            <div className="mt-2">
+                                                <Progress value={progress} className="h-1.5" />
+                                                <p className="text-xs text-white/80 mt-1">{Math.round(progress)}% concluído</p>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {!unlocked && (
+                                    <div className="absolute inset-0 bg-black/70 rounded-lg flex flex-col items-center justify-center text-center p-4">
+                                        <Lock className="h-8 w-8 text-primary mb-2" />
+                                        <p className="text-white font-semibold">Bloqueado</p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {daysRemaining !== null 
+                                                ? `Libera em ${daysRemaining} ${daysRemaining === 1 ? 'dia' : 'dias'}`
+                                                : 'Em breve'}
+                                        </p>
+                                    </div>
+                                    )}
+                                </div>
+                            </div>
+                        </Link>
                     </CarouselItem>
                   )
               })}
