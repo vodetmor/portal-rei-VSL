@@ -82,9 +82,9 @@ function EditCoursePageContent() {
         setTempDescription(courseData.description || '');
         setModules((courseData.modules || []).map(m => ({
           ...m,
-          id: uuidv4(), // Client-side ID
+          id: m.id || uuidv4(), // Use existing ID or generate new client-side ID
           releaseDelayDays: m.releaseDelayDays || 0,
-          lessons: (m.lessons || []).map(l => ({ ...l, id: uuidv4(), description: l.description || '', releaseDelayDays: l.releaseDelayDays || 0 }))
+          lessons: (m.lessons || []).map(l => ({ ...l, id: l.id || uuidv4(), description: l.description || '', videoUrl: l.videoUrl || '', releaseDelayDays: l.releaseDelayDays || 0 }))
         })));
       } else {
         toast({ variant: "destructive", title: "Erro", description: "Curso não encontrado." });
@@ -126,7 +126,7 @@ function EditCoursePageContent() {
   const addLesson = (moduleId: string) => {
     setModules(modules.map(m => 
       m.id === moduleId 
-        ? { ...m, lessons: [...m.lessons, { id: uuidv4(), title: '', description: '', videoUrl: '', releaseDelayDays: 0 }] }
+        ? { ...m, lessons: [...m.lessons, { id: uuidv4(), title: `Nova Aula ${m.lessons.length + 1}`, description: '', videoUrl: '', releaseDelayDays: 0 }] }
         : m
     ));
   };
@@ -154,11 +154,11 @@ function EditCoursePageContent() {
     
     try {
       const courseRef = doc(firestore, 'courses', courseId);
-      // Strip client-side 'id's and ensure releaseDelayDays is a number before saving
-      const modulesToSave = modules.map(({ id, lessons, ...rest }) => ({
+      // Ensure releaseDelayDays is a number before saving
+      const modulesToSave = modules.map(({ ...rest }) => ({
         ...rest,
         releaseDelayDays: Number(rest.releaseDelayDays || 0),
-        lessons: lessons.map(({ id: lessonId, ...lessonRest }) => ({
+        lessons: rest.lessons.map(({ ...lessonRest }) => ({
             ...lessonRest,
             releaseDelayDays: Number(lessonRest.releaseDelayDays || 0)
         }))
@@ -347,14 +347,14 @@ function ModuleEditor({ module, onUpdate, onRemove, onAddLesson, onUpdateLesson,
                             onChange={(e) => onUpdate(module.id, 'title', e.target.value)}
                             className="font-semibold flex-grow"
                         />
-                         <div className="relative w-32">
+                         <div className="relative w-36">
                             <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                             <Input
                                 type="number"
                                 placeholder="Dias para liberar"
                                 value={module.releaseDelayDays || ''}
                                 onChange={(e) => onUpdate(module.id, 'releaseDelayDays', Number(e.target.value))}
-                                className="pl-8 text-xs"
+                                className="pl-8"
                                 min={0}
                             />
                         </div>
@@ -495,14 +495,14 @@ function LessonEditor({ lesson, moduleId, lessonIndex, onUpdate, onRemove }: Les
           onChange={(e) => onUpdate(moduleId, lesson.id, 'title', e.target.value)}
           className="h-9 flex-grow"
         />
-        <div className="relative w-32">
+        <div className="relative w-36">
             <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
                 type="number"
                 placeholder="Dias"
                 value={lesson.releaseDelayDays || ''}
                 onChange={(e) => onUpdate(moduleId, lesson.id, 'releaseDelayDays', Number(e.target.value))}
-                className="h-9 pl-8 text-xs"
+                className="h-9 pl-8"
                 min={0}
             />
         </div>
