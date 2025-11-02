@@ -104,8 +104,8 @@ function AddCourseForm() {
     if (!firestore) return;
     setIsSubmitting(true);
     
-    const videoId = uuidv4();
-    const thumbnailUrl = `https://picsum.photos/seed/${videoId}/400/600`;
+    // Use a standard placeholder image instead of a random one.
+    const thumbnailUrl = 'https://placehold.co/400x600/0f0f0f/b3b3b3?text=400x600';
     const videoUrl = ''; // Placeholder for main course video, if any
 
     try {
@@ -114,7 +114,7 @@ function AddCourseForm() {
         description: data.description,
         videoUrl: videoUrl,
         thumbnailUrl: thumbnailUrl,
-        imageHint: 'abstract tech',
+        imageHint: 'placeholder',
         createdAt: new Date(),
         modules: modules.map(({ id, ...moduleRest }) => ({
             ...moduleRest,

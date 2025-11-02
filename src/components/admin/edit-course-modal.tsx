@@ -45,7 +45,7 @@ interface EditCourseModalProps {
   onCourseUpdate: () => void;
 }
 
-const DEFAULT_COURSE_IMAGE = "https://picsum.photos/seed/default-course/400/600";
+const DEFAULT_COURSE_IMAGE = "https://placehold.co/400x600/0f0f0f/b3b3b3?text=400x600";
 
 export function EditCourseModal({ isOpen, onClose, course, onCourseUpdate }: EditCourseModalProps) {
   const firestore = useFirestore();
