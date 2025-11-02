@@ -1,17 +1,18 @@
 'use client';
 import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, useCallback, useContext } from 'react';
+import { useEffect, useState, useCallback, useContext, useRef } from 'react';
 import { CourseCard } from '@/components/course-card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { doc, getDoc, collection, getDocs, setDoc, deleteDoc, type DocumentData } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { LayoutContext, LayoutProvider, useLayout } from '@/context/layout-context';
+import { ActionToolbar } from '@/components/ui/action-toolbar';
 
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Plus, Pencil, Save, X, Trophy, Gem, Crown, Star, type LucideIcon, Upload, Link2, Trash2, ChevronDown } from 'lucide-react';
+import { Plus, Pencil, Save, X, Trophy, Gem, Crown, Star, type LucideIcon, Upload, Link2, Trash2, ChevronDown, AlignCenter, AlignLeft, AlignRight, Edit3 } from 'lucide-react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -68,6 +69,10 @@ function DashboardClientPage() {
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
+  // Refs for editable content
+  const heroTitleRef = useRef<HTMLHeadingElement>(null);
+  const heroSubtitleRef = useRef<HTMLParagraphElement>(null);
+
   // States for temporary edits
   const [tempHeroTitle, setTempHeroTitle] = useState(layoutData.heroTitle);
   const [tempHeroSubtitle, setTempHeroSubtitle] = useState(layoutData.heroSubtitle);
@@ -89,12 +94,14 @@ function DashboardClientPage() {
 
   // Converts saved HTML (with span) to editable markdown (with *)
   const htmlToMarkdown = (html: string) => {
-    return html.replace(/<span class='text-primary'>(.*?)<\/span>/, '*$1*');
+    if (!html) return '';
+    return html.replace(/<span class='text-primary'>(.*?)<\/span>/g, '*$1*');
   };
 
   // Converts editable markdown (with *) to saveable HTML (with span)
   const markdownToHtml = (markdown: string) => {
-    return markdown.replace(/\*(.*?)\*/, "<span class='text-primary'>$1</span>");
+    if (!markdown) return '';
+    return markdown.replace(/\*(.*?)\*/g, "<span class='text-primary'>$1</span>");
   };
 
   const enterEditMode = () => {
@@ -104,15 +111,13 @@ function DashboardClientPage() {
     setTempMembersTitle(htmlToMarkdown(layoutData.membersTitle));
     setTempMembersSubtitle(layoutData.membersSubtitle);
     setTempMembersIcon(layoutData.membersIcon);
-    
     setTempHeroImageUrlInput(layoutData.heroImage);
-
     setImageInputMode('upload');
     setHeroImageFile(null);
     setUploadProgress(null);
-
     setIsEditMode(true);
   };
+
 
   const cancelEditMode = () => {
     setIsEditMode(false);
@@ -192,10 +197,9 @@ function DashboardClientPage() {
         membersSubtitle: tempMembersSubtitle,
         membersIcon: tempMembersIcon,
       };
-
+      
       await setDoc(layoutRef, dataToSave, { merge: true });
       
-      // Manually update local context state to reflect HTML changes immediately
       setLayoutData(prev => ({ 
           ...prev, 
           heroTitle: dataToSave.title,
@@ -340,7 +344,10 @@ function DashboardClientPage() {
     <AlertDialog onOpenChange={(open) => !open && setCourseToDelete(null)}>
       <div className="w-full">
         {/* Hero Section */}
-        <section className="relative flex h-[60vh] min-h-[450px] w-full flex-col items-center justify-center py-12">
+        <section className={cn(
+          "relative flex h-[60vh] min-h-[450px] w-full flex-col items-center justify-center py-12",
+          isEditMode && "border-2 border-dashed border-primary/50"
+        )}>
           {layoutData.isLoading ? <Skeleton className="absolute inset-0 z-0" /> : (
               <div className="absolute inset-0 z-0">
                 <Image
@@ -356,80 +363,30 @@ function DashboardClientPage() {
           )}
 
           <div className="relative z-10 mx-auto flex max-w-4xl flex-col items-start px-4 text-left">
-              {isEditMode ? (
-                  <div className='w-full max-w-lg space-y-4 rounded-xl bg-background/50 p-4 border border-border backdrop-blur-sm'>
-                      <Input 
-                        data-editable="true"
-                        value={tempHeroTitle}
-                        onChange={(e) => setTempHeroTitle(e.target.value)} 
-                        className="text-4xl font-bold tracking-tight md:text-5xl lg:text-6xl bg-transparent border-dashed"
-                      />
-                      <Input
-                        data-editable="true"
-                        value={tempHeroSubtitle}
-                        onChange={(e) => setTempHeroSubtitle(e.target.value)}
-                        className="mt-4 max-w-2xl text-lg md:text-xl bg-transparent border-dashed"
-                      />
-                     <Collapsible open={openCollapsible === 'banner'} onOpenChange={(isOpen) => setOpenCollapsible(isOpen ? 'banner' : null)}>
-                        <CollapsibleTrigger className="w-full">
-                            <div className="flex justify-between items-center w-full p-2 rounded-lg hover:bg-secondary/50">
-                                <p className="text-sm font-medium">Imagem do Banner</p>
-                                <ChevronDown className={cn("h-5 w-5 transition-transform", openCollapsible === 'banner' && 'rotate-180')} />
-                            </div>
-                        </CollapsibleTrigger>
-                        <CollapsibleContent className="mt-2 w-full space-y-2 px-2">
-                            <Tabs value={imageInputMode} onValueChange={(value) => setImageInputMode(value as 'upload' | 'url')} className="w-full">
-                                <TabsList className="grid w-full grid-cols-2">
-                                <TabsTrigger value="upload">Enviar Arquivo</TabsTrigger>
-                                <TabsTrigger value="url">Usar URL</TabsTrigger>
-                                </TabsList>
-                                <TabsContent value="upload" className="mt-4">
-                                <label htmlFor="hero-image-upload" className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-white border border-dashed rounded-md p-3 justify-center bg-background/50">
-                                    <Upload className="h-4 w-4" />
-                                    <span>{heroImageFile ? heroImageFile.name : 'Clique para selecionar a imagem'}</span>
-                                </label>
-                                <Input
-                                    id="hero-image-upload"
-                                    type="file"
-                                    accept="image/*"
-                                    onChange={handleHeroFileChange}
-                                    className="hidden"
-                                />
-                                {uploadProgress !== null && imageInputMode === 'upload' && (
-                                    <Progress value={uploadProgress} className="w-full h-2 mt-2" />
-                                )}
-                                </TabsContent>
-                                <TabsContent value="url" className="mt-4">
-                                <div className="relative">
-                                    <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                    <Input
-                                    type="text"
-                                    placeholder="https://exemplo.com/imagem.png"
-                                    value={tempHeroImageUrlInput}
-                                    onChange={handleHeroUrlInputChange}
-                                    className="w-full bg-background/50 pl-9"
-                                    />
-                                </div>
-                                </TabsContent>
-                            </Tabs>
-                            <Button onClick={handleRemoveHeroImage} variant="outline" size="sm" className="w-full gap-2 text-destructive border-destructive/50 hover:bg-destructive/10 hover:text-destructive">
-                                <Trash2 className="h-4 w-4" />
-                                Remover Imagem do Banner
-                            </Button>
-                        </CollapsibleContent>
-                    </Collapsible>
-                  </div>
-              ) : (
-                <>
-                  <h1 className="text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl"
-                      dangerouslySetInnerHTML={{ __html: layoutData.heroTitle }}
-                  />
+              <h1 
+                  ref={heroTitleRef}
+                  contentEditable={isEditMode}
+                  suppressContentEditableWarning={true}
+                  onInput={(e) => setTempHeroTitle(e.currentTarget.innerText)}
+                  className={cn(
+                    "text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl",
+                    isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
+                  )}
+                  dangerouslySetInnerHTML={{ __html: isEditMode ? tempHeroTitle : layoutData.heroTitle }}
+                />
 
-                  <p className="mt-4 max-w-2xl text-lg text-muted-foreground md:text-xl">
-                    {layoutData.heroSubtitle}
-                  </p>
-                </>
-              )}
+              <p 
+                ref={heroSubtitleRef}
+                contentEditable={isEditMode}
+                suppressContentEditableWarning={true}
+                onInput={(e) => setTempHeroSubtitle(e.currentTarget.innerText)}
+                className={cn(
+                  "mt-4 max-w-2xl text-lg text-muted-foreground md:text-xl",
+                  isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
+                )}
+              >
+                {isEditMode ? tempHeroSubtitle : layoutData.heroSubtitle}
+              </p>
 
             <div className="mt-8">
               <Button asChild size="lg" variant="default" className="bg-primary hover:bg-primary/90 text-primary-foreground">
@@ -445,14 +402,69 @@ function DashboardClientPage() {
             </div>
           )}
           {isAdmin && isEditMode && (
-             <div className="absolute top-24 right-8 z-30 flex gap-2">
-                <Button onClick={handleSaveChanges} disabled={isSaving}>
-                    <Save className="mr-2 h-4 w-4" /> {isSaving ? 'Salvando...' : 'Salvar'}
-                </Button>
-                <Button onClick={cancelEditMode} variant="secondary">
-                    <X className="mr-2 h-4 w-4" /> Cancelar
-                </Button>
-            </div>
+             <div className="absolute top-24 right-8 z-30 flex flex-col items-end gap-4">
+                 <div className="flex gap-2">
+                    <Button onClick={handleSaveChanges} disabled={isSaving}>
+                        <Save className="mr-2 h-4 w-4" /> {isSaving ? 'Salvando...' : 'Salvar'}
+                    </Button>
+                    <Button onClick={cancelEditMode} variant="secondary">
+                        <X className="mr-2 h-4 w-4" /> Cancelar
+                    </Button>
+                </div>
+                <ActionToolbar buttons={[
+                    { label: "Left", icon: <AlignLeft className="size-4" /> },
+                    { label: "Center", icon: <AlignCenter className="size-4" /> },
+                    { label: "Right", icon: <AlignRight className="size-4" /> },
+                ]}/>
+                 <Collapsible open={openCollapsible === 'banner'} onOpenChange={(isOpen) => setOpenCollapsible(isOpen ? 'banner' : null)} className="w-full max-w-xs">
+                    <CollapsibleTrigger className="w-full bg-background/50 border border-border rounded-lg backdrop-blur-sm">
+                        <div className="flex justify-between items-center w-full p-2 rounded-lg hover:bg-secondary/50">
+                            <p className="text-sm font-medium">Editar Banner</p>
+                            <ChevronDown className={cn("h-5 w-5 transition-transform", openCollapsible === 'banner' && 'rotate-180')} />
+                        </div>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-2 w-full space-y-2 p-4 rounded-lg bg-background/50 border border-border backdrop-blur-sm">
+                        <Tabs value={imageInputMode} onValueChange={(value) => setImageInputMode(value as 'upload' | 'url')} className="w-full">
+                            <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="upload">Enviar Arquivo</TabsTrigger>
+                            <TabsTrigger value="url">Usar URL</TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="upload" className="mt-4">
+                            <label htmlFor="hero-image-upload" className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-white border border-dashed rounded-md p-3 justify-center bg-background/50">
+                                <Upload className="h-4 w-4" />
+                                <span>{heroImageFile ? heroImageFile.name : 'Clique para selecionar a imagem'}</span>
+                            </label>
+                            <Input
+                                id="hero-image-upload"
+                                type="file"
+                                accept="image/*"
+                                onChange={handleHeroFileChange}
+                                className="hidden"
+                            />
+                            {uploadProgress !== null && imageInputMode === 'upload' && (
+                                <Progress value={uploadProgress} className="w-full h-2 mt-2" />
+                            )}
+                            </TabsContent>
+                            <TabsContent value="url" className="mt-4">
+                            <div className="relative">
+                                <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                type="text"
+                                placeholder="https://exemplo.com/imagem.png"
+                                value={tempHeroImageUrlInput}
+                                onChange={handleHeroUrlInputChange}
+                                className="w-full bg-background/50 pl-9"
+                                />
+                            </div>
+                            </TabsContent>
+                        </Tabs>
+                        <Button onClick={handleRemoveHeroImage} variant="outline" size="sm" className="w-full gap-2 text-destructive border-destructive/50 hover:bg-destructive/10 hover:text-destructive">
+                            <Trash2 className="h-4 w-4" />
+                            Remover Imagem do Banner
+                        </Button>
+                    </CollapsibleContent>
+                </Collapsible>
+             </div>
           )}
 
         </section>
@@ -614,3 +626,5 @@ export default function DashboardPage() {
     </LayoutProvider>
   )
 }
+
+    
