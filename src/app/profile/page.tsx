@@ -126,7 +126,7 @@ export default function ProfilePage() {
   }, [avatarFile, user, toast]);
 
   const onProfileSubmit = async (data: ProfileFormValues) => {
-    if (!user || !firestore || !auth) return;
+    if (!user || !firestore || !auth?.currentUser) return;
     setIsSavingProfile(true);
     setUploadProgress(null);
 
@@ -142,7 +142,7 @@ export default function ProfilePage() {
         photoURL = avatarUrlInput;
       }
 
-      await updateProfile(user, {
+      await updateProfile(auth.currentUser, {
         displayName: data.displayName,
         photoURL: photoURL,
       });
@@ -345,5 +345,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-    
