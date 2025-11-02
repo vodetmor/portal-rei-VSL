@@ -46,6 +46,7 @@ function ManageUserAccessPage() {
   const [courseAccess, setCourseAccess] = useState<CourseAccess>({});
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isConfirmingRoleChange, setIsConfirmingRoleChange] = useState(false);
 
   const fetchData = useCallback(async () => {
     if (!firestore || !userId) return;
@@ -135,14 +136,14 @@ function ManageUserAccessPage() {
     }
   };
   
-    const handleRoleChange = async () => {
+  const handleRoleChangeConfirm = async () => {
     if (!firestore || !user) return;
-    const newRole = isAdmin ? 'user' : 'admin';
+    const newRole = !isAdmin ? 'admin' : 'user';
     const userRef = doc(firestore, 'users', user.id);
 
     try {
       await updateDoc(userRef, { role: newRole });
-      setIsAdmin(newRole === 'admin');
+      setIsAdmin(newRole === 'admin'); // This updates the state after successful Firestore update
       toast({
         title: "Função Atualizada!",
         description: `${user.displayName} agora é ${newRole === 'admin' ? 'um administrador' : 'um usuário'}.`,
@@ -160,8 +161,16 @@ function ManageUserAccessPage() {
         title: "Erro de Permissão",
         description: "Não foi possível alterar a função do usuário.",
       });
+      // No need to revert isAdmin here, as it was not changed optimistically
+    } finally {
+      setIsConfirmingRoleChange(false);
     }
   };
+
+  const onSwitchChange = () => {
+      if (isOwner) return;
+      setIsConfirmingRoleChange(true);
+  }
 
   const isOwner = user?.email === 'admin@reidavsl.com';
 
@@ -210,22 +219,18 @@ function ManageUserAccessPage() {
           <CardDescription>Promova ou rebaixe o usuário da função de administrador.</CardDescription>
         </CardHeader>
         <CardContent>
-            <AlertDialog>
+            <AlertDialog open={isConfirmingRoleChange} onOpenChange={setIsConfirmingRoleChange}>
                 <div className="flex items-center justify-between p-4 rounded-lg border bg-secondary/50">
                     <div>
                         <Label htmlFor="admin-switch" className="font-medium text-white">Administrador</Label>
                         <p className="text-sm text-muted-foreground">Concede permissões para gerenciar todo o site.</p>
                     </div>
-                    <AlertDialogTrigger asChild disabled={isOwner}>
-                        <Switch
-                            id="admin-switch"
-                            checked={isAdmin}
-                            // The onCheckedChange is handled by the AlertDialog confirmation
-                            // This just triggers the dialog
-                            onCheckedChange={() => {}} 
-                            disabled={isOwner}
-                        />
-                    </AlertDialogTrigger>
+                    <Switch
+                        id="admin-switch"
+                        checked={isAdmin}
+                        onCheckedChange={onSwitchChange} 
+                        disabled={isOwner}
+                    />
                      {isOwner && <p className="text-xs text-primary">O dono do site não pode ser alterado.</p>}
                 </div>
                 <AlertDialogContent>
@@ -239,7 +244,7 @@ function ManageUserAccessPage() {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleRoleChange}>Confirmar</AlertDialogAction>
+                        <AlertDialogAction onClick={handleRoleChangeConfirm}>Confirmar</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
