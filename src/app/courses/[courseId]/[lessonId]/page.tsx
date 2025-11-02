@@ -622,6 +622,7 @@ export default function LessonPage() {
                                         lessonId={lessonId as string}
                                         currentUserId={user?.uid}
                                         isAdmin={isAdmin}
+                                        onDelete={handleDeleteComment}
                                     />
                                 ))
                             ) : (
@@ -638,7 +639,7 @@ export default function LessonPage() {
   );
 }
 
-// --- Comment Component and its sub-components ---
+// --- Comment Components ---
 
 interface CommentProps {
     comment: LessonComment;
@@ -646,19 +647,12 @@ interface CommentProps {
     lessonId: string;
     currentUserId?: string;
     isAdmin?: boolean;
+    onDelete: (commentId: string) => void;
 }
 
-function Comment({ comment, courseId, lessonId, currentUserId, isAdmin }: CommentProps) {
+function Comment({ comment, courseId, lessonId, currentUserId, isAdmin, onDelete }: CommentProps) {
     const firestore = useFirestore();
-    const { toast } = useToast();
     const [showReplies, setShowReplies] = useState(false);
-    
-    const repliesQuery = useMemoFirebase(() => {
-        if (!firestore || !showReplies) return null;
-        return query(collection(firestore, `courses/${courseId}/lessons/${lessonId}/comments/${comment.id}/replies`), orderBy('timestamp', 'asc'));
-    }, [firestore, courseId, lessonId, comment.id, showReplies]);
-
-    const { data: replies, isLoading: repliesLoading } = useCollection<CommentReply>(repliesQuery);
 
     const handleTogglePin = () => {
         if (!isAdmin || !firestore) return;
@@ -669,7 +663,6 @@ function Comment({ comment, courseId, lessonId, currentUserId, isAdmin }: Commen
 
     const handleLike = () => {
         if (!currentUserId || !firestore) return;
-
         const commentRef = doc(firestore, `courses/${courseId}/lessons/${lessonId}/comments`, comment.id);
         const likeRef = doc(firestore, `courses/${courseId}/lessons/${lessonId}/comments/${comment.id}/likes`, currentUserId);
 
@@ -684,7 +677,7 @@ function Comment({ comment, courseId, lessonId, currentUserId, isAdmin }: Commen
             }
         }).catch(err => console.error("Like transaction error: ", err));
     };
-
+    
     return (
         <div className={cn("flex items-start gap-4", comment.isPinned && "bg-secondary/30 p-4 rounded-lg")}>
             <Avatar className="h-10 w-10">
@@ -697,13 +690,8 @@ function Comment({ comment, courseId, lessonId, currentUserId, isAdmin }: Commen
                     <div className="flex items-center gap-2">
                         {comment.isPinned && <Pin className="h-4 w-4 text-primary" />}
                         <p className="text-xs text-muted-foreground">{comment.timestamp ? formatDistanceToNow(comment.timestamp.toDate(), { addSuffix: true, locale: ptBR }) : ''}</p>
-                        {(isAdmin || currentUserId === comment.userId) && (
-                            <Trash2 className="h-3 w-3 text-destructive/70 cursor-pointer" onClick={() => {
-                                 if (!firestore) return;
-                                 deleteDoc(doc(firestore, `courses/${courseId}/lessons/${lessonId}/comments`, comment.id))
-                                    .then(() => toast({ title: 'Comentário excluído.' }))
-                                    .catch(err => console.error(err));
-                            }}/>
+                         {(isAdmin || currentUserId === comment.userId) && (
+                            <Trash2 className="h-3 w-3 text-destructive/70 cursor-pointer" onClick={() => onDelete(comment.id)}/>
                         )}
                     </div>
                 </div>
@@ -726,30 +714,67 @@ function Comment({ comment, courseId, lessonId, currentUserId, isAdmin }: Commen
                 {showReplies && (
                     <div className="mt-4 space-y-4">
                         <ReplyForm courseId={courseId} lessonId={lessonId} commentId={comment.id} />
-                         <div className="space-y-4 pl-8 border-l border-border/50">
-                            {repliesLoading && <Skeleton className="h-10 w-full" />}
-                            {replies?.map(reply => (
-                                <div key={reply.id} className="flex items-start gap-3">
-                                    <Avatar className="h-8 w-8">
-                                        <AvatarImage src={reply.userPhotoURL} />
-                                        <AvatarFallback>{reply.userDisplayName.charAt(0)}</AvatarFallback>
-                                    </Avatar>
-                                     <div className="flex-1">
-                                        <div className="flex items-baseline gap-2">
-                                             <p className="font-semibold text-white text-sm">{reply.userDisplayName}</p>
-                                              <p className="text-xs text-muted-foreground">{reply.timestamp ? formatDistanceToNow(reply.timestamp.toDate(), { addSuffix: true, locale: ptBR }) : ''}</p>
-                                        </div>
-                                        <div className="text-muted-foreground text-sm whitespace-pre-wrap prose-sm prose-invert max-w-none">{makeLinksClickable(reply.text)}</div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
+                        <ReplyList courseId={courseId} lessonId={lessonId} commentId={comment.id} />
                     </div>
                 )}
             </div>
         </div>
     );
 }
+
+interface ReplyListProps {
+    courseId: string;
+    lessonId: string;
+    commentId: string;
+}
+
+function ReplyList({ courseId, lessonId, commentId }: ReplyListProps) {
+    const firestore = useFirestore();
+    const repliesQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(collection(firestore, `courses/${courseId}/lessons/${lessonId}/comments/${commentId}/replies`), orderBy('timestamp', 'asc'));
+    }, [firestore, courseId, lessonId, commentId]);
+
+    const { data: replies, isLoading: repliesLoading } = useCollection<CommentReply>(repliesQuery);
+
+    if (repliesLoading) {
+        return <Skeleton className="h-10 w-full mt-4" />;
+    }
+
+    return (
+        <div className="space-y-4 pl-8 border-l border-border/50">
+            {replies?.map(reply => (
+                <ReplyItem key={reply.id} reply={reply} />
+            ))}
+        </div>
+    );
+}
+
+
+interface ReplyItemProps {
+  reply: CommentReply;
+}
+
+function ReplyItem({ reply }: ReplyItemProps) {
+  return (
+    <div className="flex items-start gap-3">
+        <Avatar className="h-8 w-8">
+            <AvatarImage src={reply.userPhotoURL} />
+            <AvatarFallback>{reply.userDisplayName.charAt(0)}</AvatarFallback>
+        </Avatar>
+        <div className="flex-1">
+            <div className="flex items-baseline gap-2">
+                <p className="font-semibold text-white text-sm">{reply.userDisplayName}</p>
+                <p className="text-xs text-muted-foreground">{reply.timestamp ? formatDistanceToNow(reply.timestamp.toDate(), { addSuffix: true, locale: ptBR }) : ''}</p>
+            </div>
+            <div className="text-muted-foreground text-sm whitespace-pre-wrap prose-sm prose-invert max-w-none">
+                {makeLinksClickable(reply.text)}
+            </div>
+        </div>
+    </div>
+  );
+}
+
 
 interface ReplyFormProps {
     courseId: string;
@@ -780,7 +805,8 @@ function ReplyForm({ courseId, lessonId, commentId }: ReplyFormProps) {
         };
 
         runTransaction(firestore, async (transaction) => {
-            transaction.set(doc(replyCollectionRef), replyData);
+            const newReplyRef = doc(replyCollectionRef);
+            transaction.set(newReplyRef, replyData);
             transaction.update(commentRef, { replyCount: increment(1) });
         }).then(() => {
             setReplyText('');
