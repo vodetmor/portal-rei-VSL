@@ -10,7 +10,7 @@ import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Plus, Pencil, Save, X, Trophy, Gem, Crown, Star, type LucideIcon, Upload, Link2 } from 'lucide-react';
+import { Plus, Pencil, Save, X, Trophy, Gem, Crown, Star, type LucideIcon, Upload, Link2, Trash2 } from 'lucide-react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -136,7 +136,7 @@ export default function DashboardPage() {
     setTempMembersTitle(membersTitle);
     setTempMembersSubtitle(membersSubtitle);
     setTempMembersIcon(membersIcon);
-    setTempHeroImageUrlInput(heroImage);
+    setTempHeroImageUrlInput(heroImage === DEFAULT_HERO_IMAGE ? '' : heroImage);
     setImageInputMode('upload');
     setHeroImageFile(null);
     setUploadProgress(null);
@@ -166,6 +166,12 @@ export default function DashboardPage() {
     if (newUrl.startsWith('http://') || newUrl.startsWith('https://')) {
       setTempHeroImage(newUrl);
     }
+  };
+
+  const handleRemoveImage = () => {
+    setTempHeroImage(DEFAULT_HERO_IMAGE);
+    setTempHeroImageUrlInput('');
+    setHeroImageFile(null);
   };
 
 
@@ -426,6 +432,10 @@ export default function DashboardPage() {
                            </div>
                         </TabsContent>
                       </Tabs>
+                        <Button onClick={handleRemoveImage} variant="outline" size="sm" className="w-full gap-2 text-destructive border-destructive/50 hover:bg-destructive/10 hover:text-destructive">
+                           <Trash2 className="h-4 w-4" />
+                            Remover Imagem
+                        </Button>
                     </div>
                   </div>
               ) : (
@@ -603,3 +613,5 @@ export default function DashboardPage() {
     </AlertDialog>
   );
 }
+
+    
