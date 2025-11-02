@@ -43,7 +43,7 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Courses can be read by any authenticated user if published, or by admins if draft.
+    // Courses can be read by anyone if published, or by admins if draft.
     // Courses can only be written by admins.
     match /courses/{courseId} {
       allow read: if resource.data.status == 'published' || isAdmin();

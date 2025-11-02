@@ -13,7 +13,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { CourseCard } from '@/components/course-card';
-import { Plus, Pencil, Save, X, Upload, Link2, Bold, Italic, Underline, Palette, Smartphone, Monitor, Lock } from 'lucide-react';
+import { Plus, Pencil, Save, X, Upload, Link2, Bold, Italic, Underline, Palette, Smartphone, Monitor, Lock, Trophy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -30,7 +30,7 @@ interface Module {
     thumbnailUrl: string;
     imageHint: string;
     releaseDelayDays?: number;
-    lessons: { id: string; releaseDelayDays?: number }[];
+    lessons: { id: string; title: string; releaseDelayDays?: number }[];
 }
   
 interface Course extends DocumentData {
@@ -46,6 +46,10 @@ interface Course extends DocumentData {
 
 interface CourseAccessInfo {
     grantedAt: string; // ISO string date
+}
+
+interface UserProgress {
+    completedLessons: Record<string, any>;
 }
 
 const DEFAULT_HERO_IMAGE_DESKTOP = "https://i.imgur.com/1X3ta7W.png";
@@ -67,6 +71,7 @@ export default function CoursePlayerPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [activeEditor, setActiveEditor] = useState<string | null>(null);
   const [courseAccessInfo, setCourseAccessInfo] = useState<CourseAccessInfo | null>(null);
+  const [userProgress, setUserProgress] = useState<UserProgress | null>(null);
 
 
   // Temp states for editing
@@ -160,7 +165,7 @@ export default function CoursePlayerPage() {
         setHeroImageUrlInputDesktop(courseData.heroImageUrlDesktop || '');
         setHeroImageUrlInputMobile(courseData.heroImageUrlMobile || '');
 
-        // Step 4: Verify access record
+        // Step 4: Verify access record & Fetch progress
         if (userIsAdmin) {
           // Admins always have access
           setCourseAccessInfo({ grantedAt: new Date().toISOString() });
@@ -172,6 +177,14 @@ export default function CoursePlayerPage() {
             const accessData = accessSnap.data();
             const grantedAtDate = accessData.grantedAt.toDate();
             setCourseAccessInfo({ grantedAt: grantedAtDate.toISOString() });
+
+            // Fetch progress only if access is confirmed
+            const progressRef = doc(firestore, `users/${user.uid}/progress`, courseId);
+            const progressSnap = await getDoc(progressRef);
+            if (progressSnap.exists()) {
+                setUserProgress(progressSnap.data() as UserProgress);
+            }
+
           } else {
             // If not an admin and no access record, deny access
             toast({ variant: "destructive", title: "Acesso Negado", description: "Você não tem acesso a este curso."});
@@ -327,6 +340,18 @@ export default function CoursePlayerPage() {
     const daysRemaining = differenceInDays(releaseDate, new Date());
     
     return daysRemaining >= 0 ? daysRemaining : null; // Return null if date has passed
+  };
+
+  const calculateModuleProgress = (module: Module) => {
+    if (!userProgress) return 0;
+    const moduleLessons = module.lessons || [];
+    if (moduleLessons.length === 0) return 0;
+
+    const completedLessonsInModule = moduleLessons.filter(
+        lesson => userProgress.completedLessons?.[lesson.id]
+    ).length;
+    
+    return (completedLessonsInModule / moduleLessons.length) * 100;
   };
 
 
@@ -531,12 +556,14 @@ export default function CoursePlayerPage() {
               {course.modules.map((module, index) => {
                   const unlocked = isModuleUnlocked(module);
                   const daysRemaining = getDaysUntilRelease(module);
+                  const progress = unlocked ? calculateModuleProgress(module) : null;
 
                   return (
                     <CarouselItem key={module.id || index} className="basis-1/2 md:basis-1/3 lg:basis-1/4 xl:basis-1/5">
                       <div className="relative p-1">
                         <CourseCard
                           course={{ ...module, id: module.id || `module-${index}` }}
+                          progress={progress}
                           priority={index < 5}
                           isAdmin={false} // Editing happens at the course level for now
                           isLocked={!unlocked}
@@ -575,28 +602,4 @@ export default function CoursePlayerPage() {
       </section>
     </div>
   );
-}
-
-function TrophyIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" />
-      <path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" />
-      <path d="M4 22h16" />
-      <path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" />
-      <path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" />
-      <path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" />
-    </svg>
-  )
 }
