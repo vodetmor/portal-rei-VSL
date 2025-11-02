@@ -94,8 +94,7 @@ export function Header() {
 				'transition-all ease-out duration-500 z-[100] w-full',
                 !isEditMode && 'sticky top-0',
 				{
-					'bg-transparent': !scrolled && !open,
-					'bg-background/80': scrolled || open,
+					'bg-transparent': true,
 				}
 			)}
 		>
