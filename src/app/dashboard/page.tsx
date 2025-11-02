@@ -341,17 +341,29 @@ function DashboardClientPage() {
     const titleEl = titleRef.current;
     const subtitleEl = subtitleRef.current;
     const ctaEl = ctaRef.current;
-
-    if (isEditMode) {
-      if (titleEl && titleEl.innerHTML !== tempHeroTitle) titleEl.innerHTML = tempHeroTitle;
-      if (subtitleEl && subtitleEl.innerHTML !== tempHeroSubtitle) subtitleEl.innerHTML = tempHeroSubtitle;
-      if (ctaEl && ctaEl.innerHTML !== tempCtaText) ctaEl.innerHTML = tempCtaText;
-    } else {
-      if (titleEl && titleEl.innerHTML !== layoutData.heroTitle) titleEl.innerHTML = layoutData.heroTitle;
-      if (subtitleEl && subtitleEl.innerHTML !== layoutData.heroSubtitle) subtitleEl.innerHTML = layoutData.heroSubtitle;
-      if (ctaEl && ctaEl.innerHTML !== layoutData.ctaText) ctaEl.innerHTML = layoutData.ctaText;
+  
+    if (titleEl && isEditMode) {
+      titleEl.innerHTML = tempHeroTitle;
     }
-}, [isEditMode, layoutData.heroTitle, layoutData.heroSubtitle, layoutData.ctaText, tempHeroTitle, tempHeroSubtitle, tempCtaText]);
+    if (subtitleEl && isEditMode) {
+      subtitleEl.innerHTML = tempHeroSubtitle;
+    }
+    if (ctaEl && isEditMode) {
+        ctaEl.innerHTML = tempCtaText;
+    }
+}, [isEditMode, tempHeroTitle, tempHeroSubtitle, tempCtaText]);
+
+// Load initial data into non-edit mode
+useEffect(() => {
+    const titleEl = titleRef.current;
+    const subtitleEl = subtitleRef.current;
+    const ctaEl = ctaRef.current;
+    if (!isEditMode) {
+        if (titleEl) titleEl.innerHTML = layoutData.heroTitle;
+        if (subtitleEl) subtitleEl.innerHTML = layoutData.heroSubtitle;
+        if (ctaEl) ctaEl.innerHTML = layoutData.ctaText;
+    }
+}, [isEditMode, layoutData]);
 
 
   if (userLoading || !user || layoutData.isLoading) {
@@ -363,7 +375,12 @@ function DashboardClientPage() {
   }
   
   const heroContainerClasses = cn(
-    "relative z-10 mx-auto flex w-full max-w-4xl flex-col items-center px-4",
+    "relative z-10 mx-auto flex w-full max-w-4xl flex-col px-4",
+    {
+      'items-start': heroAlignment === 'left',
+      'items-center': heroAlignment === 'center',
+      'items-end': heroAlignment === 'end'
+    }
   );
 
   const textContainerClasses = cn(
@@ -449,7 +466,6 @@ function DashboardClientPage() {
                     }}
                     className={cn(
                         "max-w-2xl text-lg text-muted-foreground md:text-xl",
-                        {'mx-auto': heroAlignment === 'center', 'ml-auto': heroAlignment === 'end', 'mr-auto': heroAlignment === 'left'},
                         isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
                     )}
                 />
@@ -543,10 +559,10 @@ function DashboardClientPage() {
         </section>
 
         {/* All Courses Section */}
-        <section ref={coursesSectionRef} className="container mx-auto px-4 py-16 md:px-8 space-y-12 pt-20">
+        <section ref={coursesSectionRef} className="container mx-auto px-4 py-16 md:px-8 space-y-12">
           
            <div>
-            <div className="flex justify-between items-center mb-4">
+            <div className="flex justify-between items-center mb-4 pt-20">
                 <h2 className="text-2xl font-bold text-white">Todos os Cursos</h2>
                  {isAdmin && (
                     <Button asChild variant="outline" size="sm">

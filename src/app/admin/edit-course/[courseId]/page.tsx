@@ -162,7 +162,7 @@ function EditCoursePageContent() {
 
   if (loading) {
     return (
-        <div className="container mx-auto px-4 py-8 pt-24 md:px-8 space-y-6">
+        <div className="container mx-auto px-4 py-8 md:px-8 space-y-6 pt-20">
             <Skeleton className="h-10 w-48" />
             <Skeleton className="h-8 w-1/3" />
             <Skeleton className="h-40 w-full" />
@@ -174,8 +174,8 @@ function EditCoursePageContent() {
   if (!course) return null;
 
   return (
-    <div className="container mx-auto px-4 py-8 pt-24 md:px-8">
-      <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
+    <div className="container mx-auto px-4 py-8 md:px-8">
+      <div className="flex flex-wrap justify-between items-center gap-4 mb-8 pt-20">
         <div>
           <Button asChild variant="outline" size="sm" className="mb-2">
             <Link href={`/courses/${courseId}`}><ArrowLeft className="mr-2 h-4 w-4" />Voltar para o Curso</Link>

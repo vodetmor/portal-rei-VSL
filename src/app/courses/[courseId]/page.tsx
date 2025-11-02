@@ -12,7 +12,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { CourseCard } from '@/components/course-card';
-import { Plus, Pencil, Save, X, Upload, Link2, Bold, Italic, Underline, Palette, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
+import { Plus, Pencil, Save, X, Upload, Link2, Bold, Italic, Underline, Palette, AlignLeft, AlignCenter, AlignRight, Trophy } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -209,7 +209,7 @@ export default function CoursePlayerPage() {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8 pt-24 md:px-8">
+      <div className="container mx-auto px-4 py-8 md:px-8 pt-20">
         <Skeleton className="h-[40vh] w-full mb-8" />
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
             {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="aspect-[2/3] w-full" />)}
@@ -333,7 +333,7 @@ export default function CoursePlayerPage() {
 
       {/* Modules Grid */}
       <section className="container mx-auto px-4 py-12 md:px-8">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-center mb-6 pt-20">
             <div className="flex items-center gap-3">
                 <TrophyIcon className="h-8 w-8 text-primary" />
                 <div>

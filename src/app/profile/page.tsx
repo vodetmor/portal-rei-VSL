@@ -204,8 +204,8 @@ export default function ProfilePage() {
   }
 
   return (
-    <div className="container mx-auto max-w-4xl px-4 py-8 pt-24 md:px-8">
-      <div className="mb-8">
+    <div className="container mx-auto max-w-4xl px-4 py-8 md:px-8">
+      <div className="mb-8 pt-20">
         <h1 className="text-3xl font-bold text-white">Configurações da Conta</h1>
         <p className="text-muted-foreground">Gerencie suas informações de perfil e segurança.</p>
       </div>

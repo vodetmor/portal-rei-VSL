@@ -69,8 +69,8 @@ function UserManagementPage() {
   }, [users, searchTerm]);
 
   return (
-    <div className="container mx-auto px-4 py-8 pt-24 md:px-8">
-      <div className="mb-6 flex flex-wrap justify-between items-center gap-4">
+    <div className="container mx-auto px-4 py-8 md:px-8">
+      <div className="mb-6 flex flex-wrap justify-between items-center gap-4 pt-20">
         <div>
             <Button asChild variant="outline" size="sm" className="mb-2">
                 <Link href="/admin">

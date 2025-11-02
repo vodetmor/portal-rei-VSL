@@ -131,7 +131,7 @@ function ManageUserAccessPage() {
 
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8 pt-24 md:px-8 space-y-6">
+      <div className="container mx-auto px-4 py-8 md:px-8 space-y-6 pt-20">
         <Skeleton className="h-10 w-48" />
         <Skeleton className="h-16 w-full" />
         <Skeleton className="h-64 w-full" />
@@ -144,8 +144,8 @@ function ManageUserAccessPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 pt-24 md:px-8">
-      <div className="mb-6">
+    <div className="container mx-auto px-4 py-8 md:px-8">
+      <div className="mb-6 pt-20">
         <Button asChild variant="outline" size="sm">
           <Link href="/admin/users">
             <ArrowLeft className="mr-2 h-4 w-4" />
