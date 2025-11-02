@@ -12,6 +12,11 @@ service cloud.firestore {
          get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
     }
 
+    // Helper function to check if a user has been granted access to a specific course.
+    function hasCourseAccess(courseId) {
+      return request.auth != null && exists(/databases/$(database)/documents/users/$(request.auth.uid)/courseAccess/$(courseId));
+    }
+
     // User documents can be read by their owner or an admin.
     // Admins can list all users.
     // Users can only create their own document. Admins can update any user document.
@@ -43,10 +48,12 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Courses can be read by anyone if published, or by admins if draft.
-    // Courses can only be written by admins.
+    // Courses can be read if:
+    // 1. They are published.
+    // 2. The user is an admin.
+    // 3. The user has a specific access record for this course.
     match /courses/{courseId} {
-      allow read: if resource.data.status == 'published' || isAdmin();
+      allow read: if resource.data.status == 'published' || isAdmin() || hasCourseAccess(courseId);
       allow write: if isAdmin();
     }
 

@@ -122,26 +122,41 @@ export default function CoursePlayerPage() {
   useEffect(() => {
     // This effect runs when user status changes or firestore is available
     const checkAccessAndFetchData = async () => {
-      // Wait until user loading is finished
-      if (userLoading) {
-        return;
-      }
+      if (userLoading) return;
 
-      // If loading is done and there's no user, redirect
       if (!user) {
         toast({ variant: "destructive", title: "Acesso Negado", description: "Você precisa estar logado para ver este curso."});
         router.push('/login');
         return;
       }
 
-      // At this point, we have a user. Now fetch course and check permissions.
       setLoading(true);
 
       try {
         const userIsAdmin = await checkAdminStatus();
         setIsAdmin(userIsAdmin);
 
-        // Step 2: Fetch course data
+        let hasAccess = userIsAdmin;
+        let accessTimestamp: Date | null = null;
+
+        if (!userIsAdmin) {
+            const accessRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId);
+            const accessSnap = await getDoc(accessRef);
+            if (accessSnap.exists()) {
+                hasAccess = true;
+                accessTimestamp = accessSnap.data().grantedAt.toDate();
+                setCourseAccessInfo({ grantedAt: accessTimestamp!.toISOString() });
+            }
+        } else {
+             setCourseAccessInfo({ grantedAt: new Date().toISOString() });
+        }
+        
+        if (!hasAccess) {
+            toast({ variant: "destructive", title: "Acesso Negado", description: "Você não tem acesso a este curso."});
+            router.push('/dashboard');
+            return;
+        }
+
         const courseRef = doc(firestore, 'courses', courseId);
         const courseSnap = await getDoc(courseRef);
         if (!courseSnap.exists()) {
@@ -151,13 +166,6 @@ export default function CoursePlayerPage() {
         }
 
         const courseData = { id: courseSnap.id, ...courseSnap.data() } as Course;
-        
-        // Step 3: Verify access and status
-        if (!userIsAdmin && courseData.status !== 'published') {
-            toast({ variant: "destructive", title: "Curso Indisponível", description: "Este curso não está disponível no momento."});
-            router.push('/dashboard');
-            return;
-        }
         
         setCourse(courseData);
         // Initialize editing states
@@ -169,30 +177,6 @@ export default function CoursePlayerPage() {
         setHeroImageUrlInputDesktop(courseData.heroImageUrlDesktop || '');
         setHeroImageUrlInputMobile(courseData.heroImageUrlMobile || '');
 
-        // Step 4: Verify access record & Fetch progress
-        let hasAccess = false;
-        if (userIsAdmin) {
-          hasAccess = true;
-          setCourseAccessInfo({ grantedAt: new Date().toISOString() });
-        } else {
-          // Check for specific course access for regular users
-          const accessRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId);
-          const accessSnap = await getDoc(accessRef);
-          if (accessSnap.exists()) {
-            hasAccess = true;
-            const accessData = accessSnap.data();
-            const grantedAtDate = accessData.grantedAt.toDate();
-            setCourseAccessInfo({ grantedAt: grantedAtDate.toISOString() });
-          }
-        }
-        
-        if (!hasAccess) {
-            toast({ variant: "destructive", title: "Acesso Negado", description: "Você não tem acesso a este curso."});
-            router.push('/dashboard');
-            return;
-        }
-
-        // Step 5: Fetch progress for the user if they have access
         const progressRef = doc(firestore, `users/${user.uid}/progress`, courseId);
         const progressSnap = await getDoc(progressRef);
         if (progressSnap.exists()) {
@@ -201,7 +185,12 @@ export default function CoursePlayerPage() {
 
       } catch (error) {
         console.error('Error fetching course or access:', error);
-        toast({ variant: "destructive", title: "Erro", description: "Ocorreu um erro ao carregar o curso."});
+        const permissionError = new FirestorePermissionError({
+            path: `courses/${courseId}`,
+            operation: 'get',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        toast({ variant: "destructive", title: "Erro de Permissão", description: "Ocorreu um erro ao carregar o curso."});
       } finally {
         setLoading(false);
       }
@@ -370,7 +359,7 @@ export default function CoursePlayerPage() {
     return (completedLessonsInModule / moduleLessons.length) * 100;
   };
   
-    const applyFormat = (command: string, value?: string) => {
+    const applyFormat = (command: string, value: string | undefined = undefined) => {
         document.execCommand(command, false, value);
     };
 
@@ -638,5 +627,3 @@ export default function CoursePlayerPage() {
     </div>
   );
 }
-
-    
