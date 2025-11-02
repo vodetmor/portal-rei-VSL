@@ -24,6 +24,7 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogTrigger
 } from "@/components/ui/alert-dialog"
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -66,6 +67,8 @@ function DashboardClientPage() {
 
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [activeEditor, setActiveEditor] = useState<string | null>(null);
+
 
   // States for temporary edits
   const [tempHeroTitle, setTempHeroTitle] = useState(layoutData.heroTitle);
@@ -88,6 +91,12 @@ function DashboardClientPage() {
   const SelectedIcon = iconMap[isEditMode ? tempMembersIcon : layoutData.membersIcon] || Trophy;
 
   const applyFormat = (command: string) => {
+    const editorId = activeEditor;
+    if (!editorId) return;
+
+    const editorElement = document.getElementById(editorId);
+    if (!editorElement || !editorElement.isContentEditable) return;
+    
     // For applying color, we'll wrap the selection in a span
     if (command === 'foreColor') {
       const selection = window.getSelection();
@@ -96,24 +105,18 @@ function DashboardClientPage() {
       const selectedText = range.toString();
   
       if (selectedText) {
-        // Create a new span element with the primary color class
         const span = document.createElement('span');
         span.className = 'text-primary';
         span.textContent = selectedText;
   
-        // Replace the selected text with the new span
         range.deleteContents();
         range.insertNode(span);
-  
-        // This is a workaround to update the state after DOM manipulation
-        const parentElement = range.commonAncestorContainer.parentElement;
-        if (parentElement?.isContentEditable) {
-           if (parentElement.id === 'hero-title-editor') {
-             setTempHeroTitle(parentElement.innerHTML);
-           } else if (parentElement.id === 'members-title-editor') {
-             setTempMembersTitle(parentElement.innerHTML);
-           }
-        }
+
+        // Update state after DOM manipulation
+        if (editorId === 'hero-title-editor') setTempHeroTitle(editorElement.innerHTML);
+        else if (editorId === 'hero-subtitle-editor') setTempHeroSubtitle(editorElement.innerHTML);
+        else if (editorId === 'members-title-editor') setTempMembersTitle(editorElement.innerHTML);
+        else if (editorId === 'members-subtitle-editor') setTempMembersSubtitle(editorElement.innerHTML);
       }
       return;
     }
@@ -122,17 +125,10 @@ function DashboardClientPage() {
     document.execCommand(command, false, undefined);
   
     // This part is crucial to make React aware of the DOM changes from execCommand
-    const heroTitleEl = document.getElementById('hero-title-editor');
-    if (heroTitleEl) setTempHeroTitle(heroTitleEl.innerHTML);
-  
-    const heroSubtitleEl = document.getElementById('hero-subtitle-editor');
-    if (heroSubtitleEl) setTempHeroSubtitle(heroSubtitleEl.innerHTML);
-  
-    const membersTitleEl = document.getElementById('members-title-editor');
-    if (membersTitleEl) setTempMembersTitle(membersTitleEl.innerHTML);
-  
-    const membersSubtitleEl = document.getElementById('members-subtitle-editor');
-    if (membersSubtitleEl) setTempMembersSubtitle(membersSubtitleEl.innerHTML);
+    if (editorId === 'hero-title-editor') setTempHeroTitle(editorElement.innerHTML);
+    else if (editorId === 'hero-subtitle-editor') setTempHeroSubtitle(editorElement.innerHTML);
+    else if (editorId === 'members-title-editor') setTempMembersTitle(editorElement.innerHTML);
+    else if (editorId === 'members-subtitle-editor') setTempMembersSubtitle(editorElement.innerHTML);
   };
   
   
@@ -157,6 +153,7 @@ function DashboardClientPage() {
 
   const cancelEditMode = () => {
     setIsEditMode(false);
+    setActiveEditor(null);
     setOpenCollapsible(null);
   };
 
@@ -252,6 +249,7 @@ function DashboardClientPage() {
         description: "As alterações do layout foram salvas.",
       });
       setIsEditMode(false);
+      setActiveEditor(null);
     } catch (error) {
       console.error("Error saving layout:", error);
       const permissionError = new FirestorePermissionError({
@@ -292,10 +290,10 @@ function DashboardClientPage() {
     }
   }, [firestore]);
   
-  const handleConfirmDelete = async (courseId: string) => {
+  const handleConfirmDelete = (courseId: string) => {
     if (!firestore) return;
     try {
-      await deleteDoc(doc(firestore, 'courses', courseId));
+      deleteDoc(doc(firestore, 'courses', courseId));
       toast({
         title: "Curso Excluído",
         description: "O curso foi removido com sucesso.",
@@ -398,10 +396,13 @@ function DashboardClientPage() {
           )}
 
           <div className={heroContainerClasses}>
-              <div 
+              <div className="relative">
+                 <div 
                   id="hero-title-editor"
                   contentEditable={isEditMode}
                   suppressContentEditableWarning={true}
+                  onFocus={() => setActiveEditor('hero-title-editor')}
+                  onBlur={() => setActiveEditor(null)}
                   onInput={(e) => setTempHeroTitle(e.currentTarget.innerHTML)}
                   className={cn(
                     "text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl",
@@ -409,18 +410,48 @@ function DashboardClientPage() {
                   )}
                   dangerouslySetInnerHTML={{ __html: isEditMode ? tempHeroTitle : layoutData.heroTitle }}
                 />
-
-              <div 
-                id="hero-subtitle-editor"
-                contentEditable={isEditMode}
-                suppressContentEditableWarning={true}
-                onInput={(e) => setTempHeroSubtitle(e.currentTarget.innerHTML)}
-                className={cn(
-                  "mt-4 max-w-2xl text-lg text-muted-foreground md:text-xl",
-                  isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
+                {isEditMode && activeEditor === 'hero-title-editor' && (
+                  <ActionToolbar
+                    className="absolute -top-14"
+                    buttons={[
+                      { label: "Bold", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
+                      { label: "Italic", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
+                      { label: "Underline", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
+                      { label: "Color", icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor') },
+                      { label: "Left", icon: <AlignLeft className="size-4" />, onClick: () => handleAlignment('left') },
+                      { label: "Center", icon: <AlignCenter className="size-4" />, onClick: () => handleAlignment('center') },
+                      { label: "Right", icon: <AlignRight className="size-4" />, onClick: () => handleAlignment('right') },
+                    ]}
+                  />
                 )}
-                dangerouslySetInnerHTML={{ __html: isEditMode ? tempHeroSubtitle : layoutData.heroSubtitle }}
-              />
+              </div>
+
+              <div className="relative">
+                <div 
+                  id="hero-subtitle-editor"
+                  contentEditable={isEditMode}
+                  suppressContentEditableWarning={true}
+                  onFocus={() => setActiveEditor('hero-subtitle-editor')}
+                  onBlur={() => setActiveEditor(null)}
+                  onInput={(e) => setTempHeroSubtitle(e.currentTarget.innerHTML)}
+                  className={cn(
+                    "mt-4 max-w-2xl text-lg text-muted-foreground md:text-xl",
+                    isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
+                  )}
+                  dangerouslySetInnerHTML={{ __html: isEditMode ? tempHeroSubtitle : layoutData.heroSubtitle }}
+                />
+                 {isEditMode && activeEditor === 'hero-subtitle-editor' && (
+                    <ActionToolbar
+                        className="absolute -top-14"
+                        buttons={[
+                            { label: "Bold", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
+                            { label: "Italic", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
+                            { label: "Underline", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
+                            { label: "Color", icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor') },
+                        ]}
+                    />
+                )}
+              </div>
 
             <div className="mt-8">
               <Button asChild size="lg" variant="default" className="bg-primary hover:bg-primary/90 text-primary-foreground">
@@ -436,7 +467,7 @@ function DashboardClientPage() {
             </div>
           )}
           {isAdmin && isEditMode && (
-             <div className="absolute top-24 right-8 z-30 flex flex-col items-end gap-4">
+             <div className="absolute top-20 right-8 z-[60] flex flex-col items-end gap-4">
                  <div className="flex gap-2">
                     <Button onClick={handleSaveChanges} disabled={isSaving}>
                         <Save className="mr-2 h-4 w-4" /> {isSaving ? 'Salvando...' : 'Salvar'}
@@ -445,15 +476,6 @@ function DashboardClientPage() {
                         <X className="mr-2 h-4 w-4" /> Cancelar
                     </Button>
                 </div>
-                <ActionToolbar buttons={[
-                    { label: "Bold", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
-                    { label: "Italic", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
-                    { label: "Underline", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
-                    { label: "Color", icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor') },
-                    { label: "Left", icon: <AlignLeft className="size-4" />, onClick: () => handleAlignment('left') },
-                    { label: "Center", icon: <AlignCenter className="size-4" />, onClick: () => handleAlignment('center') },
-                    { label: "Right", icon: <AlignRight className="size-4" />, onClick: () => handleAlignment('right') },
-                ]}/>
                  <Collapsible open={openCollapsible === 'banner'} onOpenChange={(isOpen) => setOpenCollapsible(isOpen ? 'banner' : null)} className="w-full max-w-xs">
                     <CollapsibleTrigger className="w-full bg-background/50 border border-border rounded-lg backdrop-blur-sm">
                         <div className="flex justify-between items-center w-full p-2 rounded-lg hover:bg-secondary/50">
@@ -512,7 +534,7 @@ function DashboardClientPage() {
           
           {/* Featured Carousel */}
           <div>
-            <div className="mb-8 flex items-center gap-4">
+            <div className="mb-8 flex items-center gap-4 relative">
                 {isEditMode ? (
                   <div className='flex items-center gap-2 p-2 rounded-lg bg-background/50 border border-dashed border-border'>
                     <Select value={tempMembersIcon} onValueChange={setTempMembersIcon}>
@@ -528,11 +550,13 @@ function DashboardClientPage() {
                         <SelectItem value="Star"><Star className="mr-2 h-4 w-4"/>Estrela</SelectItem>
                       </SelectContent>
                     </Select>
-                    <div className='flex flex-col'>
+                    <div className='flex flex-col relative'>
                       <div
                           id="members-title-editor"
                           contentEditable={isEditMode}
                           suppressContentEditableWarning={true}
+                          onFocus={() => setActiveEditor('members-title-editor')}
+                          onBlur={() => setActiveEditor(null)}
                           onInput={(e) => setTempMembersTitle(e.currentTarget.innerHTML)}
                           className="text-2xl font-bold bg-transparent border-none outline-none focus:ring-2 focus:ring-primary rounded-md p-1 -m-1"
                           dangerouslySetInnerHTML={{ __html: isEditMode ? tempMembersTitle : layoutData.membersTitle }}
@@ -541,10 +565,23 @@ function DashboardClientPage() {
                           id="members-subtitle-editor"
                           contentEditable={isEditMode}
                           suppressContentEditableWarning={true}
+                          onFocus={() => setActiveEditor('members-subtitle-editor')}
+                          onBlur={() => setActiveEditor(null)}
                           onInput={(e) => setTempMembersSubtitle(e.currentTarget.innerHTML)}
                           className="text-sm bg-transparent border-none outline-none focus:ring-2 focus:ring-primary rounded-md p-1 -m-1 text-muted-foreground"
                           dangerouslySetInnerHTML={{ __html: isEditMode ? tempMembersSubtitle : layoutData.membersSubtitle }}
                        />
+                        {(activeEditor === 'members-title-editor' || activeEditor === 'members-subtitle-editor') && (
+                            <ActionToolbar
+                                className="absolute -top-14"
+                                buttons={[
+                                    { label: "Bold", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
+                                    { label: "Italic", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
+                                    { label: "Underline", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
+                                    { label: "Color", icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor') },
+                                ]}
+                            />
+                        )}
                     </div>
                   </div>
                 ) : (
@@ -652,3 +689,5 @@ export default function DashboardPage() {
     <DashboardClientPage />
   )
 }
+
+    
