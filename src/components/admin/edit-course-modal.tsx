@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -9,6 +9,7 @@ import { doc, updateDoc, type DocumentData } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -159,14 +160,15 @@ export function EditCourseModal({ isOpen, onClose, course, onCourseUpdate }: Edi
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-4xl grid-cols-1 md:grid-cols-2">
-        <div>
-            <DialogHeader>
-                <DialogTitle>Editar Curso: {course?.title}</DialogTitle>
-                <DialogDescription>
-                    Faça alterações no curso abaixo.
-                </DialogDescription>
-            </DialogHeader>
+      <DialogContent className="sm:max-w-lg">
+        <DialogHeader>
+            <DialogTitle>Editar Curso: {course?.title}</DialogTitle>
+            <DialogDescription>
+                Faça alterações no curso abaixo.
+            </DialogDescription>
+        </DialogHeader>
+        <ScrollArea className="max-h-[calc(100vh-12rem)]">
+          <div className="space-y-6 p-1">
             <Form {...form}>
                 <form id="edit-course-form" onSubmit={form.handleSubmit(onSubmit)} className="space-y-4 py-4">
                     <FormField
@@ -193,53 +195,54 @@ export function EditCourseModal({ isOpen, onClose, course, onCourseUpdate }: Edi
                     />
                 </form>
             </Form>
-            <DialogFooter>
-                <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>Cancelar</Button>
-                <Button type="submit" form="edit-course-form" disabled={isSaving}>
-                    {isSaving ? 'Salvando...' : 'Salvar Alterações'}
-                </Button>
-            </DialogFooter>
-        </div>
-        <div className="space-y-4">
-            <h3 className="text-sm font-medium text-white">Imagem da Miniatura</h3>
-            <div className="aspect-[2/3] w-full max-w-sm mx-auto rounded-lg overflow-hidden bg-muted relative">
-                <Image src={tempImage} alt="Pré-visualização da miniatura" fill className="object-cover"/>
+            <div className="space-y-4">
+                <h3 className="text-sm font-medium text-white">Imagem da Miniatura</h3>
+                <div className="aspect-[2/3] w-full max-w-xs mx-auto rounded-lg overflow-hidden bg-muted relative">
+                    <Image src={tempImage} alt="Pré-visualização da miniatura" fill className="object-cover"/>
+                </div>
+                <div className="w-full max-w-xs mx-auto space-y-2">
+                    <Tabs value={imageInputMode} onValueChange={(value) => setImageInputMode(value as 'upload' | 'url')} className="w-full">
+                        <TabsList className="grid w-full grid-cols-2">
+                            <TabsTrigger value="upload">Enviar Arquivo</TabsTrigger>
+                            <TabsTrigger value="url">Usar URL</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="upload" className="mt-4">
+                            <label htmlFor="course-image-upload" className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-white border border-dashed rounded-md p-3 justify-center bg-background/50">
+                                <Upload className="h-4 w-4" />
+                                <span>{imageFile ? imageFile.name : 'Clique para selecionar'}</span>
+                            </label>
+                            <Input id="course-image-upload" type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+                            {uploadProgress !== null && imageInputMode === 'upload' && (
+                                <Progress value={uploadProgress} className="w-full h-2 mt-2" />
+                            )}
+                        </TabsContent>
+                        <TabsContent value="url" className="mt-4">
+                            <div className="relative">
+                                <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input
+                                    type="text"
+                                    placeholder="https://exemplo.com/imagem.png"
+                                    value={imageUrlInput}
+                                    onChange={handleUrlInputChange}
+                                    className="w-full bg-background/50 pl-9"
+                                />
+                            </div>
+                        </TabsContent>
+                    </Tabs>
+                    <Button onClick={handleRemoveImage} variant="outline" size="sm" className="w-full gap-2 text-destructive border-destructive/50 hover:bg-destructive/10 hover:text-destructive">
+                        <Trash2 className="h-4 w-4" />
+                        Remover Imagem
+                    </Button>
+                </div>
             </div>
-             <div className="w-full max-w-sm mx-auto space-y-2">
-                <Tabs value={imageInputMode} onValueChange={(value) => setImageInputMode(value as 'upload' | 'url')} className="w-full">
-                    <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="upload">Enviar Arquivo</TabsTrigger>
-                        <TabsTrigger value="url">Usar URL</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="upload" className="mt-4">
-                        <label htmlFor="course-image-upload" className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-white border border-dashed rounded-md p-3 justify-center bg-background/50">
-                            <Upload className="h-4 w-4" />
-                            <span>{imageFile ? imageFile.name : 'Clique para selecionar'}</span>
-                        </label>
-                        <Input id="course-image-upload" type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
-                        {uploadProgress !== null && imageInputMode === 'upload' && (
-                            <Progress value={uploadProgress} className="w-full h-2 mt-2" />
-                        )}
-                    </TabsContent>
-                    <TabsContent value="url" className="mt-4">
-                        <div className="relative">
-                            <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                                type="text"
-                                placeholder="https://exemplo.com/imagem.png"
-                                value={imageUrlInput}
-                                onChange={handleUrlInputChange}
-                                className="w-full bg-background/50 pl-9"
-                            />
-                        </div>
-                    </TabsContent>
-                </Tabs>
-                <Button onClick={handleRemoveImage} variant="outline" size="sm" className="w-full gap-2 text-destructive border-destructive/50 hover:bg-destructive/10 hover:text-destructive">
-                    <Trash2 className="h-4 w-4" />
-                    Remover Imagem
-                </Button>
-            </div>
-        </div>
+          </div>
+        </ScrollArea>
+        <DialogFooter className="pt-4">
+            <Button type="button" variant="outline" onClick={onClose} disabled={isSaving}>Cancelar</Button>
+            <Button type="submit" form="edit-course-form" disabled={isSaving}>
+                {isSaving ? 'Salvando...' : 'Salvar Alterações'}
+            </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
