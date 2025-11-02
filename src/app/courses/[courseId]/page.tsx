@@ -76,7 +76,7 @@ export default function CoursePlayerPage() {
 
 
   // Temp states for editing
-  const [tempHeroImageDesktop, setTempHeroImageDesktop] useState(DEFAULT_HERO_IMAGE_DESKTOP);
+  const [tempHeroImageDesktop, setTempHeroImageDesktop] = useState(DEFAULT_HERO_IMAGE_DESKTOP);
   const [tempHeroImageMobile, setTempHeroImageMobile] = useState(DEFAULT_HERO_IMAGE_MOBILE);
 
   const [heroImageDesktopFile, setHeroImageDesktopFile] = useState<File | null>(null);
@@ -223,7 +223,7 @@ export default function CoursePlayerPage() {
         setTempHeroImageDesktop(course.heroImageUrlDesktop || DEFAULT_HERO_IMAGE_DESKTOP);
         setTempHeroImageMobile(course.heroImageUrlMobile || DEFAULT_HERO_IMAGE_MOBILE);
         setHeroImageUrlInputDesktop(course.heroImageUrlDesktop || '');
-        setHeroImageUrlInputMobile(course.heroImageUrlMobile || '');
+        setHeroImageUrlInputMobile(course.heroImageUrlInputMobile || '');
     }
   };
 
@@ -371,14 +371,7 @@ export default function CoursePlayerPage() {
   };
   
     const applyFormat = (command: string, value?: string) => {
-        // For simple commands, execCommand is reliable.
-        if (command === 'bold' || command === 'italic' || command === 'underline' || command === 'foreColor') {
-            document.execCommand(command, false, value);
-        }
-        // For block-level commands like headings, this is more stable.
-        else if (command === 'formatBlock') {
-             document.execCommand(command, false, value);
-        }
+        document.execCommand(command, false, value);
     };
 
     useEffect(() => {
@@ -645,3 +638,5 @@ export default function CoursePlayerPage() {
     </div>
   );
 }
+
+    
