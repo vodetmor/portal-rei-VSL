@@ -456,11 +456,17 @@ export default function LessonPage() {
                         width="100%"
                         height="100%"
                         controls
-                        playing
+                        playing={false}
                         onProgress={(progress) => handleProgress(progress.played)}
                         config={{
-                        youtube: { playerVars: { showinfo: 0, rel: 0 } },
-                        vimeo: { playerOptions: { byline: false, portrait: false } }
+                            youtube: { 
+                                playerVars: { 
+                                    showinfo: 0, 
+                                    rel: 0,
+                                    origin: typeof window !== 'undefined' ? window.location.origin : ''
+                                } 
+                            },
+                            vimeo: { playerOptions: { byline: false, portrait: false } }
                         }}
                     />
                 </div>
@@ -501,7 +507,7 @@ export default function LessonPage() {
                     </TabsList>
                     <TabsContent value="description" className="py-6">
                         {currentLesson.description && (
-                            <div className="prose prose-invert max-w-none text-muted-foreground">{processedDescription}</div>
+                            <div className="prose prose-invert max-w-none text-muted-foreground" dangerouslySetInnerHTML={{ __html: currentLesson.description }} />
                         )}
                         
                         {currentLesson.complementaryMaterials && currentLesson.complementaryMaterials.length > 0 && (
@@ -582,7 +588,7 @@ function CommentsSection({ courseId, lessonId, user, isAdmin }: CommentsSectionP
         );
     }, [firestore, courseId, lessonId]);
 
-    const { data: comments, isLoading: commentsLoading } = useCollection<LessonComment>(commentsQuery);
+    const { data: comments, isLoading: commentsLoading, error: commentsError } = useCollection<LessonComment>(commentsQuery);
 
     const handlePostComment = async () => {
         if (!firestore || !user || !commentText.trim()) return;
@@ -641,6 +647,14 @@ function CommentsSection({ courseId, lessonId, user, isAdmin }: CommentsSectionP
 
             <div className="space-y-6">
                 {commentsLoading && Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}
+                
+                {commentsError && (
+                    <div className="text-center py-8 text-destructive">
+                        <p>Ocorreu um erro ao carregar os comentários.</p>
+                        <p className="text-xs">{commentsError.message}</p>
+                    </div>
+                )}
+
                 {comments && comments.map(comment => (
                     <CommentItem 
                         key={comment.id}
@@ -651,7 +665,7 @@ function CommentsSection({ courseId, lessonId, user, isAdmin }: CommentsSectionP
                         isAdmin={isAdmin}
                     />
                 ))}
-                 {comments && comments.length === 0 && !commentsLoading && (
+                 {comments && comments.length === 0 && !commentsLoading && !commentsError && (
                     <p className="text-center text-muted-foreground py-8">Nenhum comentário ainda. Seja o primeiro a comentar!</p>
                 )}
             </div>

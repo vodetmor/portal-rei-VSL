@@ -88,24 +88,28 @@ export function useCollection<T = any>(
         // Log the original server error for more detailed debugging
         console.error("Firestore onSnapshot error caught in useCollection:", serverError);
 
-        const path: string =
-          memoizedTargetRefOrQuery.type === 'collection'
-            ? (memoizedTargetRefOrQuery as CollectionReference).path
-            : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString()
+        if (serverError.code === 'permission-denied') {
+          const path: string =
+            memoizedTargetRefOrQuery.type === 'collection'
+              ? (memoizedTargetRefOrQuery as CollectionReference).path
+              : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString()
 
-        const contextualError = new FirestorePermissionError({
-          operation: 'list',
-          path,
-        });
-        
-        console.error("Detailed Permission Error Context:", contextualError);
-        setError(contextualError);
+          const contextualError = new FirestorePermissionError({
+            operation: 'list',
+            path,
+          })
+          
+          console.error("Detailed Permission Error Context:", contextualError);
+          setError(contextualError);
+          
+          // trigger global error propagation
+          errorEmitter.emit('permission-error', contextualError);
+        } else {
+            setError(serverError);
+        }
+
         setData(null);
         setIsLoading(false);
-
-        // We no longer throw the error, just log it and set the state.
-        // This prevents the application from crashing.
-        // errorEmitter.emit('permission-error', contextualError);
       }
     );
 
