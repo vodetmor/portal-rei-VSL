@@ -405,7 +405,7 @@ function DashboardClientPage() {
           )}
 
           <div className={heroContainerClasses}>
-              <div className={cn("relative w-full", textContainerClasses)}>
+              <div className={cn("relative", textContainerClasses)}>
                  <div
                     id="hero-title-editor"
                     ref={titleRef}
@@ -413,12 +413,12 @@ function DashboardClientPage() {
                     suppressContentEditableWarning={true}
                     onFocus={() => setActiveEditor('hero-title-editor')}
                     onBlur={() => { setActiveEditor(null); }}
+                    onInput={(e) => setTempHeroTitle(e.currentTarget.innerHTML)}
                     className={cn(
                         "text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl",
                         isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
                     )}
-                    dangerouslySetInnerHTML={{ __html: isEditMode ? tempHeroTitle : layoutData.heroTitle }}
-                />
+                 />
                 {isEditMode && activeEditor === 'hero-title-editor' && (
                   <ActionToolbar
                     className="absolute -top-14"
@@ -435,7 +435,7 @@ function DashboardClientPage() {
                 )}
               </div>
 
-              <div className={cn("relative mt-4 w-full", textContainerClasses)}>
+              <div className={cn("relative mt-4", textContainerClasses)}>
                 <div
                     id="hero-subtitle-editor"
                     ref={subtitleRef}
@@ -443,12 +443,12 @@ function DashboardClientPage() {
                     suppressContentEditableWarning={true}
                     onFocus={() => setActiveEditor('hero-subtitle-editor')}
                     onBlur={() => { setActiveEditor(null);}}
+                    onInput={(e) => setTempHeroSubtitle(e.currentTarget.innerHTML)}
                     className={cn(
                         "max-w-2xl text-lg text-muted-foreground md:text-xl",
                         {'mx-auto': heroAlignment === 'center', 'ml-auto': heroAlignment === 'end'},
                         isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
                     )}
-                    dangerouslySetInnerHTML={{ __html: isEditMode ? tempHeroSubtitle : layoutData.heroSubtitle }}
                 />
                  {isEditMode && activeEditor === 'hero-subtitle-editor' && (
                     <ActionToolbar
@@ -463,15 +463,15 @@ function DashboardClientPage() {
                 )}
               </div>
 
-            <div className={cn("mt-8 w-full", textContainerClasses)}>
+            <div className={cn("mt-8", textContainerClasses)}>
               {isEditMode ? (
                  <div
                     ref={ctaRef}
                     contentEditable={true}
                     suppressContentEditableWarning={true}
                     onBlur={() => {}}
+                    onInput={(e) => setTempCtaText(e.currentTarget.innerHTML)}
                     className="inline-block px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-md text-lg font-semibold outline-none focus:ring-2 focus:ring-ring"
-                    dangerouslySetInnerHTML={{ __html: tempCtaText }}
                  >
                  </div>
               ) : (
@@ -541,7 +541,7 @@ function DashboardClientPage() {
         </section>
 
         {/* All Courses Section */}
-        <section ref={coursesSectionRef} className="container mx-auto px-4 py-16 md:px-8 space-y-12">
+        <section ref={coursesSectionRef} className="container mx-auto px-4 py-16 md:px-8 space-y-12 pt-20">
           
            <div>
             <div className="flex justify-between items-center mb-4">
