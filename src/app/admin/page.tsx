@@ -8,6 +8,7 @@ import { Plus, Trash2, Users, Pencil } from 'lucide-react';
 import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
+import { useToast } from '@/hooks/use-toast';
 
 interface Course extends DocumentData {
   id: string;
@@ -17,6 +18,7 @@ interface Course extends DocumentData {
 
 function AdminDashboard() {
   const firestore = useFirestore();
+  const { toast } = useToast();
   const [courses, setCourses] = useState<Course[]>([]);
   const [userCount, setUserCount] = useState(0);
 
@@ -46,16 +48,21 @@ function AdminDashboard() {
 
   const handleDelete = async (courseId: string) => {
     if (!firestore) return;
-    if (confirm('Tem certeza que deseja excluir este curso?')) {
-      try {
-        await deleteDoc(doc(firestore, 'courses', courseId));
-        // Note: This doesn't delete the video from Storage.
-        // A Cloud Function would be needed for that to avoid exposing delete permissions to clients.
-        fetchCourses(); 
-      } catch (error) {
-        console.error("Error deleting course: ", error);
-        alert("Ocorreu um erro ao excluir o curso.");
-      }
+    // We can add a confirmation dialog here if needed, but for now, it's direct.
+    try {
+      await deleteDoc(doc(firestore, 'courses', courseId));
+      toast({
+        title: "Curso Excluído",
+        description: "O curso foi removido com sucesso.",
+      })
+      fetchCourses(); 
+    } catch (error) {
+      console.error("Error deleting course: ", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao Excluir",
+        description: "Não foi possível excluir o curso. Verifique as permissões."
+      });
     }
   };
   
