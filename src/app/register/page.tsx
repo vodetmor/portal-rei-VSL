@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
+import { Eye, EyeOff } from 'lucide-react';
 
 const registerSchema = z.object({
   email: z.string().email({ message: 'Por favor, insira um email válido.' }),
@@ -25,6 +26,8 @@ export default function RegisterPage() {
   const { user, loading } = useUser();
   const router = useRouter();
   const [authError, setAuthError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -115,7 +118,21 @@ export default function RegisterPage() {
                 <FormItem>
                   <FormLabel className="text-white">Senha</FormLabel>
                   <FormControl>
-                    <Input type="password" placeholder="Crie uma senha forte" {...field} className="bg-secondary/50 border-border" />
+                    <div className="relative">
+                      <Input 
+                        type={showPassword ? 'text' : 'password'} 
+                        placeholder="Crie uma senha forte" 
+                        {...field} 
+                        className="bg-secondary/50 border-border pr-10" 
+                      />
+                      <button 
+                        type="button" 
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-white"
+                      >
+                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                      </button>
+                    </div>
                   </FormControl>
                   <FormMessage />
                 </FormItem>
