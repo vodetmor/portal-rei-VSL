@@ -4,8 +4,11 @@ service cloud.firestore {
 
     // Helper function to check if the user is an admin
     function isAdmin() {
-      // This function relies on the user's document being readable.
-      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+      // The primary admin email has rights regardless of the document role.
+      // Additionally, check for users with the 'admin' role in their user document.
+      return request.auth != null && 
+        (request.auth.token.email == 'admin@reidavsl.com' || 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin');
     }
 
     // User documents can be read by any authenticated user.
