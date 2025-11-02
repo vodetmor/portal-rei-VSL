@@ -13,7 +13,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { CourseCard } from '@/components/course-card';
-import { Plus, Pencil, Save, X, Upload, Link2, Smartphone, Monitor, Lock, Trophy, AlignCenter, AlignLeft, AlignRight, Bold, Italic, Underline, Palette } from 'lucide-react';
+import { Plus, Pencil, Save, X, Upload, Link2, Smartphone, Monitor, Lock, Trophy, AlignCenter, AlignLeft, AlignRight, Bold, Italic, Underline, Palette, Pilcrow } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -76,7 +76,7 @@ export default function CoursePlayerPage() {
 
 
   // Temp states for editing
-  const [tempHeroImageDesktop, setTempHeroImageDesktop] = useState(DEFAULT_HERO_IMAGE_DESKTOP);
+  const [tempHeroImageDesktop, setTempHeroImageDesktop] useState(DEFAULT_HERO_IMAGE_DESKTOP);
   const [tempHeroImageMobile, setTempHeroImageMobile] = useState(DEFAULT_HERO_IMAGE_MOBILE);
 
   const [heroImageDesktopFile, setHeroImageDesktopFile] = useState<File | null>(null);
@@ -370,17 +370,28 @@ export default function CoursePlayerPage() {
     return (completedLessonsInModule / moduleLessons.length) * 100;
   };
   
-    const applyFormat = (command: string) => {
-        // Use the stable execCommand for simple, reliable formatting
-        document.execCommand(command, false, undefined);
+    const applyFormat = (command: string, value?: string) => {
+        if (command === 'formatBlock' && value === 'h3') {
+             const selection = window.getSelection();
+            if (selection && selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0);
+                const isAlreadyH3 = range.startContainer.parentElement?.tagName === 'H3';
+                document.execCommand('formatBlock', false, isAlreadyH3 ? 'p' : 'h3');
+            }
+        } else {
+            document.execCommand(command, false, value);
+        }
     };
 
     useEffect(() => {
         if (isEditMode) {
             if (titleRef.current) titleRef.current.innerHTML = tempTitle;
             if (descriptionRef.current) descriptionRef.current.innerHTML = tempDescription;
+        } else if (course) {
+            if (titleRef.current) titleRef.current.innerHTML = course.title;
+            if (descriptionRef.current) descriptionRef.current.innerHTML = course.description;
         }
-    }, [isEditMode, tempTitle, tempDescription]);
+    }, [isEditMode, tempTitle, tempDescription, course]);
 
 
   if (loading || userLoading) {
@@ -429,12 +440,15 @@ export default function CoursePlayerPage() {
                 contentEditable={isEditMode}
                 suppressContentEditableWarning
                 onFocus={() => setActiveEditor('course-title-editor')}
-                onBlur={() => setActiveEditor(null)}
+                onBlur={() => {
+                    setActiveEditor(null);
+                    if (titleRef.current) setTempTitle(titleRef.current.innerHTML);
+                }}
                 className={cn(
                     "text-4xl md:text-6xl font-bold tracking-tight text-white",
-                    isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2 prose prose-invert max-w-none"
+                    "prose prose-xl prose-invert max-w-none",
+                    isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
                 )}
-                dangerouslySetInnerHTML={{ __html: isEditMode ? tempTitle : course.title }}
               />
               {isEditMode && activeEditor === 'course-title-editor' && (
                 <ActionToolbar
@@ -443,6 +457,8 @@ export default function CoursePlayerPage() {
                         { label: "Negrito", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
                         { label: "Itálico", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
                         { label: "Sublinhado", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
+                        { label: "Aumentar Fonte", icon: <Pilcrow className="size-4" />, onClick: () => applyFormat('formatBlock', 'h3') },
+                        { label: "Colorir", icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor', 'yellow') },
                     ]}
                 />
               )}
@@ -453,20 +469,25 @@ export default function CoursePlayerPage() {
                 contentEditable={isEditMode}
                 suppressContentEditableWarning
                 onFocus={() => setActiveEditor('course-description-editor')}
-                onBlur={() => setActiveEditor(null)}
+                onBlur={() => {
+                    setActiveEditor(null);
+                    if (descriptionRef.current) setTempDescription(descriptionRef.current.innerHTML);
+                }}
                 className={cn(
                     "mt-4 text-lg text-muted-foreground",
-                    isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2 prose prose-invert max-w-none"
+                    "prose prose-invert max-w-none",
+                    isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
                 )}
-                dangerouslySetInnerHTML={{ __html: isEditMode ? tempDescription : course.description }}
              />
               {isEditMode && activeEditor === 'course-description-editor' && (
                   <ActionToolbar
                       className="absolute -bottom-14"
                       buttons={[
-                          { label: "Negrito", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
-                          { label: "Itálico", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
-                          { label: "Sublinhado", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
+                        { label: "Negrito", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
+                        { label: "Itálico", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
+                        { label: "Sublinhado", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
+                        { label: "Aumentar Fonte", icon: <Pilcrow className="size-4" />, onClick: () => applyFormat('formatBlock', 'h3') },
+                        { label: "Colorir", icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor', 'yellow') },
                       ]}
                   />
               )}
@@ -626,4 +647,3 @@ export default function CoursePlayerPage() {
     </div>
   );
 }
-
