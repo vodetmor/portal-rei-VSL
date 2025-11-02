@@ -1,21 +1,26 @@
 
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useFirestore, useUser } from '@/firebase';
-import { doc, getDoc, updateDoc, serverTimestamp, setDoc } from 'firebase/firestore';
+import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
+import { doc, getDoc, updateDoc, serverTimestamp, setDoc, addDoc, collection, query, orderBy, deleteDoc, writeBatch } from 'firebase/firestore';
 import ReactPlayer from 'react-player/lazy';
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { CheckCircle, Circle, Lock, ArrowLeft, ArrowRight, X, Download, Link2, FileText, Check } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { CheckCircle, Circle, Lock, ArrowLeft, ArrowRight, X, Download, Link2, FileText, Check, ThumbsUp, ThumbsDown, Send, MessageSquare, BookOpen, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { addDays, parseISO } from 'date-fns';
+import { Textarea } from '@/components/ui/textarea';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 // --- Type Definitions ---
 interface ComplementaryMaterial {
@@ -47,11 +52,26 @@ interface Course {
 }
 
 interface UserProgress {
-    completedLessons: { [lessonId: string]: string }; // lessonId -> completion timestamp
+    completedLessons: { [lessonId: string]: string };
 }
 
 interface CourseAccessInfo {
-    grantedAt: string; // ISO string date
+    grantedAt: string;
+}
+
+interface LessonComment {
+    id: string;
+    userId: string;
+    userDisplayName: string;
+    userPhotoURL: string;
+    text: string;
+    timestamp: any;
+}
+
+interface LessonReaction {
+    id: string;
+    userId: string;
+    type: 'like' | 'dislike';
 }
 
 const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -84,9 +104,29 @@ export default function LessonPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isDescriptionOpen, setIsDescriptionOpen] = useState(true);
+  const [newComment, setNewComment] = useState('');
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+
+  const commentsQuery = useMemoFirebase(() => {
+    if (!firestore || !courseId || !lessonId) return null;
+    return query(collection(firestore, `courses/${courseId}/lessons/${lessonId}/comments`), orderBy('timestamp', 'desc'));
+  }, [firestore, courseId, lessonId]);
+  const { data: comments, isLoading: commentsLoading } = useCollection<LessonComment>(commentsQuery);
+
+  const reactionsQuery = useMemoFirebase(() => {
+    if (!firestore || !courseId || !lessonId) return null;
+    return collection(firestore, `courses/${courseId}/lessons/${lessonId}/reactions`);
+  }, [firestore, courseId, lessonId]);
+  const { data: reactions, isLoading: reactionsLoading } = useCollection<LessonReaction>(reactionsQuery);
 
   const [nextLesson, setNextLesson] = useState<{ courseId: string; lessonId: string } | null>(null);
   const [isCurrentLessonCompleted, setIsCurrentLessonCompleted] = useState(false);
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const fetchLessonData = useCallback(async () => {
     if (!user || !firestore) return;
@@ -94,13 +134,11 @@ export default function LessonPage() {
     setIsCurrentLessonCompleted(false);
 
     try {
-      // 1. Check admin status
       const userDocSnap = await getDoc(doc(firestore, 'users', user.uid));
       const userRole = userDocSnap.data()?.role;
       const isAdminUser = userRole === 'admin' || user.email === 'admin@reidavsl.com';
       setIsAdmin(isAdminUser);
       
-      // 2. Check course access
       const accessDocSnap = await getDoc(doc(firestore, `users/${user.uid}/courseAccess`, courseId as string));
       if (!accessDocSnap.exists() && !isAdminUser) {
         toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você não tem acesso a este curso.' });
@@ -110,7 +148,6 @@ export default function LessonPage() {
       const accessTimestamp = accessDocSnap.data()?.grantedAt?.toDate();
       setCourseAccessInfo({ grantedAt: accessTimestamp ? accessTimestamp.toISOString() : new Date().toISOString() });
 
-      // 3. Fetch course data
       const courseDocSnap = await getDoc(doc(firestore, 'courses', courseId as string));
       if (!courseDocSnap.exists()) {
         toast({ variant: 'destructive', title: 'Erro', description: 'Curso não encontrado.' });
@@ -120,7 +157,6 @@ export default function LessonPage() {
       const courseData = { id: courseDocSnap.id, ...courseDocSnap.data() } as Course;
       setCourse(courseData);
 
-      // 4. Find the current lesson and module
       let foundLesson: Lesson | null = null;
       let foundModule: Module | null = null;
       for (const module of courseData.modules) {
@@ -138,8 +174,7 @@ export default function LessonPage() {
         return;
       }
       
-      // 5. Check if lesson is unlocked (drip content)
-      const isUnlocked = isAdminUser || (
+       const isUnlocked = isAdminUser || (
         (foundModule.releaseDelayDays || 0) === 0 && (foundLesson.releaseDelayDays || 0) === 0
       ) || (accessTimestamp && (
           addDays(accessTimestamp, (foundModule.releaseDelayDays || 0) + (foundLesson.releaseDelayDays || 0)) <= new Date()
@@ -154,7 +189,6 @@ export default function LessonPage() {
       setCurrentLesson(foundLesson);
       setCurrentModule(foundModule);
 
-      // 6. Fetch user progress
       const progressDocSnap = await getDoc(doc(firestore, `users/${user.uid}/progress`, courseId as string));
       if (progressDocSnap.exists()) {
         const progressData = progressDocSnap.data() as UserProgress;
@@ -166,7 +200,6 @@ export default function LessonPage() {
         setUserProgress({ completedLessons: {} });
       }
 
-      // 7. Determine the next lesson
       const moduleIndex = courseData.modules.findIndex(m => m.id === foundModule!.id);
       const lessonIndex = foundModule!.lessons.findIndex(l => l.id === foundLesson!.id);
 
@@ -178,9 +211,8 @@ export default function LessonPage() {
             setNextLesson({ courseId: courseId as string, lessonId: nextModule.lessons[0].id });
         }
       } else {
-        setNextLesson(null); // Last lesson of the course
+        setNextLesson(null);
       }
-
 
     } catch (error) {
       console.error("Error fetching lesson data:", error);
@@ -240,18 +272,75 @@ export default function LessonPage() {
   const completedLessonsCount = useMemo(() => userProgress ? Object.keys(userProgress.completedLessons).length : 0, [userProgress]);
   const courseProgressPercentage = totalLessons > 0 ? (completedLessonsCount / totalLessons) * 100 : 0;
 
+  const { likes, dislikes, userReaction } = useMemo(() => {
+    if (!reactions) return { likes: 0, dislikes: 0, userReaction: null };
+    const likes = reactions.filter(r => r.type === 'like').length;
+    const dislikes = reactions.filter(r => r.type === 'dislike').length;
+    const userReaction = reactions.find(r => r.userId === user?.uid)?.type || null;
+    return { likes, dislikes, userReaction };
+  }, [reactions, user]);
 
-  if (loading || !course || !currentLesson || !currentModule) {
+  const handleReaction = async (type: 'like' | 'dislike') => {
+    if (!user || !firestore || !courseId || !lessonId) return;
+
+    const reactionRef = doc(firestore, `courses/${courseId}/lessons/${lessonId}/reactions`, user.uid);
+    
+    if (userReaction === type) {
+      // User is toggling off their reaction
+      await deleteDoc(reactionRef);
+    } else {
+      // User is setting or changing their reaction
+      await setDoc(reactionRef, { userId: user.uid, type });
+    }
+  };
+
+  const handleCommentSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !firestore || !newComment.trim() || !courseId || !lessonId) return;
+    
+    setIsSubmittingComment(true);
+    try {
+      const commentsCollectionRef = collection(firestore, `courses/${courseId}/lessons/${lessonId}/comments`);
+      await addDoc(commentsCollectionRef, {
+        userId: user.uid,
+        userDisplayName: user.displayName,
+        userPhotoURL: user.photoURL,
+        text: newComment,
+        timestamp: serverTimestamp(),
+      });
+      setNewComment('');
+    } catch (error) {
+      console.error("Error posting comment:", error);
+      toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível postar o comentário.' });
+    } finally {
+      setIsSubmittingComment(false);
+    }
+  };
+
+  const handleDeleteComment = async (commentId: string) => {
+    if (!firestore || !courseId || !lessonId) return;
+    const commentRef = doc(firestore, `courses/${courseId}/lessons/${lessonId}/comments`, commentId);
+    try {
+      await deleteDoc(commentRef);
+      toast({ title: 'Comentário excluído.' });
+    } catch (error) {
+       console.error("Error deleting comment:", error);
+      toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível excluir o comentário.' });
+    }
+  };
+
+
+  if (loading || userLoading || !course || !currentLesson || !currentModule || !isClient) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
-        <Skeleton className="h-16 w-16 rounded-full animate-pulse" />
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       </div>
     );
   }
 
   const isLessonCompleted = (lessonId: string) => !!userProgress?.completedLessons[lessonId];
   const isModuleUnlocked = (module: Module) => {
-      if (isAdmin || !courseAccessInfo) return true;
+      if (isAdmin || !courseAccessInfo || !isClient) return true;
       const delay = module.releaseDelayDays || 0;
       if (delay === 0) return true;
       const grantedDate = parseISO(courseAccessInfo.grantedAt);
@@ -263,7 +352,6 @@ export default function LessonPage() {
 
   return (
     <div className="flex min-h-screen bg-black text-white pt-20">
-      {/* Sidebar */}
       <aside className={cn(
         "bg-background h-[calc(100vh-5rem)] flex-col transition-all duration-300 ease-in-out fixed top-20 left-0 z-20 hidden md:flex",
         isSidebarOpen ? "w-80" : "w-0 overflow-hidden"
@@ -281,7 +369,7 @@ export default function LessonPage() {
                   <div className="text-left">
                     {module.title}
                     <div className="text-xs text-muted-foreground font-normal mt-1">
-                      {Object.values(module.lessons).filter(l => isLessonCompleted(l.id)).length} / {module.lessons.length} aulas
+                      {module.lessons.filter(l => isLessonCompleted(l.id)).length} / {module.lessons.length} aulas
                     </div>
                   </div>
                 </AccordionTrigger>
@@ -319,22 +407,21 @@ export default function LessonPage() {
         </div>
       </aside>
 
-      {/* Main Content */}
       <main className={cn(
         "flex-1 flex flex-col transition-all duration-300 ease-in-out",
         isSidebarOpen ? "md:ml-80" : "md:ml-0"
       )}>
         <header className="flex items-center justify-between p-4 bg-background/80 backdrop-blur-sm z-10 border-b border-border h-20 shrink-0 sticky top-20">
            <div className="flex items-center gap-4">
-                <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="md:hidden">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="hidden md:flex">
+                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M3 12H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                         <path d="M3 6H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                         <path d="M3 18H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                     </svg>
                 </Button>
-                <div className="text-sm hidden md:block">
-                    <span className="text-muted-foreground">{course.title} / </span>
+                <div className="text-sm">
+                    <span className="text-muted-foreground hidden md:inline">{course.title} / </span>
                     <span className="text-white font-medium">{currentLesson.title}</span>
                 </div>
             </div>
@@ -389,55 +476,128 @@ export default function LessonPage() {
 
 
             <div className="max-w-4xl mx-auto mt-8">
-                <div className="flex justify-between items-center mb-4">
-                  <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">{currentLesson.title}</h1>
-                  {!currentLesson.videoUrl && !isCurrentLessonCompleted && (
-                     <Button onClick={markAsCompleted}>
-                         <Check className="mr-2 h-4 w-4" /> Marcar como concluída
-                     </Button>
-                  )}
+                <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
+                  <h1 className="text-2xl md:text-3xl font-bold text-white">{currentLesson.title}</h1>
+                  <div className="flex items-center gap-2 shrink-0">
+                      <div className="flex items-center gap-1.5 p-1 rounded-full bg-secondary/50">
+                        <Button size="sm" variant="ghost" onClick={() => handleReaction('like')} className={cn("rounded-full h-8 px-3", userReaction === 'like' && 'bg-primary/20 text-primary')}>
+                            <ThumbsUp className="mr-2 h-4 w-4" /> {likes}
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => handleReaction('dislike')} className={cn("rounded-full h-8 px-3", userReaction === 'dislike' && 'bg-destructive/20 text-destructive')}>
+                            <ThumbsDown className="mr-2 h-4 w-4" /> {dislikes}
+                        </Button>
+                      </div>
+                      {!currentLesson.videoUrl && !isCurrentLessonCompleted && (
+                         <Button onClick={markAsCompleted}>
+                             <Check className="mr-2 h-4 w-4" /> Marcar concluída
+                         </Button>
+                      )}
+                  </div>
                 </div>
                 
-                
-                {currentLesson.description && (
-                    <div className="prose prose-invert max-w-none text-muted-foreground" dangerouslySetInnerHTML={{ __html: processedDescription }}></div>
-                )}
-                
-                {currentLesson.complementaryMaterials && currentLesson.complementaryMaterials.length > 0 && (
-                    <div className="mt-8 pt-6 border-t border-border">
-                        <h2 className="text-xl font-semibold text-white mb-4">Materiais Complementares</h2>
-                        <div className="space-y-3">
-                            {currentLesson.complementaryMaterials.map(material => {
-                                const isDrive = material.url.includes('drive.google.com');
-                                const isDownloadable = /\.(pdf|zip|rar|jpg|png|jpeg|doc|docx|xls|xlsx|ppt|pptx)$/i.test(material.url);
-                                
-                                let Icon = Link2;
-                                let buttonText = "Acessar Link";
-                                if (isDrive) {
-                                    Icon = GoogleDriveIcon;
-                                    buttonText = "Acessar Drive";
-                                } else if (isDownloadable) {
-                                    Icon = Download;
-                                    buttonText = "Baixar Arquivo";
-                                }
+                <Tabs defaultValue="description" className="w-full">
+                    <TabsList>
+                        <TabsTrigger value="description"><BookOpen className="h-4 w-4 mr-2" />Descrição</TabsTrigger>
+                        <TabsTrigger value="comments"><MessageSquare className="h-4 w-4 mr-2" />Comentários</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="description" className="py-6">
+                        {currentLesson.description && (
+                            <div className="prose prose-invert max-w-none text-muted-foreground" dangerouslySetInnerHTML={{ __html: processedDescription }}></div>
+                        )}
+                        
+                        {currentLesson.complementaryMaterials && currentLesson.complementaryMaterials.length > 0 && (
+                            <div className="mt-8 pt-6 border-t border-border">
+                                <h2 className="text-xl font-semibold text-white mb-4">Materiais Complementares</h2>
+                                <div className="space-y-3">
+                                    {currentLesson.complementaryMaterials.map(material => {
+                                        const isDrive = material.url.includes('drive.google.com');
+                                        const isDownloadable = /\.(pdf|zip|rar|jpg|png|jpeg|doc|docx|xls|xlsx|ppt|pptx)$/i.test(material.url);
+                                        
+                                        let Icon = Link2;
+                                        let buttonText = "Acessar Link";
+                                        if (isDrive) {
+                                            Icon = GoogleDriveIcon;
+                                            buttonText = "Acessar Drive";
+                                        } else if (isDownloadable) {
+                                            Icon = Download;
+                                            buttonText = "Baixar Arquivo";
+                                        }
 
-                                return (
-                                    <div key={material.id} className="flex items-center justify-between gap-3 p-4 rounded-lg bg-secondary/50 border border-border">
-                                        <div className="flex items-center gap-4">
-                                            <Icon className="h-6 w-6 text-primary flex-shrink-0"/>
-                                            <span className="text-sm font-medium text-white">{material.title}</span>
+                                        return (
+                                            <div key={material.id} className="flex items-center justify-between gap-3 p-4 rounded-lg bg-secondary/50 border border-border">
+                                                <div className="flex items-center gap-4">
+                                                    <Icon className="h-6 w-6 text-primary flex-shrink-0"/>
+                                                    <span className="text-sm font-medium text-white">{material.title}</span>
+                                                </div>
+                                                <Button asChild size="sm">
+                                                    <a href={material.url} target="_blank" rel="noopener noreferrer">
+                                                        {buttonText}
+                                                    </a>
+                                                </Button>
+                                            </div>
+                                        )
+                                    })}
+                                </div>
+                            </div>
+                        )}
+                    </TabsContent>
+                    <TabsContent value="comments" className="py-6">
+                        <h2 className="text-xl font-semibold text-white mb-4">Comentários</h2>
+                        <form onSubmit={handleCommentSubmit} className="flex flex-col gap-3 mb-8">
+                             <div className="flex gap-3">
+                                <Avatar className="h-10 w-10 mt-1">
+                                    <AvatarImage src={user?.photoURL || undefined} />
+                                    <AvatarFallback>{user?.displayName?.charAt(0)}</AvatarFallback>
+                                </Avatar>
+                                <Textarea 
+                                    placeholder="Deixe seu comentário..."
+                                    value={newComment}
+                                    onChange={(e) => setNewComment(e.target.value)}
+                                    className="flex-1 bg-secondary/50"
+                                    rows={3}
+                                />
+                             </div>
+                             <div className="flex justify-end">
+                                <Button type="submit" disabled={isSubmittingComment}>
+                                    <Send className="h-4 w-4 mr-2" />
+                                    {isSubmittingComment ? 'Enviando...' : 'Enviar'}
+                                </Button>
+                             </div>
+                        </form>
+                        
+                        <div className="space-y-6">
+                            {commentsLoading ? (
+                                <Skeleton className="h-20 w-full" />
+                            ) : comments && comments.length > 0 ? (
+                                comments.map(comment => (
+                                    <div key={comment.id} className="flex items-start gap-4">
+                                        <Avatar className="h-10 w-10">
+                                            <AvatarImage src={comment.userPhotoURL} />
+                                            <AvatarFallback>{comment.userDisplayName.charAt(0)}</AvatarFallback>
+                                        </Avatar>
+                                        <div className="flex-1">
+                                            <div className="flex items-baseline justify-between">
+                                                <p className="font-semibold text-white">{comment.userDisplayName}</p>
+                                                <div className="flex items-center gap-2">
+                                                    <p className="text-xs text-muted-foreground">{comment.timestamp ? formatDistanceToNow(comment.timestamp.toDate(), { addSuffix: true, locale: ptBR }) : ''}</p>
+                                                    {(isAdmin || user?.uid === comment.userId) && (
+                                                      <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleDeleteComment(comment.id)}>
+                                                        <Trash2 className="h-3 w-3 text-destructive/70" />
+                                                      </Button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <p className="text-muted-foreground whitespace-pre-wrap">{comment.text}</p>
                                         </div>
-                                        <Button asChild size="sm">
-                                            <a href={material.url} target="_blank" rel="noopener noreferrer">
-                                                {buttonText}
-                                            </a>
-                                        </Button>
                                     </div>
-                                )
-                            })}
+                                ))
+                            ) : (
+                                <p className="text-center text-muted-foreground py-4">Seja o primeiro a comentar!</p>
+                            )}
                         </div>
-                    </div>
-                )}
+
+                    </TabsContent>
+                </Tabs>
             </div>
         </div>
       </main>

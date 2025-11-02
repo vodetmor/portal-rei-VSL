@@ -183,7 +183,34 @@
           "updatedAt": { "type": "string", "format": "date-time", "description": "The last time progress was updated." }
         },
         "required": ["courseId", "completedLessons", "updatedAt"]
-      }
+    },
+    "LessonComment": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "LessonComment",
+        "type": "object",
+        "description": "Represents a comment made by a user on a specific lesson.",
+        "properties": {
+          "id": { "type": "string" },
+          "userId": { "type": "string" },
+          "userDisplayName": { "type": "string" },
+          "userPhotoURL": { "type": "string", "format": "uri" },
+          "text": { "type": "string" },
+          "timestamp": { "type": "string", "format": "date-time" }
+        },
+        "required": ["id", "userId", "userDisplayName", "text", "timestamp"]
+    },
+    "LessonReaction": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "LessonReaction",
+        "type": "object",
+        "description": "Represents a user's reaction (like/dislike) to a lesson.",
+        "properties": {
+          "id": { "type": "string" },
+          "userId": { "type": "string" },
+          "type": { "type": "string", "enum": ["like", "dislike"] }
+        },
+        "required": ["id", "userId", "type"]
+    }
   },
   "auth": {
     "providers": ["password", "anonymous"]
@@ -206,6 +233,32 @@
           "schema": { "$ref": "#/backend/entities/Course" },
           "description": "Stores course data.",
           "params": [{ "name": "courseId", "description": "Unique identifier for the course." }]
+        }
+      },
+      {
+        "path": "/courses/{courseId}/lessons/{lessonId}/comments/{commentId}",
+        "definition": {
+          "entityName": "LessonComment",
+          "schema": { "$ref": "#/backend/entities/LessonComment" },
+          "description": "Stores comments for a specific lesson.",
+          "params": [
+            { "name": "courseId", "description": "The ID of the course." },
+            { "name": "lessonId", "description": "The ID of the lesson." },
+            { "name": "commentId", "description": "The unique ID of the comment." }
+          ]
+        }
+      },
+      {
+        "path": "/courses/{courseId}/lessons/{lessonId}/reactions/{reactionId}",
+        "definition": {
+          "entityName": "LessonReaction",
+          "schema": { "$ref": "#/backend/entities/LessonReaction" },
+          "description": "Stores reactions (likes/dislikes) for a specific lesson.",
+          "params": [
+            { "name": "courseId", "description": "The ID of the course." },
+            { "name": "lessonId", "description": "The ID of the lesson." },
+            { "name": "reactionId", "description": "The unique ID of the reaction (often the user's ID)." }
+          ]
         }
       },
       {
@@ -290,5 +343,3 @@
     "reasoning": "The Firestore structure is designed to store data for the 'Portfólio Hades' application, focusing on separation of concerns, security, and scalability. User management has been added with a specific subcollection for course access to allow granular control. The `premiumLinks` collection has been added to manage the new premium access system, linking tokens to course bundles.\n\n**Users:** Stored in the `/users` collection.\n**Course Access:** A subcollection `/users/{userId}/courseAccess` explicitly grants users access to courses.\n**Premium Links:** A new collection `/premiumLinks` stores the generated tokens and the course IDs they grant access to.\n**Audit Logs:** A new collection `/auditLogs` has been added to track all administrative actions for security and monitoring purposes.\n**Progress:** A new subcollection `/users/{userId}/progress` tracks user completion of lessons within each course, enabling progress bars and detailed admin views."
   }
 }
-
-    
