@@ -92,19 +92,18 @@ export function Header() {
 		<header
 			className={cn(
 				'transition-all ease-out duration-500 z-[100] w-full',
-        !isEditMode && 'sticky top-0',
+                !isEditMode && 'sticky top-0',
 				{
-					'bg-background/95 supports-[backdrop-filter]:bg-background/60 border-b border-border backdrop-blur-xl md:top-4 md:border md:rounded-xl md:max-w-4xl md:mx-auto':
-						scrolled && !open,
-					'bg-background/90': open,
-				},
+					'bg-transparent': !scrolled && !open,
+					'bg-background/80 supports-[backdrop-filter]:bg-background/60 backdrop-blur-xl': scrolled || open
+				}
 			)}
 		>
 			<nav
 				className={cn(
 					'flex h-16 w-full items-center justify-between px-4 md:transition-all md:ease-out md:duration-500 max-w-5xl mx-auto',
 					{
-						'md:px-3': scrolled,
+						'md:px-3 md:max-w-4xl md:mx-auto md:border md:rounded-xl md:border-border md:top-4 md:h-14 relative': scrolled,
 					},
 				)}
 			>
