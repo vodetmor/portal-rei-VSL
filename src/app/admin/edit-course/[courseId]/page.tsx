@@ -59,7 +59,8 @@ function EditCoursePageContent() {
       if (courseSnap.exists()) {
         const courseData = { id: courseSnap.id, ...courseSnap.data() } as Course;
         setCourse(courseData);
-        setModules((courseData.modules || []).map(m => ({ ...m, id: m.id || uuidv4() })));
+        // Ensure every module has a client-side ID for React keys
+        setModules((courseData.modules || []).map(m => ({ ...m, id: uuidv4() })));
       } else {
         toast({ variant: "destructive", title: "Erro", description: "Curso não encontrado." });
         router.push('/admin');
@@ -105,8 +106,11 @@ function EditCoursePageContent() {
 
     try {
       const courseRef = doc(firestore, 'courses', courseId);
+      // Strip client-side 'id' before saving to Firestore
+      const modulesToSave = modules.map(({ id, ...rest }) => rest);
+      
       await updateDoc(courseRef, {
-        modules: modules.map(({ id, ...rest }) => rest), // Remove client-side id before saving
+        modules: modulesToSave,
       });
       toast({ title: "Sucesso!", description: "A estrutura de módulos foi atualizada." });
     } catch (error) {

@@ -35,10 +35,14 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
             if (userDoc.exists() && userDoc.data().role === 'admin') {
               setIsAdmin(true);
             } else {
-              router.replace('/dashboard');
+              // Non-admins shouldn't access admin pages, redirect them.
+              // Allow access for this check to complete on non-admin pages.
+              // The page using the guard will handle the final redirection if needed.
+              setIsAdmin(false);
             }
         } catch (error) {
             console.error("Error checking admin role:", error);
+            // If we can't check the role, assume not admin and redirect.
             router.replace('/dashboard');
         }
       }
@@ -60,5 +64,16 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
     return <>{children}</>;
   }
 
+  // If not checking and not admin, redirect.
+  // This might cause a flash of content if the check is slow.
+  // A better approach is often to handle this at the page level.
+  // For a simple guard, this is a reasonable default.
+  useEffect(() => {
+    if (!isChecking && !isAdmin) {
+      router.replace('/dashboard');
+    }
+  }, [isChecking, isAdmin, router]);
+
+  // Render nothing while redirecting
   return null;
 }

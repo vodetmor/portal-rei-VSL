@@ -12,11 +12,12 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { CourseCard } from '@/components/course-card';
-import { Plus, Pencil, Save, X, Upload, Link2, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Save, X, Upload, Link2, Bold, Italic, Underline, Palette, AlignLeft, AlignCenter, AlignRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
+import { ActionToolbar } from '@/components/ui/action-toolbar';
 
 interface Module {
     id: string;
@@ -48,6 +49,8 @@ export default function CoursePlayerPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [activeEditor, setActiveEditor] = useState<string | null>(null);
+
 
   // Temp states for editing
   const [tempHeroImage, setTempHeroImage] = useState(DEFAULT_HERO_IMAGE);
@@ -56,6 +59,21 @@ export default function CoursePlayerPage() {
   const [imageInputMode, setImageInputMode] = useState<'upload' | 'url'>('upload');
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [tempTitle, setTempTitle] = useState('');
+  const [tempDescription, setTempDescription] = useState('');
+
+
+  const applyFormat = (command: string) => {
+    const editorId = activeEditor;
+    if (!editorId) return;
+
+    const editorElement = document.getElementById(editorId);
+    if (!editorElement || !editorElement.isContentEditable) return;
+    
+    document.execCommand(command, false, undefined);
+  
+    if (editorId === 'course-title-editor') setTempTitle(editorElement.innerHTML);
+    else if (editorId === 'course-description-editor') setTempDescription(editorElement.innerHTML);
+  };
 
   const fetchCourse = useCallback(async () => {
     if (!firestore || !courseId) return;
@@ -68,6 +86,7 @@ export default function CoursePlayerPage() {
         const courseData = { id: courseSnap.id, ...courseSnap.data() } as Course;
         setCourse(courseData);
         setTempTitle(courseData.title);
+        setTempDescription(courseData.description);
         setTempHeroImage(courseData.heroImageUrl || DEFAULT_HERO_IMAGE);
         setHeroImageUrlInput(courseData.heroImageUrl || '');
       } else {
@@ -113,11 +132,13 @@ export default function CoursePlayerPage() {
     setIsEditMode(false);
     if (course) {
       setTempTitle(course.title);
+      setTempDescription(course.description);
       setTempHeroImage(course.heroImageUrl || DEFAULT_HERO_IMAGE);
       setHeroImageUrlInput(course.heroImageUrl || '');
     }
     setHeroImageFile(null);
     setUploadProgress(null);
+    setActiveEditor(null);
   };
 
   const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -164,6 +185,7 @@ export default function CoursePlayerPage() {
         const courseRef = doc(firestore, 'courses', courseId);
         const dataToSave = {
             title: tempTitle,
+            description: tempDescription,
             heroImageUrl: finalHeroImageUrl,
         };
 
@@ -172,6 +194,7 @@ export default function CoursePlayerPage() {
         setCourse(prev => prev ? { ...prev, ...dataToSave } : null);
         toast({ title: "Sucesso!", description: "O curso foi atualizado." });
         setIsEditMode(false);
+        setActiveEditor(null);
 
     } catch (error) {
         console.error('Error saving course:', error);
@@ -207,7 +230,7 @@ export default function CoursePlayerPage() {
     <div className="w-full">
       {/* Hero Section */}
       <section className={cn(
-        "relative flex h-[50vh] min-h-[350px] w-full items-center justify-center text-center",
+        "relative flex h-[60vh] min-h-[450px] w-full items-center justify-center text-center py-12",
         isEditMode && "border-2 border-dashed border-primary/50"
       )}>
         <div className="absolute inset-0 z-0">
@@ -221,16 +244,57 @@ export default function CoursePlayerPage() {
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
         </div>
 
-        <div className="relative z-10 p-4">
-            {isEditMode ? (
-                 <Input 
-                    value={tempTitle}
-                    onChange={(e) => setTempTitle(e.target.value)}
-                    className="text-4xl md:text-6xl font-bold tracking-tight text-white bg-transparent border-2 border-dashed text-center"
-                 />
-            ) : (
-                <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-white">{course.title}</h1>
-            )}
+        <div className="relative z-10 p-4 max-w-3xl mx-auto">
+             <div className="relative">
+                <div
+                    id="course-title-editor"
+                    contentEditable={isEditMode}
+                    suppressContentEditableWarning={true}
+                    onFocus={() => setActiveEditor('course-title-editor')}
+                    onBlur={() => setActiveEditor(null)}
+                    onInput={(e) => setTempTitle(e.currentTarget.innerHTML)}
+                    className={cn(
+                        "text-4xl md:text-6xl font-bold tracking-tight text-white",
+                        isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
+                    )}
+                    dangerouslySetInnerHTML={{ __html: isEditMode ? tempTitle : course.title }}
+                />
+                 {isEditMode && activeEditor === 'course-title-editor' && (
+                    <ActionToolbar
+                        className="absolute -top-14 left-1/2 -translate-x-1/2"
+                        buttons={[
+                            { label: "Bold", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
+                            { label: "Italic", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
+                            { label: "Underline", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
+                        ]}
+                    />
+                )}
+            </div>
+             <div className="relative mt-4">
+                <div
+                    id="course-description-editor"
+                    contentEditable={isEditMode}
+                    suppressContentEditableWarning={true}
+                    onFocus={() => setActiveEditor('course-description-editor')}
+                    onBlur={() => setActiveEditor(null)}
+                    onInput={(e) => setTempDescription(e.currentTarget.innerHTML)}
+                    className={cn(
+                        "text-lg text-muted-foreground",
+                        isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
+                    )}
+                    dangerouslySetInnerHTML={{ __html: isEditMode ? tempDescription : course.description }}
+                />
+                 {isEditMode && activeEditor === 'course-description-editor' && (
+                    <ActionToolbar
+                        className="absolute -top-14 left-1/2 -translate-x-1/2"
+                        buttons={[
+                            { label: "Bold", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
+                            { label: "Italic", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
+                            { label: "Underline", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
+                        ]}
+                    />
+                )}
+            </div>
         </div>
         
         {isAdmin && !isEditMode && (
@@ -277,10 +341,10 @@ export default function CoursePlayerPage() {
                     <p className="text-sm text-muted-foreground">Monster Copy ®</p>
                 </div>
             </div>
-             {isAdmin && isEditMode && (
-                <Button asChild>
+             {isAdmin && (
+                <Button asChild variant="outline">
                     <Link href={`/admin/edit-course/${courseId}`}>
-                        <Plus className="mr-2 h-4 w-4" /> Adicionar/Gerenciar Módulos
+                        <Pencil className="mr-2 h-4 w-4" /> Gerenciar Módulos
                     </Link>
                 </Button>
             )}
@@ -302,7 +366,7 @@ export default function CoursePlayerPage() {
         ) : (
           <div className="flex flex-col items-center justify-center text-center p-12 rounded-lg bg-secondary/50">
             <p className="text-muted-foreground">Nenhum módulo encontrado para este curso.</p>
-            {isAdmin && isEditMode && (
+            {isAdmin && (
                  <Button asChild className="mt-4">
                     <Link href={`/admin/edit-course/${courseId}`}>
                         <Plus className="mr-2 h-4 w-4" /> Adicionar Módulo
@@ -339,5 +403,3 @@ function TrophyIcon(props: React.SVGProps<SVGSVGElement>) {
     </svg>
   )
 }
-
-    
