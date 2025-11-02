@@ -410,7 +410,7 @@ export default function LessonPage() {
         "flex-1 flex flex-col transition-all duration-300 ease-in-out",
         isSidebarOpen ? "md:ml-80" : "md:ml-0"
       )}>
-        <header className={cn("flex items-center justify-between p-4 bg-background/80 backdrop-blur-sm z-10 border-b border-border h-20 shrink-0 sticky top-20")}>
+        <header className={cn("flex items-center justify-between p-4 bg-background/80 backdrop-blur-sm z-10 border-b border-border h-20 shrink-0")}>
            <div className="flex items-center gap-4">
                 <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="hidden md:flex">
                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
