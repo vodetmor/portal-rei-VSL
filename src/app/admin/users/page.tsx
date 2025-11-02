@@ -136,7 +136,7 @@ function UserManagementPage() {
                     {user.email === 'admin@reidavsl.com' ? (
                         <Badge variant="destructive">Dono</Badge>
                     ) : (
-                        <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
+                        <Badge variant={user.role === 'admin' ? 'warning' : 'secondary'}>
                             {user.role}
                         </Badge>
                     )}
