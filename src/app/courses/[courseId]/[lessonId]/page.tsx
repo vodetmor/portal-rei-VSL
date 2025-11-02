@@ -10,7 +10,7 @@ import ReactPlayer from 'react-player/lazy';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { CheckCircle, Circle, Lock, ArrowLeft, ArrowRight, X } from 'lucide-react';
+import { CheckCircle, Circle, Lock, ArrowLeft, ArrowRight, X, Download, Link2 } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
@@ -54,6 +54,19 @@ interface CourseAccessInfo {
     grantedAt: string; // ISO string date
 }
 
+const urlRegex = /(https?:\/\/[^\s]+)/g;
+
+function makeLinksClickable(text: string) {
+    return text.replace(urlRegex, (url) => `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">${url}</a>`);
+}
+
+function GoogleDriveIcon(props: React.ComponentProps<'svg'>) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
+            <path d="M18.88 9.94l-3.32-5.4A2 2 0 0 0 13.88 4H10.1a2 2 0 0 0-1.7 1.52l-3.3 5.44a2 2 0 0 0 .34 2.2l5.88 8.64a2 2 0 0 0 3.36 0l5.88-8.64a2 2 0 0 0 .32-2.22Z"/>
+        </svg>
+    )
+}
 
 export default function LessonPage() {
   const { courseId, lessonId } = useParams();
@@ -184,34 +197,38 @@ export default function LessonPage() {
     }
   }, [user, userLoading, fetchLessonData, router]);
 
-  const handleProgress = async (played: number) => {
-    const isAlreadyCompleted = userProgress?.completedLessons[lessonId as string];
-    if (played > 0.9 && !isAlreadyCompleted && user && firestore) {
-        const progressRef = doc(firestore, `users/${user.uid}/progress`, courseId as string);
-        const newProgressData = {
-            ...userProgress,
-            completedLessons: {
-                ...userProgress?.completedLessons,
-                [lessonId as string]: serverTimestamp(),
-            },
+ const handleProgress = async (played: number) => {
+    if (isCurrentLessonCompleted) return; // Don't re-run if already completed
+
+    if (played > 0.9 && user && firestore) {
+      setIsCurrentLessonCompleted(true); // Optimistic UI update
+
+      const progressRef = doc(firestore, `users/${user.uid}/progress`, courseId as string);
+      const newProgressPayload = {
+        [`completedLessons.${lessonId}`]: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      };
+      
+      try {
+        await updateDoc(progressRef, newProgressPayload);
+        toast({ title: "Aula Concluída!", description: `"${currentLesson?.title}" foi marcada como concluída.` });
+      } catch (error: any) {
+        // If the document doesn't exist, create it.
+        if (error.code === 'not-found') {
+          const initialProgress = {
+            courseId: courseId,
             updatedAt: serverTimestamp(),
-        };
-
-        try {
-            await setDoc(progressRef, newProgressData, { merge: true });
-            setUserProgress(prev => ({
-                ...prev!,
-                completedLessons: {
-                    ...prev?.completedLessons,
-                    [lessonId as string]: new Date().toISOString()
-                }
-            }));
-            setIsCurrentLessonCompleted(true);
-            toast({ title: "Aula Concluída!", description: `"${currentLesson?.title}" foi marcada como concluída.` });
-
-        } catch (error) {
-            console.error("Failed to update progress:", error);
+            completedLessons: {
+              [lessonId as string]: serverTimestamp(),
+            },
+          };
+          await setDoc(progressRef, initialProgress);
+          toast({ title: "Aula Concluída!", description: `"${currentLesson?.title}" foi marcada como concluída.` });
+        } else {
+          console.error("Failed to update progress:", error);
+          setIsCurrentLessonCompleted(false); // Revert optimistic update on failure
         }
+      }
     }
   };
   
@@ -237,6 +254,8 @@ export default function LessonPage() {
       const releaseDate = addDays(grantedDate, delay);
       return new Date() >= releaseDate;
   };
+  
+  const processedDescription = makeLinksClickable(currentLesson.description || '');
 
   return (
     <div className="flex min-h-screen bg-black text-white pt-20">
@@ -348,31 +367,47 @@ export default function LessonPage() {
             </div>
 
             <div className="max-w-4xl mx-auto mt-8">
-            <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">{currentLesson.title}</h1>
-            {currentLesson.description && (
-                <div className="prose prose-invert max-w-none text-muted-foreground" dangerouslySetInnerHTML={{ __html: currentLesson.description }}></div>
-            )}
-            
-            {currentLesson.complementaryMaterials && currentLesson.complementaryMaterials.length > 0 && (
-                <div className="mt-8 pt-6 border-t border-border">
-                    <h2 className="text-xl font-semibold text-white mb-4">Materiais Complementares</h2>
-                    <div className="space-y-3">
-                        {currentLesson.complementaryMaterials.map(material => (
-                            <a 
-                                key={material.id} 
-                                href={material.url} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-3 p-3 rounded-md bg-secondary/50 hover:bg-secondary/80 transition-colors"
-                            >
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-primary flex-shrink-0"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.72"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.72-1.72"></path></svg>
-                                <span className="text-sm font-medium text-white">{material.title}</span>
-                            </a>
-                        ))}
-                    </div>
-                </div>
-            )}
+                <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">{currentLesson.title}</h1>
+                
+                {currentLesson.description && (
+                    <div className="prose prose-invert max-w-none text-muted-foreground" dangerouslySetInnerHTML={{ __html: processedDescription }}></div>
+                )}
+                
+                {currentLesson.complementaryMaterials && currentLesson.complementaryMaterials.length > 0 && (
+                    <div className="mt-8 pt-6 border-t border-border">
+                        <h2 className="text-xl font-semibold text-white mb-4">Materiais Complementares</h2>
+                        <div className="space-y-3">
+                            {currentLesson.complementaryMaterials.map(material => {
+                                const isDrive = material.url.includes('drive.google.com');
+                                const isDownloadable = /\.(pdf|zip|rar|jpg|png|jpeg|doc|docx|xls|xlsx|ppt|pptx)$/i.test(material.url);
+                                
+                                let Icon = Link2;
+                                let buttonText = "Acessar Link";
+                                if (isDrive) {
+                                    Icon = GoogleDriveIcon;
+                                    buttonText = "Acessar Drive";
+                                } else if (isDownloadable) {
+                                    Icon = Download;
+                                    buttonText = "Baixar Arquivo";
+                                }
 
+                                return (
+                                    <div key={material.id} className="flex items-center justify-between gap-3 p-4 rounded-lg bg-secondary/50 border border-border">
+                                        <div className="flex items-center gap-4">
+                                            <Icon className="h-6 w-6 text-primary flex-shrink-0"/>
+                                            <span className="text-sm font-medium text-white">{material.title}</span>
+                                        </div>
+                                        <Button asChild size="sm">
+                                            <a href={material.url} target="_blank" rel="noopener noreferrer">
+                                                {buttonText}
+                                            </a>
+                                        </Button>
+                                    </div>
+                                )
+                            })}
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
       </main>
