@@ -72,5 +72,11 @@ service cloud.firestore {
         allow read: if request.auth != null;
         allow write: if isAdmin();
     }
+
+    // Audit logs can only be read and created by admins. They cannot be updated or deleted.
+    match /auditLogs/{logId} {
+      allow read, list, create: if isAdmin();
+      allow update, delete: if false;
+    }
   }
 }

@@ -106,7 +106,24 @@
         }
       },
       "required": ["id", "name", "courseIds"]
-    }
+    },
+    "AuditLog": {
+        "$schema": "http://json-schema.org/draft-07/schema#",
+        "title": "AuditLog",
+        "type": "object",
+        "description": "Represents a log entry for an action performed by an administrator.",
+        "properties": {
+          "id": { "type": "string", "description": "Unique identifier for the log entry." },
+          "adminId": { "type": "string", "description": "The UID of the administrator who performed the action." },
+          "adminEmail": { "type": "string", "description": "The email of the administrator." },
+          "action": { "type": "string", "description": "A description of the action performed (e.g., 'course_created', 'module_updated')." },
+          "entityType": { "type": "string", "description": "The type of entity that was affected (e.g., 'course', 'user', 'module')." },
+          "entityId": { "type": "string", "description": "The ID of the entity that was affected." },
+          "entityTitle": { "type": "string", "description": "The title or name of the entity for easy identification." },
+          "timestamp": { "type": "string", "format": "date-time", "description": "When the action occurred." }
+        },
+        "required": ["id", "adminId", "adminEmail", "action", "entityType", "entityId", "timestamp"]
+      }
   },
   "auth": {
     "providers": ["password", "anonymous"]
@@ -187,10 +204,17 @@
           "description": "Stores premium access links and their associated course IDs.",
           "params": [{ "name": "linkId", "description": "The unique token for the premium link." }]
         }
+      },
+      {
+        "path": "/auditLogs/{logId}",
+        "definition": {
+          "entityName": "AuditLog",
+          "schema": { "$ref": "#/backend/entities/AuditLog" },
+          "description": "Stores a log of all actions performed by administrators for auditing purposes.",
+          "params": [{ "name": "logId", "description": "The unique ID for the log entry." }]
+        }
       }
     ],
-    "reasoning": "The Firestore structure is designed to store data for the 'Portfólio Hades' application, focusing on separation of concerns, security, and scalability. User management has been added with a specific subcollection for course access to allow granular control. The `premiumLinks` collection has been added to manage the new premium access system, linking tokens to course bundles.\n\n**Users:** Stored in the `/users` collection.\n**Course Access:** A subcollection `/users/{userId}/courseAccess` explicitly grants users access to courses.\n**Premium Links:** A new collection `/premiumLinks` stores the generated tokens and the course IDs they grant access to.\n\n**Authorization:** Access control is managed via Firestore Rules, restricting sensitive operations to admins. The `premiumLinks` collection is only writable by admins, but readable by any authenticated user to verify a link."
+    "reasoning": "The Firestore structure is designed to store data for the 'Portfólio Hades' application, focusing on separation of concerns, security, and scalability. User management has been added with a specific subcollection for course access to allow granular control. The `premiumLinks` collection has been added to manage the new premium access system, linking tokens to course bundles.\n\n**Users:** Stored in the `/users` collection.\n**Course Access:** A subcollection `/users/{userId}/courseAccess` explicitly grants users access to courses.\n**Premium Links:** A new collection `/premiumLinks` stores the generated tokens and the course IDs they grant access to.\n**Audit Logs:** A new collection `/auditLogs` has been added to track all administrative actions for security and monitoring purposes.\n\n**Authorization:** Access control is managed via Firestore Rules, restricting sensitive operations to admins. The `premiumLinks` and `auditLogs` collections are only writable by admins, but readable by any authenticated user to verify a link."
   }
 }
-
-    

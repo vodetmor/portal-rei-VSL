@@ -3,8 +3,8 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useFirestore } from '@/firebase';
-import { doc, getDoc, updateDoc } from 'firebase/firestore';
+import { useFirestore, useUser } from '@/firebase';
+import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { v4 as uuidv4 } from 'uuid';
 import ReactPlayer from 'react-player/lazy';
@@ -26,6 +26,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Separator } from '@/components/ui/separator';
+import { logAdminAction } from '@/lib/audit';
 
 interface Lesson {
   id: string;
@@ -57,6 +58,7 @@ const DEFAULT_MODULE_IMAGE = "https://i.imgur.com/1X3ta7W.png";
 
 function EditCoursePageContent() {
   const firestore = useFirestore();
+  const { user: adminUser } = useUser();
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
@@ -121,8 +123,15 @@ function EditCoursePageContent() {
     setModules([...modules, newModule]);
   };
 
-  const removeModule = (moduleId: string) => {
+  const removeModule = (moduleId: string, moduleTitle: string) => {
     setModules(modules.filter(m => m.id !== moduleId));
+     if (adminUser && firestore) {
+        logAdminAction(firestore, adminUser, 'module_deleted', {
+            type: 'Module',
+            id: moduleId,
+            title: `${moduleTitle} (do curso ${course?.title})`
+        })
+    }
   };
   
   const updateModuleField = <K extends keyof Module>(moduleId: string, field: K, value: Module[K]) => {
@@ -153,17 +162,24 @@ function EditCoursePageContent() {
     ));
   };
 
-  const removeLesson = (moduleId: string, lessonId: string) => {
+  const removeLesson = (moduleId: string, lessonId: string, lessonTitle: string) => {
     setModules(modules.map(m => 
       m.id === moduleId 
         ? { ...m, lessons: m.lessons.filter(l => l.id !== lessonId) }
         : m
     ));
+    if (adminUser && firestore) {
+        logAdminAction(firestore, adminUser, 'lesson_deleted', {
+            type: 'Lesson',
+            id: lessonId,
+            title: `${lessonTitle} (do curso ${course?.title})`
+        })
+    }
   };
 
 
   const handleSaveChanges = async () => {
-    if (!firestore || !courseId) return;
+    if (!firestore || !courseId || !adminUser) return;
     setIsSaving(true);
     
     try {
@@ -183,9 +199,17 @@ function EditCoursePageContent() {
         subtitle: tempSubtitle,
         description: tempDescription,
         modules: modulesToSave,
+        updatedAt: serverTimestamp(),
       };
 
       await updateDoc(courseRef, courseDataToSave);
+      
+      await logAdminAction(firestore, adminUser, 'course_updated', {
+          type: 'Course',
+          id: courseId,
+          title: tempTitle
+      })
+
       toast({ title: "Sucesso!", description: "O curso foi atualizado com sucesso." });
     } catch (error) {
       console.error('Error updating course:', error);
@@ -315,10 +339,10 @@ function EditCoursePageContent() {
 interface ModuleEditorProps {
     module: Module;
     onUpdate: <K extends keyof Module>(moduleId: string, field: K, value: Module[K]) => void;
-    onRemove: (moduleId: string) => void;
+    onRemove: (moduleId: string, moduleTitle: string) => void;
     onAddLesson: (moduleId: string) => void;
     onUpdateLesson: (moduleId: string, lessonId: string, field: keyof Lesson, value: string | number) => void;
-    onRemoveLesson: (moduleId: string, lessonId: string) => void;
+    onRemoveLesson: (moduleId: string, lessonId: string, lessonTitle: string) => void;
     onReorderLessons: (moduleId: string, reorderedLessons: Lesson[]) => void;
 }
 
@@ -452,7 +476,7 @@ function ModuleEditor({ module, onUpdate, onRemove, onAddLesson, onUpdateLesson,
                                 <AlertDialogHeader><AlertDialogTitle>Excluir Módulo?</AlertDialogTitle><AlertDialogDescription>Isso removerá "{module.title}" permanentemente. Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
                                 <AlertDialogFooter>
                                     <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => onRemove(module.id)}>Confirmar Exclusão</AlertDialogAction>
+                                    <AlertDialogAction onClick={() => onRemove(module.id, module.title)}>Confirmar Exclusão</AlertDialogAction>
                                 </AlertDialogFooter>
                             </AlertDialogContent>
                         </AlertDialog>
@@ -494,7 +518,7 @@ interface LessonEditorProps {
   lesson: Lesson;
   moduleId: string;
   onUpdate: (moduleId: string, lessonId: string, field: keyof Lesson, value: string | number) => void;
-  onRemove: (moduleId: string, lessonId: string) => void;
+  onRemove: (moduleId: string, lessonId: string, lessonTitle: string) => void;
 }
 
 function LessonEditor({ lesson, moduleId, onUpdate, onRemove }: LessonEditorProps) {
@@ -567,7 +591,7 @@ function LessonEditor({ lesson, moduleId, onUpdate, onRemove }: LessonEditorProp
                 min={0}
             />
         </div>
-        <Button type="button" variant="ghost" size="icon" onClick={() => onRemove(moduleId, lesson.id)}>
+        <Button type="button" variant="ghost" size="icon" onClick={() => onRemove(moduleId, lesson.id, lesson.title)}>
           <Trash2 className="h-4 w-4 text-destructive/70" />
         </Button>
       </div>
@@ -626,5 +650,3 @@ export default function EditCoursePage() {
         </AdminGuard>
     )
 }
-
-    

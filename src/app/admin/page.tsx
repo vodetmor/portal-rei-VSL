@@ -1,10 +1,11 @@
+
 'use client';
 import { useState, useEffect } from 'react';
-import { useFirestore } from '@/firebase';
+import { useFirestore, useUser } from '@/firebase';
 import AdminGuard from '@/components/admin/admin-guard';
-import { collection, getDocs, deleteDoc, doc, addDoc, setDoc, DocumentData } from 'firebase/firestore';
+import { collection, getDocs, deleteDoc, doc, addDoc, setDoc, DocumentData, serverTimestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
-import { Plus, Trash2, Users, Pencil, BookOpen, Link as LinkIcon, Copy } from 'lucide-react';
+import { Plus, Trash2, Users, Pencil, BookOpen, Link as LinkIcon, Copy, History } from 'lucide-react';
 import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
@@ -34,6 +35,7 @@ import { useRouter } from 'next/navigation';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
+import { logAdminAction } from '@/lib/audit';
 
 interface Course extends DocumentData {
   id: string;
@@ -49,13 +51,14 @@ interface PremiumLink extends DocumentData {
 
 function AdminDashboard() {
   const firestore = useFirestore();
+  const { user } = useUser();
   const router = useRouter();
   const { toast } = useToast();
   const [courses, setCourses] = useState<Course[]>([]);
   const [premiumLinks, setPremiumLinks] = useState<PremiumLink[]>([]);
   const [userCount, setUserCount] = useState(0);
   const [courseCount, setCourseCount] = useState(0);
-  const [itemToDelete, setItemToDelete] = useState<{id: string; type: 'course' | 'link'} | null>(null);
+  const [itemToDelete, setItemToDelete] = useState<{id: string; title: string, type: 'course' | 'link'} | null>(null);
 
   // State for the "Create Premium Link" dialog
   const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
@@ -92,17 +95,24 @@ function AdminDashboard() {
   }, [firestore, toast]);
   
   const handleAddCourse = async () => {
-    if (!firestore) return;
+    if (!firestore || !user) return;
     try {
       const newCourseData = {
         title: "Novo Curso (Rascunho)",
         description: "Adicione uma descrição incrível para o seu novo curso.",
         thumbnailUrl: "https://i.imgur.com/1X3ta7W.png",
         imageHint: 'placeholder',
-        createdAt: new Date(),
+        createdAt: serverTimestamp(),
         modules: [],
       };
       const docRef = await addDoc(collection(firestore, 'courses'), newCourseData);
+      
+      await logAdminAction(firestore, user, 'course_created', {
+        type: 'Course',
+        id: docRef.id,
+        title: newCourseData.title,
+      });
+
       toast({
         title: "Rascunho Criado!",
         description: "Seu novo curso foi iniciado. Agora edite os detalhes.",
@@ -119,12 +129,19 @@ function AdminDashboard() {
   };
 
   const handleDelete = async () => {
-    if (!firestore || !itemToDelete) return;
-    const { id, type } = itemToDelete;
+    if (!firestore || !itemToDelete || !user) return;
+    const { id, type, title } = itemToDelete;
     const collectionName = type === 'course' ? 'courses' : 'premiumLinks';
 
     try {
       await deleteDoc(doc(firestore, collectionName, id));
+      
+      await logAdminAction(firestore, user, `${type}_deleted`, {
+        type: type === 'course' ? 'Course' : 'Premium Link',
+        id: id,
+        title: title,
+      });
+
       toast({
         title: `${type === 'course' ? 'Curso' : 'Link'} Excluído`,
         description: `O ${type === 'course' ? 'curso' : 'link'} foi removido com sucesso.`,
@@ -143,7 +160,7 @@ function AdminDashboard() {
   };
 
   const handleCreatePremiumLink = async () => {
-    if (!firestore || !newLinkName.trim()) {
+    if (!firestore || !newLinkName.trim() || !user) {
         toast({ variant: "destructive", title: "Erro", description: "O nome do link é obrigatório." });
         return;
     }
@@ -155,7 +172,14 @@ function AdminDashboard() {
 
     try {
         const newLink = { name: newLinkName, courseIds };
-        await addDoc(collection(firestore, 'premiumLinks'), newLink);
+        const docRef = await addDoc(collection(firestore, 'premiumLinks'), newLink);
+        
+        await logAdminAction(firestore, user, 'premium_link_created', {
+            type: 'Premium Link',
+            id: docRef.id,
+            title: newLink.name
+        })
+
         toast({ title: "Sucesso!", description: "Link premium criado." });
         setNewLinkName('');
         setSelectedCourses({});
@@ -212,6 +236,11 @@ function AdminDashboard() {
                   <Users className="mr-2 h-4 w-4" /> Gerenciar Usuários
               </Link>
           </Button>
+           <Button asChild variant="secondary">
+              <Link href="/admin/logs">
+                  <History className="mr-2 h-4 w-4" /> Ver Logs de Atividade
+              </Link>
+          </Button>
       </div>
 
        {/* Premium Links & Courses Section */}
@@ -264,7 +293,7 @@ function AdminDashboard() {
                     <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Button variant="outline" size="icon" onClick={() => copyLinkToClipboard(link.id)}><Copy className="h-4 w-4" /></Button>
                       <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="icon" onClick={() => setItemToDelete({ id: link.id, type: 'link' })}>
+                        <Button variant="destructive" size="icon" onClick={() => setItemToDelete({ id: link.id, type: 'link', title: link.name })}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </AlertDialogTrigger>
@@ -297,7 +326,7 @@ function AdminDashboard() {
                         </Link>
                       </Button>
                       <AlertDialogTrigger asChild>
-                        <Button variant="destructive" size="icon" onClick={() => setItemToDelete({ id: course.id, type: 'course'})}>
+                        <Button variant="destructive" size="icon" onClick={() => setItemToDelete({ id: course.id, type: 'course', title: course.title})}>
                           <Trash2 className="h-4 w-4" />
                         </Button>
                       </AlertDialogTrigger>
@@ -313,7 +342,8 @@ function AdminDashboard() {
             <AlertDialogHeader>
             <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
             <AlertDialogDescription>
-                Esta ação não pode ser desfeita. Isso irá excluir permanentemente o {itemToDelete?.type === 'course' ? 'curso' : 'link'}.
+                Esta ação não pode ser desfeita. Isso irá excluir permanentemente o {itemToDelete?.type === 'course' ? 'curso' : 'link'}
+                <span className="font-bold text-white"> {itemToDelete?.title}</span>.
             </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>

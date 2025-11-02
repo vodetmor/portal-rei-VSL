@@ -1,9 +1,10 @@
+
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import AdminGuard from '@/components/admin/admin-guard';
-import { useFirestore } from '@/firebase';
-import { doc, getDoc, collection, getDocs, setDoc, deleteDoc, DocumentData, updateDoc } from 'firebase/firestore';
+import { useFirestore, useUser } from '@/firebase';
+import { doc, getDoc, collection, getDocs, setDoc, deleteDoc, DocumentData, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,6 +17,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Label } from '@/components/ui/label';
+import { logAdminAction } from '@/lib/audit';
 
 interface User extends DocumentData {
   id: string;
@@ -38,6 +40,7 @@ interface CourseAccess {
 function ManageUserAccessPage() {
   const { userId } = useParams();
   const firestore = useFirestore();
+  const { user: adminUser } = useUser();
   const router = useRouter();
   const { toast } = useToast();
 
@@ -47,6 +50,7 @@ function ManageUserAccessPage() {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isConfirmingRoleChange, setIsConfirmingRoleChange] = useState(false);
+  const [targetRole, setTargetRole] = useState<'admin' | 'user' | null>(null);
 
   const fetchData = useCallback(async () => {
     if (!firestore || !userId) return;
@@ -91,84 +95,83 @@ function ManageUserAccessPage() {
     fetchData();
   }, [fetchData]);
 
-  const handleAccessChange = (courseId: string, hasAccess: boolean) => {
-    if (!firestore || !userId) return;
+  const handleAccessChange = (courseId: string, courseTitle: string, hasAccess: boolean) => {
+    if (!firestore || !userId || !adminUser) return;
 
     // Optimistically update UI
     setCourseAccess(prev => ({ ...prev, [courseId]: hasAccess }));
 
     const accessDocRef = doc(firestore, `users/${userId}/courseAccess`, courseId);
 
-    try {
-      if (hasAccess) {
-        const dataToSet = { courseId: courseId, grantedAt: new Date() };
-        // Use non-blocking write with error handling
-        setDoc(accessDocRef, dataToSet)
-          .catch(async (serverError) => {
-             // Revert UI on failure
-            setCourseAccess(prev => ({ ...prev, [courseId]: !hasAccess }));
-            const permissionError = new FirestorePermissionError({
-                path: accessDocRef.path,
-                operation: 'create',
-                requestResourceData: dataToSet
-            });
-            errorEmitter.emit('permission-error', permissionError);
+    if (hasAccess) {
+      const dataToSet = { courseId: courseId, grantedAt: serverTimestamp() };
+      setDoc(accessDocRef, dataToSet)
+        .then(() => {
+          logAdminAction(firestore, adminUser, 'access_granted', {
+            type: 'Course Access',
+            id: courseId,
+            title: `Acesso a '${courseTitle}' para ${user?.email}`
           });
-      } else {
-        // Use non-blocking delete with error handling
-        deleteDoc(accessDocRef)
-          .catch(async (serverError) => {
-            // Revert UI on failure
-            setCourseAccess(prev => ({ ...prev, [courseId]: !hasAccess }));
-            const permissionError = new FirestorePermissionError({
-                path: accessDocRef.path,
-                operation: 'delete',
-            });
-            errorEmitter.emit('permission-error', permissionError);
+        })
+        .catch(async (serverError) => {
+           setCourseAccess(prev => ({ ...prev, [courseId]: !hasAccess }));
+          const permissionError = new FirestorePermissionError({ path: accessDocRef.path, operation: 'create', requestResourceData: dataToSet });
+          errorEmitter.emit('permission-error', permissionError);
+        });
+    } else {
+      deleteDoc(accessDocRef)
+        .then(() => {
+           logAdminAction(firestore, adminUser, 'access_revoked', {
+            type: 'Course Access',
+            id: courseId,
+            title: `Acesso a '${courseTitle}' revogado para ${user?.email}`
           });
-      }
-    } catch (error) {
-        // This outer catch is for synchronous errors, though unlikely here.
-        console.error("Error changing access:", error);
-        toast({ variant: "destructive", title: "Erro", description: "Ocorreu um erro ao alterar o acesso." });
-        // Revert UI on failure
-        setCourseAccess(prev => ({ ...prev, [courseId]: !hasAccess }));
+        })
+        .catch(async (serverError) => {
+          setCourseAccess(prev => ({ ...prev, [courseId]: !hasAccess }));
+          const permissionError = new FirestorePermissionError({ path: accessDocRef.path, operation: 'delete' });
+          errorEmitter.emit('permission-error', permissionError);
+        });
     }
   };
   
   const handleRoleChangeConfirm = async () => {
-    if (!firestore || !user) return;
-    const newRole = !isAdmin ? 'admin' : 'user';
+    if (!firestore || !user || !adminUser || targetRole === null) return;
+    
     const userRef = doc(firestore, 'users', user.id);
 
     try {
-      await updateDoc(userRef, { role: newRole });
-      setIsAdmin(newRole === 'admin'); // This updates the state after successful Firestore update
+      await updateDoc(userRef, { role: targetRole });
+
+      await logAdminAction(firestore, adminUser, targetRole === 'admin' ? 'user_promoted' : 'user_demoted', {
+          type: 'User Role',
+          id: user.id,
+          title: `Usuário ${user.email} para ${targetRole}`
+      });
+      
+      setIsAdmin(targetRole === 'admin');
       toast({
         title: "Função Atualizada!",
-        description: `${user.displayName} agora é ${newRole === 'admin' ? 'um administrador' : 'um usuário'}.`,
+        description: `${user.displayName} agora é ${targetRole === 'admin' ? 'um administrador' : 'um usuário'}.`,
       });
     } catch (error) {
       console.error("Error updating role:", error);
-      const permissionError = new FirestorePermissionError({
-        path: userRef.path,
-        operation: 'update',
-        requestResourceData: { role: newRole },
-      });
+      const permissionError = new FirestorePermissionError({ path: userRef.path, operation: 'update', requestResourceData: { role: targetRole } });
       errorEmitter.emit('permission-error', permissionError);
       toast({
         variant: "destructive",
         title: "Erro de Permissão",
         description: "Não foi possível alterar a função do usuário.",
       });
-      // No need to revert isAdmin here, as it was not changed optimistically
     } finally {
       setIsConfirmingRoleChange(false);
+      setTargetRole(null);
     }
   };
 
-  const onSwitchChange = () => {
+  const onSwitchChange = (checked: boolean) => {
       if (isOwner) return;
+      setTargetRole(checked ? 'admin' : 'user');
       setIsConfirmingRoleChange(true);
   }
 
@@ -237,13 +240,13 @@ function ManageUserAccessPage() {
                     <AlertDialogHeader>
                         <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
                         <AlertDialogDescription>
-                            {isAdmin
-                                ? `Isso removerá todas as permissões de administrador de ${user.displayName}. O usuário não poderá mais gerenciar cursos, usuários ou configurações do site.`
-                                : `Isso concederá permissões de administrador para ${user.displayName}. O usuário poderá gerenciar cursos, usuários e configurações do site.`}
+                            {targetRole === 'admin'
+                                ? `Isso concederá permissões de administrador para ${user.displayName}. O usuário poderá gerenciar cursos, usuários e configurações do site.`
+                                : `Isso removerá todas as permissões de administrador de ${user.displayName}. O usuário não poderá mais gerenciar cursos, usuários ou configurações do site.`}
                         </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogCancel onClick={() => setTargetRole(null)}>Cancelar</AlertDialogCancel>
                         <AlertDialogAction onClick={handleRoleChangeConfirm}>Confirmar</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
@@ -270,7 +273,7 @@ function ManageUserAccessPage() {
                 }
                 <Switch
                   checked={courseAccess[course.id] || false}
-                  onCheckedChange={(checked) => handleAccessChange(course.id, checked)}
+                  onCheckedChange={(checked) => handleAccessChange(course.id, course.title, checked)}
                 />
               </div>
             </div>
