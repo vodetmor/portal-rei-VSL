@@ -6,21 +6,19 @@ import { useParams, useRouter } from 'next/navigation';
 import { useFirestore, useUser, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { doc, getDoc, updateDoc, serverTimestamp, setDoc, addDoc, collection, query, orderBy, deleteDoc, writeBatch, runTransaction, increment } from 'firebase/firestore';
 import ReactPlayer from 'react-player/lazy';
-import { formatDistanceToNow } from 'date-fns';
-import { ptBR } from 'date-fns/locale';
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { CheckCircle, Circle, Lock, ArrowLeft, ArrowRight, X, Download, Link2, FileText, Check, ThumbsUp, Send, MessageSquare, BookOpen, Trash2, Pin, PinOff, CornerDownRight } from 'lucide-react';
+import { CheckCircle, Circle, Lock, ArrowLeft, ArrowRight, X, Download, Link2, FileText, Check, ThumbsUp } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { addDays, parseISO } from 'date-fns';
-import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { BookOpen } from 'lucide-react';
+
 
 // --- Type Definitions ---
 interface ComplementaryMaterial {
@@ -58,28 +56,6 @@ interface UserProgress {
 interface CourseAccessInfo {
     grantedAt: string;
 }
-
-interface LessonComment {
-    id: string;
-    userId: string;
-    userDisplayName: string;
-    userPhotoURL: string;
-    text: string;
-    timestamp: any;
-    isPinned?: boolean;
-    likeCount?: number;
-    replyCount?: number;
-}
-
-interface CommentReply {
-    id: string;
-    userId: string;
-    userDisplayName: string;
-    userPhotoURL: string;
-    text: string;
-    timestamp: any;
-}
-
 
 interface LessonReaction {
     id: string;
@@ -123,14 +99,6 @@ export default function LessonPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const [newComment, setNewComment] = useState('');
-  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
-
-  const commentsQuery = useMemoFirebase(() => {
-    if (!firestore || !courseId || !lessonId) return null;
-    return query(collection(firestore, `courses/${courseId}/lessons/${lessonId}/comments`), orderBy('isPinned', 'desc'), orderBy('timestamp', 'desc'));
-  }, [firestore, courseId, lessonId]);
-  const { data: comments, isLoading: commentsLoading } = useCollection<LessonComment>(commentsQuery);
 
   const reactionsQuery = useMemoFirebase(() => {
     if (!firestore || !courseId || !lessonId) return null;
@@ -326,58 +294,6 @@ export default function LessonPage() {
     }
   };
 
-  const handleCommentSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user || !firestore || !newComment.trim() || !courseId || !lessonId) return;
-    
-    setIsSubmittingComment(true);
-    const commentsCollectionRef = collection(firestore, `courses/${courseId}/lessons/${lessonId}/comments`);
-    const commentData = {
-        userId: user.uid,
-        userDisplayName: user.displayName,
-        userPhotoURL: user.photoURL,
-        text: newComment,
-        timestamp: serverTimestamp(),
-        isPinned: false,
-        likeCount: 0,
-        replyCount: 0
-    };
-
-    addDoc(commentsCollectionRef, commentData)
-        .then(() => {
-            setNewComment('');
-        })
-        .catch(async (serverError) => {
-            const permissionError = new FirestorePermissionError({
-                path: commentsCollectionRef.path,
-                operation: 'create',
-                requestResourceData: commentData,
-            });
-            errorEmitter.emit('permission-error', permissionError);
-        })
-        .finally(() => {
-            setIsSubmittingComment(false);
-        });
-  };
-
-  const handleDeleteComment = (commentId: string) => {
-    if (!firestore || !courseId || !lessonId) return;
-    const commentRef = doc(firestore, `courses/${courseId}/lessons/${lessonId}/comments`, commentId);
-    
-    deleteDoc(commentRef)
-        .then(() => {
-            toast({ title: 'Comentário excluído.' });
-        })
-        .catch(async (serverError) => {
-            const permissionError = new FirestorePermissionError({
-                path: commentRef.path,
-                operation: 'delete',
-            });
-            errorEmitter.emit('permission-error', permissionError);
-        });
-  };
-
-
   if (loading || userLoading || !course || !currentLesson || !currentModule || !isClient) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -543,7 +459,6 @@ export default function LessonPage() {
                 <Tabs defaultValue="description" className="w-full">
                     <TabsList>
                         <TabsTrigger value="description"><BookOpen className="h-4 w-4 mr-2" />Descrição</TabsTrigger>
-                        <TabsTrigger value="comments"><MessageSquare className="h-4 w-4 mr-2" />Comentários</TabsTrigger>
                     </TabsList>
                     <TabsContent value="description" className="py-6">
                         {currentLesson.description && (
@@ -586,51 +501,6 @@ export default function LessonPage() {
                             </div>
                         )}
                     </TabsContent>
-                    <TabsContent value="comments" className="py-6">
-                        <h2 className="text-xl font-semibold text-white mb-4">Comentários ({comments?.length || 0})</h2>
-                        <form onSubmit={handleCommentSubmit} className="flex flex-col gap-3 mb-8">
-                             <div className="flex gap-3">
-                                <Avatar className="h-10 w-10 mt-1">
-                                    <AvatarImage src={user?.photoURL || undefined} />
-                                    <AvatarFallback>{user?.displayName?.charAt(0)}</AvatarFallback>
-                                </Avatar>
-                                <Textarea 
-                                    placeholder="Deixe seu comentário..."
-                                    value={newComment}
-                                    onChange={(e) => setNewComment(e.target.value)}
-                                    className="flex-1 bg-secondary/50"
-                                    rows={3}
-                                />
-                             </div>
-                             <div className="flex justify-end">
-                                <Button type="submit" disabled={isSubmittingComment}>
-                                    <Send className="h-4 w-4 mr-2" />
-                                    {isSubmittingComment ? 'Enviando...' : 'Enviar'}
-                                </Button>
-                             </div>
-                        </form>
-                        
-                        <div className="space-y-6">
-                            {commentsLoading ? (
-                                <Skeleton className="h-20 w-full" />
-                            ) : comments && comments.length > 0 ? (
-                                comments.map(comment => (
-                                    <Comment
-                                        key={comment.id}
-                                        comment={comment}
-                                        courseId={courseId as string}
-                                        lessonId={lessonId as string}
-                                        currentUserId={user?.uid}
-                                        isAdmin={isAdmin}
-                                        onDelete={handleDeleteComment}
-                                    />
-                                ))
-                            ) : (
-                                <p className="text-center text-muted-foreground py-4">Seja o primeiro a comentar!</p>
-                            )}
-                        </div>
-
-                    </TabsContent>
                 </Tabs>
             </div>
         </div>
@@ -639,204 +509,4 @@ export default function LessonPage() {
   );
 }
 
-// --- Comment Components ---
-
-interface CommentProps {
-    comment: LessonComment;
-    courseId: string;
-    lessonId: string;
-    currentUserId?: string;
-    isAdmin?: boolean;
-    onDelete: (commentId: string) => void;
-}
-
-function Comment({ comment, courseId, lessonId, currentUserId, isAdmin, onDelete }: CommentProps) {
-    const firestore = useFirestore();
-    const [showReplies, setShowReplies] = useState(false);
-
-    const handleTogglePin = () => {
-        if (!isAdmin || !firestore) return;
-        const commentRef = doc(firestore, `courses/${courseId}/lessons/${lessonId}/comments`, comment.id);
-        updateDoc(commentRef, { isPinned: !comment.isPinned })
-            .catch(err => console.error("Pin error:", err));
-    };
-
-    const handleLike = () => {
-        if (!currentUserId || !firestore) return;
-        const commentRef = doc(firestore, `courses/${courseId}/lessons/${lessonId}/comments`, comment.id);
-        const likeRef = doc(firestore, `courses/${courseId}/lessons/${lessonId}/comments/${comment.id}/likes`, currentUserId);
-
-        runTransaction(firestore, async (transaction) => {
-            const likeDoc = await transaction.get(likeRef);
-            if (likeDoc.exists()) {
-                transaction.delete(likeRef);
-                transaction.update(commentRef, { likeCount: increment(-1) });
-            } else {
-                transaction.set(likeRef, { userId: currentUserId, timestamp: serverTimestamp() });
-                transaction.update(commentRef, { likeCount: increment(1) });
-            }
-        }).catch(err => console.error("Like transaction error: ", err));
-    };
     
-    return (
-        <div className={cn("flex items-start gap-4", comment.isPinned && "bg-secondary/30 p-4 rounded-lg")}>
-            <Avatar className="h-10 w-10">
-                <AvatarImage src={comment.userPhotoURL} />
-                <AvatarFallback>{comment.userDisplayName.charAt(0)}</AvatarFallback>
-            </Avatar>
-            <div className="flex-1">
-                <div className="flex items-baseline justify-between">
-                    <p className="font-semibold text-white">{comment.userDisplayName}</p>
-                    <div className="flex items-center gap-2">
-                        {comment.isPinned && <Pin className="h-4 w-4 text-primary" />}
-                        <p className="text-xs text-muted-foreground">{comment.timestamp ? formatDistanceToNow(comment.timestamp.toDate(), { addSuffix: true, locale: ptBR }) : ''}</p>
-                         {(isAdmin || currentUserId === comment.userId) && (
-                            <Trash2 className="h-3 w-3 text-destructive/70 cursor-pointer" onClick={() => onDelete(comment.id)}/>
-                        )}
-                    </div>
-                </div>
-                <div className="text-muted-foreground whitespace-pre-wrap prose-sm prose-invert max-w-none">
-                    {makeLinksClickable(comment.text)}
-                </div>
-                <div className="mt-2 flex items-center gap-4">
-                    <Button variant="ghost" size="sm" onClick={handleLike} className="flex items-center gap-1.5 text-muted-foreground h-auto p-1">
-                        <ThumbsUp className="h-4 w-4" /> {comment.likeCount || 0}
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => setShowReplies(!showReplies)} className="flex items-center gap-1.5 text-muted-foreground h-auto p-1">
-                        <MessageSquare className="h-4 w-4" /> {comment.replyCount || 0} Respostas
-                    </Button>
-                    {isAdmin && (
-                        <Button variant="ghost" size="sm" onClick={handleTogglePin} className="flex items-center gap-1.5 text-muted-foreground h-auto p-1">
-                           {comment.isPinned ? <PinOff className="h-4 w-4" /> : <Pin className="h-4 w-4" />}
-                        </Button>
-                    )}
-                </div>
-                {showReplies && (
-                    <div className="mt-4 space-y-4">
-                        <ReplyForm courseId={courseId} lessonId={lessonId} commentId={comment.id} />
-                        <ReplyList courseId={courseId} lessonId={lessonId} commentId={comment.id} />
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-}
-
-interface ReplyListProps {
-    courseId: string;
-    lessonId: string;
-    commentId: string;
-}
-
-function ReplyList({ courseId, lessonId, commentId }: ReplyListProps) {
-    const firestore = useFirestore();
-    const repliesQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
-        return query(collection(firestore, `courses/${courseId}/lessons/${lessonId}/comments/${commentId}/replies`), orderBy('timestamp', 'asc'));
-    }, [firestore, courseId, lessonId, commentId]);
-
-    const { data: replies, isLoading: repliesLoading } = useCollection<CommentReply>(repliesQuery);
-
-    if (repliesLoading) {
-        return <Skeleton className="h-10 w-full mt-4" />;
-    }
-
-    return (
-        <div className="space-y-4 pl-8 border-l border-border/50">
-            {replies?.map(reply => (
-                <ReplyItem key={reply.id} reply={reply} />
-            ))}
-        </div>
-    );
-}
-
-
-interface ReplyItemProps {
-  reply: CommentReply;
-}
-
-function ReplyItem({ reply }: ReplyItemProps) {
-  return (
-    <div className="flex items-start gap-3">
-        <Avatar className="h-8 w-8">
-            <AvatarImage src={reply.userPhotoURL} />
-            <AvatarFallback>{reply.userDisplayName.charAt(0)}</AvatarFallback>
-        </Avatar>
-        <div className="flex-1">
-            <div className="flex items-baseline gap-2">
-                <p className="font-semibold text-white text-sm">{reply.userDisplayName}</p>
-                <p className="text-xs text-muted-foreground">{reply.timestamp ? formatDistanceToNow(reply.timestamp.toDate(), { addSuffix: true, locale: ptBR }) : ''}</p>
-            </div>
-            <div className="text-muted-foreground text-sm whitespace-pre-wrap prose-sm prose-invert max-w-none">
-                {makeLinksClickable(reply.text)}
-            </div>
-        </div>
-    </div>
-  );
-}
-
-
-interface ReplyFormProps {
-    courseId: string;
-    lessonId: string;
-    commentId: string;
-}
-
-function ReplyForm({ courseId, lessonId, commentId }: ReplyFormProps) {
-    const firestore = useFirestore();
-    const { user } = useUser();
-    const [replyText, setReplyText] = useState('');
-    const [isSubmitting, setIsSubmitting] = useState(false);
-
-    const handleSubmit = (e: React.FormEvent) => {
-        e.preventDefault();
-        if (!firestore || !user || !replyText.trim()) return;
-
-        setIsSubmitting(true);
-        const replyCollectionRef = collection(firestore, `courses/${courseId}/lessons/${lessonId}/comments/${commentId}/replies`);
-        const commentRef = doc(firestore, `courses/${courseId}/lessons/${lessonId}/comments`, commentId);
-
-        const replyData = {
-            userId: user.uid,
-            userDisplayName: user.displayName,
-            userPhotoURL: user.photoURL,
-            text: replyText,
-            timestamp: serverTimestamp(),
-        };
-
-        runTransaction(firestore, async (transaction) => {
-            const newReplyRef = doc(replyCollectionRef);
-            transaction.set(newReplyRef, replyData);
-            transaction.update(commentRef, { replyCount: increment(1) });
-        }).then(() => {
-            setReplyText('');
-        }).catch(err => {
-            console.error("Reply transaction error: ", err);
-        }).finally(() => {
-            setIsSubmitting(false);
-        });
-    };
-
-    return (
-        <form onSubmit={handleSubmit} className="flex items-start gap-3 pl-8">
-            <Avatar className="h-8 w-8">
-                <AvatarImage src={user?.photoURL || undefined} />
-                <AvatarFallback>{user?.displayName?.charAt(0)}</AvatarFallback>
-            </Avatar>
-            <div className="flex-1 space-y-2">
-                <Textarea 
-                    placeholder="Escreva sua resposta..."
-                    value={replyText}
-                    onChange={(e) => setReplyText(e.target.value)}
-                    className="flex-1 bg-secondary/80 text-sm"
-                    rows={2}
-                />
-                <div className="flex justify-end">
-                    <Button type="submit" size="sm" disabled={isSubmitting}>
-                        {isSubmitting ? "Enviando..." : "Responder"}
-                    </Button>
-                </div>
-            </div>
-        </form>
-    );
-}
