@@ -10,7 +10,7 @@ import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Plus, Pencil, Save, X, Trophy, Gem, Crown, Star, type LucideIcon, Upload } from 'lucide-react';
+import { Plus, Pencil, Save, X, Trophy, Gem, Crown, Star, type LucideIcon, Upload, Link2 } from 'lucide-react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -27,6 +27,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 
 
 interface Course extends DocumentData {
@@ -84,6 +85,8 @@ export default function DashboardPage() {
   
   const [heroImageFile, setHeroImageFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [imageInputMode, setImageInputMode] = useState<'upload' | 'url'>('upload');
+  const [tempHeroImageUrlInput, setTempHeroImageUrlInput] = useState('');
 
   
   const SelectedIcon = iconMap[isEditMode ? tempMembersIcon : membersIcon] || Trophy;
@@ -133,6 +136,8 @@ export default function DashboardPage() {
     setTempMembersTitle(membersTitle);
     setTempMembersSubtitle(membersSubtitle);
     setTempMembersIcon(membersIcon);
+    setTempHeroImageUrlInput(heroImage);
+    setImageInputMode('upload');
     setHeroImageFile(null);
     setUploadProgress(null);
     setIsEditMode(true);
@@ -154,12 +159,24 @@ export default function DashboardPage() {
     }
   };
 
+  const handleUrlInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const newUrl = event.target.value;
+    setTempHeroImageUrlInput(newUrl);
+    // Basic validation to prevent broken image links during preview
+    if (newUrl.startsWith('http://') || newUrl.startsWith('https://')) {
+      setTempHeroImage(newUrl);
+    }
+  };
+
+
   const handleSaveChanges = async () => {
     if (!firestore) return;
     setIsSaving(true);
+    setUploadProgress(null);
+
     let finalImageUrl = tempHeroImage;
     
-    if (heroImageFile) {
+    if (imageInputMode === 'upload' && heroImageFile) {
         const storage = getStorage();
         const storageRef = ref(storage, `layout/dashboard-hero/${Date.now()}-${heroImageFile.name}`);
         const uploadTask = uploadBytesResumable(storageRef, heroImageFile);
@@ -173,6 +190,7 @@ export default function DashboardPage() {
                 (error) => {
                     console.error("Upload failed:", error);
                     toast({ variant: "destructive", title: "Erro de Upload", description: "Não foi possível enviar a imagem." });
+                    setIsSaving(false);
                     reject(error);
                 },
                 () => {
@@ -182,7 +200,16 @@ export default function DashboardPage() {
                 }
             );
         });
+    } else if (imageInputMode === 'url') {
+        finalImageUrl = tempHeroImageUrlInput;
     }
+
+    if (!finalImageUrl) {
+        toast({ variant: "destructive", title: "Erro", description: "Nenhuma imagem selecionada ou URL fornecida." });
+        setIsSaving(false);
+        return;
+    }
+
 
     const layoutRef = doc(firestore, 'layout', 'dashboard-hero');
     try {
@@ -210,6 +237,20 @@ export default function DashboardPage() {
       setIsEditMode(false);
     } catch (error) {
       console.error("Error saving layout:", error);
+      const permissionError = new FirestorePermissionError({
+        path: layoutRef.path,
+        operation: 'write',
+        requestResourceData: {
+          title: tempHeroTitle,
+          subtitle: tempHeroSubtitle,
+          imageUrl: finalImageUrl,
+          membersTitle: tempMembersTitle,
+          membersSubtitle: tempMembersSubtitle,
+          membersIcon: tempMembersIcon,
+        },
+      });
+      errorEmitter.emit('permission-error', permissionError);
+
       toast({
         variant: "destructive",
         title: "Erro ao Salvar",
@@ -337,7 +378,7 @@ export default function DashboardPage() {
 
           <div className="relative z-20 mx-auto flex max-w-4xl flex-col items-start px-4 text-left -mt-20">
               {isEditMode ? (
-                  <div className='w-full space-y-4'>
+                  <div className='w-full space-y-4 rounded-xl bg-background/50 p-4 border border-border backdrop-blur-sm'>
                       <Input 
                         data-editable="true"
                         value={tempHeroTitle.replace(/<[^>]+>/g, '')} 
@@ -350,22 +391,42 @@ export default function DashboardPage() {
                         onChange={(e) => setTempHeroSubtitle(e.target.value)}
                         className="mt-4 max-w-2xl text-lg md:text-xl bg-transparent border-dashed"
                       />
-                      <div className="mt-2 w-full">
-                        <label htmlFor="hero-image-upload" className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground hover:text-white border border-dashed rounded-md p-2 justify-center bg-transparent">
-                            <Upload className="h-4 w-4" />
-                            <span>{heroImageFile ? heroImageFile.name : 'Alterar imagem de fundo'}</span>
-                        </label>
-                        <Input
-                            id="hero-image-upload"
-                            type="file"
-                            accept="image/*"
-                            onChange={handleFileChange}
-                            className="hidden"
-                        />
-                         {uploadProgress !== null && (
-                            <Progress value={uploadProgress} className="w-full h-2 mt-2" />
-                        )}
-                      </div>
+                     <div className="mt-2 w-full space-y-2">
+                      <Tabs value={imageInputMode} onValueChange={(value) => setImageInputMode(value as 'upload' | 'url')} className="w-full">
+                        <TabsList className="grid w-full grid-cols-2">
+                          <TabsTrigger value="upload">Enviar Arquivo</TabsTrigger>
+                          <TabsTrigger value="url">Usar URL</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="upload" className="mt-4">
+                          <label htmlFor="hero-image-upload" className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-white border border-dashed rounded-md p-3 justify-center bg-background/50">
+                              <Upload className="h-4 w-4" />
+                              <span>{heroImageFile ? heroImageFile.name : 'Clique para selecionar a imagem'}</span>
+                          </label>
+                          <Input
+                              id="hero-image-upload"
+                              type="file"
+                              accept="image/*"
+                              onChange={handleFileChange}
+                              className="hidden"
+                          />
+                           {uploadProgress !== null && imageInputMode === 'upload' && (
+                              <Progress value={uploadProgress} className="w-full h-2 mt-2" />
+                          )}
+                        </TabsContent>
+                        <TabsContent value="url" className="mt-4">
+                           <div className="relative">
+                            <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              type="text"
+                              placeholder="https://exemplo.com/imagem.png"
+                              value={tempHeroImageUrlInput}
+                              onChange={handleUrlInputChange}
+                              className="w-full bg-background/50 pl-9"
+                            />
+                           </div>
+                        </TabsContent>
+                      </Tabs>
+                    </div>
                   </div>
               ) : (
                 <>
@@ -412,9 +473,9 @@ export default function DashboardPage() {
           <div>
             <div className="mb-4 flex items-center gap-4">
                 {isEditMode ? (
-                  <div className='flex items-center gap-2'>
+                  <div className='flex items-center gap-2 p-2 rounded-lg bg-background/50 border border-dashed border-border'>
                     <Select value={tempMembersIcon} onValueChange={setTempMembersIcon}>
-                      <SelectTrigger className="w-fit bg-transparent border-dashed h-12 px-3" data-editable="true">
+                      <SelectTrigger className="w-fit bg-transparent border-none h-12 px-3" data-editable="true">
                         <SelectValue>
                           <SelectedIcon className="h-8 w-8 text-primary" />
                         </SelectValue>
@@ -431,13 +492,13 @@ export default function DashboardPage() {
                           data-editable="true"
                           value={tempMembersTitle.replace(/<[^>]+>/g, '')}
                           onChange={(e) => setTempMembersTitle(e.target.value.replace(/<[^>]+>/g, '') + " <span class='text-primary'>Premium</span>")}
-                          className="text-2xl font-bold bg-transparent border-dashed"
+                          className="text-2xl font-bold bg-transparent border-none"
                       />
                        <Input
                           data-editable="true"
                           value={tempMembersSubtitle}
                           onChange={(e) => setTempMembersSubtitle(e.target.value)}
-                          className="text-sm bg-transparent border-dashed"
+                          className="text-sm bg-transparent border-none"
                       />
                     </div>
                   </div>
