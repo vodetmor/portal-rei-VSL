@@ -10,6 +10,26 @@ const nextConfig: NextConfig = {
     minimumCacheTTL: 14400,
     maximumRedirects: 3,
     dangerouslyAllowLocalIP: false,
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: 'reidavsl.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'i.imgur.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'picsum.photos',
+        port: '',
+        pathname: '/**',
+      }
+    ]
   },
 };
 
