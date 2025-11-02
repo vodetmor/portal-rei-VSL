@@ -76,7 +76,7 @@ export function Nav() {
     <>
       <Link href="/dashboard" className="text-gray-300 hover:text-white transition-colors block py-2 text-lg" onClick={() => setIsSheetOpen(false)}>Início</Link>
       <Link href="/dashboard" className="text-gray-300 hover:text-white transition-colors block py-2 text-lg" onClick={() => setIsSheetOpen(false)}>Meus Cursos</Link>
-      <Link href="/dashboard" className="text-gray-300 hover:text-white transition-colors block py-2 text-lg" onClick={() => setIsSheetOpen(false)}>Perfil</Link>
+      <Link href="/profile" className="text-gray-300 hover:text-white transition-colors block py-2 text-lg" onClick={() => setIsSheetOpen(false)}>Perfil</Link>
       {isAdmin && (
         <Link href="/admin" className="text-gray-300 hover:text-white transition-colors block py-2 text-lg" onClick={() => setIsSheetOpen(false)}>
             Painel Admin
@@ -136,7 +136,7 @@ export function Nav() {
                     </DropdownMenuLabel>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem asChild><Link href="/dashboard"><LayoutGrid className="mr-2 h-4 w-4" /><span>Dashboard</span></Link></DropdownMenuItem>
-                    <DropdownMenuItem asChild><Link href="/dashboard"><UserCircle className="mr-2 h-4 w-4" /><span>Perfil</span></Link></DropdownMenuItem>
+                    <DropdownMenuItem asChild><Link href="/profile"><UserCircle className="mr-2 h-4 w-4" /><span>Perfil</span></Link></DropdownMenuItem>
                     {isAdmin && <DropdownMenuItem asChild><Link href="/admin"><ShieldCheck className="mr-2 h-4 w-4" /><span>Painel Admin</span></Link></DropdownMenuItem>}
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onClick={handleSignOut} className="text-red-500 focus:text-red-400 focus:bg-red-500/10">
