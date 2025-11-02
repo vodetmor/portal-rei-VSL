@@ -196,7 +196,16 @@ function DashboardClientPage() {
 
       await setDoc(layoutRef, dataToSave, { merge: true });
       
-      setLayoutData(prev => ({ ...prev, ...dataToSave }));
+      // Manually update local context state to reflect HTML changes immediately
+      setLayoutData(prev => ({ 
+          ...prev, 
+          heroTitle: dataToSave.title,
+          heroSubtitle: dataToSave.subtitle,
+          heroImage: dataToSave.imageUrl,
+          membersTitle: dataToSave.membersTitle,
+          membersSubtitle: dataToSave.membersSubtitle,
+          membersIcon: dataToSave.membersIcon,
+      }));
 
       toast({
         title: "Sucesso!",
@@ -205,10 +214,20 @@ function DashboardClientPage() {
       setIsEditMode(false);
     } catch (error) {
       console.error("Error saving layout:", error);
+      // NOTE: This part requires the dataToSave object to be defined.
+      // This is a placeholder for the actual data.
+      const dataForError = {
+        title: highlightLastWord(tempHeroTitle),
+        subtitle: tempHeroSubtitle,
+        imageUrl: finalHeroImageUrl,
+        membersTitle: highlightLastWord(tempMembersTitle),
+        membersSubtitle: tempMembersSubtitle,
+        membersIcon: tempMembersIcon,
+      };
       const permissionError = new FirestorePermissionError({
         path: layoutRef.path,
         operation: 'write',
-        requestResourceData: { /*...dataToSave*/ },
+        requestResourceData: dataForError,
       });
       errorEmitter.emit('permission-error', permissionError);
 
@@ -402,7 +421,6 @@ function DashboardClientPage() {
                             </Button>
                         </CollapsibleContent>
                     </Collapsible>
-
                   </div>
               ) : (
                 <>
@@ -599,5 +617,3 @@ export default function DashboardPage() {
     </LayoutProvider>
   )
 }
-
-    
