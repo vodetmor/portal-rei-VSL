@@ -91,7 +91,7 @@ export function Header() {
 	return (
 		<header
 			className={cn(
-				'transition-all ease-out z-[100] w-full',
+				'transition-all ease-out duration-300 z-[100] w-full',
         !isEditMode && 'sticky top-0',
 				{
 					'bg-background/95 supports-[backdrop-filter]:bg-background/60 border-b border-border backdrop-blur-xl md:top-4 md:border md:rounded-xl md:max-w-4xl md:mx-auto':
@@ -102,7 +102,7 @@ export function Header() {
 		>
 			<nav
 				className={cn(
-					'flex h-16 w-full items-center justify-between px-4 md:transition-all md:ease-out max-w-5xl mx-auto',
+					'flex h-16 w-full items-center justify-between px-4 md:transition-all md:ease-out md:duration-300 max-w-5xl mx-auto',
 					{
 						'md:px-3': scrolled,
 					},
