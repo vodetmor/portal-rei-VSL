@@ -87,13 +87,13 @@ function DashboardClientPage() {
   
   const SelectedIcon = iconMap[isEditMode ? tempMembersIcon : layoutData.membersIcon] || Trophy;
 
+  const cleanHtml = (html: string) => html.replace(/<[^>]*>?/gm, '');
 
   const enterEditMode = () => {
-    // Strip HTML for editing, but keep the full version in state if needed
-    setTempHeroTitle(layoutData.heroTitle.replace(/ <span.*$/,''));
+    setTempHeroTitle(cleanHtml(layoutData.heroTitle));
     setTempHeroSubtitle(layoutData.heroSubtitle);
     setTempHeroImage(layoutData.heroImage);
-    setTempMembersTitle(layoutData.membersTitle.replace(/ <span.*$/,''));
+    setTempMembersTitle(cleanHtml(layoutData.membersTitle));
     setTempMembersSubtitle(layoutData.membersSubtitle);
     setTempMembersIcon(layoutData.membersIcon);
     
@@ -156,6 +156,14 @@ function DashboardClientPage() {
     });
   };
 
+  const highlightLastWord = (text: string) => {
+    const words = text.trim().split(' ');
+    if (words.length > 1) {
+      const lastWord = words.pop();
+      return `${words.join(' ')} <span class='text-primary'>${lastWord}</span>`;
+    }
+    return text;
+  };
 
   const handleSaveChanges = async () => {
     if (!firestore) return;
@@ -178,10 +186,10 @@ function DashboardClientPage() {
     const layoutRef = doc(firestore, 'layout', 'dashboard-hero');
     try {
       const dataToSave = {
-        title: tempHeroTitle + " <span class='text-primary'>começa aqui</span>.",
+        title: highlightLastWord(tempHeroTitle),
         subtitle: tempHeroSubtitle,
         imageUrl: finalHeroImageUrl,
-        membersTitle: tempMembersTitle + " <span class='text-primary'>Premium</span>",
+        membersTitle: highlightLastWord(tempMembersTitle),
         membersSubtitle: tempMembersSubtitle,
         membersIcon: tempMembersIcon,
       };
@@ -591,3 +599,5 @@ export default function DashboardPage() {
     </LayoutProvider>
   )
 }
+
+    
