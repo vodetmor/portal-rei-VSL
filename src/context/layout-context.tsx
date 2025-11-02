@@ -7,8 +7,8 @@ const DEFAULT_DEFAULTS = {
     logoUrl: "https://reidavsl.com/wp-content/uploads/2025/03/logo-horizontal.webp",
     heroTitle: "Seu Reinado <span class='text-primary'>começa aqui</span>.",
     heroSubtitle: "No Rei da VSL, cada copy se torna uma conversão poderosa.",
-    heroImageDesktop: "https://picsum.photos/seed/hero-desktop/1920/1080",
-    heroImageMobile: "https://picsum.photos/seed/hero-mobile/750/1334",
+    heroImageDesktop: "https://i.imgur.com/1X3ta7W.png",
+    heroImageMobile: "https://i.imgur.com/PFv07gS.png",
     ctaText: "Assistir Agora",
     heroAlignment: "left" as "left" | "center" | "end",
 }

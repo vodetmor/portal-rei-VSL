@@ -50,7 +50,7 @@ interface Course {
   modules: Module[];
 }
 
-const DEFAULT_MODULE_IMAGE = "https://picsum.photos/seed/default-module/400/600";
+const DEFAULT_MODULE_IMAGE = "https://i.imgur.com/1X3ta7W.png";
 
 function EditCoursePageContent() {
   const firestore = useFirestore();
@@ -569,5 +569,3 @@ export default function EditCoursePage() {
         </AdminGuard>
     )
 }
-
-    

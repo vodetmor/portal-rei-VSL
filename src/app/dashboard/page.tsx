@@ -333,7 +333,7 @@ function DashboardClientPage() {
     const newCourseData = {
       title: "Novo Curso (Rascunho)",
       description: "Adicione uma descrição incrível para o seu novo curso.",
-      thumbnailUrl: "https://picsum.photos/seed/new-course/400/600",
+      thumbnailUrl: "https://i.imgur.com/1X3ta7W.png",
       imageHint: 'placeholder',
       createdAt: new Date(),
       modules: [],

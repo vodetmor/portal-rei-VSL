@@ -45,8 +45,8 @@ interface CourseAccessInfo {
     grantedAt: string; // ISO string date
 }
 
-const DEFAULT_HERO_IMAGE_DESKTOP = "https://picsum.photos/seed/default-hero-desktop/1920/1080";
-const DEFAULT_HERO_IMAGE_MOBILE = "https://picsum.photos/seed/default-hero-mobile/750/1334";
+const DEFAULT_HERO_IMAGE_DESKTOP = "https://i.imgur.com/1X3ta7W.png";
+const DEFAULT_HERO_IMAGE_MOBILE = "https://i.imgur.com/PFv07gS.png";
 
 
 export default function CoursePlayerPage() {
@@ -560,5 +560,3 @@ function TrophyIcon(props: React.SVGProps<SVGSVGElement>) {
     </svg>
   )
 }
-
-    

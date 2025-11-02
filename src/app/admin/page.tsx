@@ -97,7 +97,7 @@ function AdminDashboard() {
       const newCourseData = {
         title: "Novo Curso (Rascunho)",
         description: "Adicione uma descrição incrível para o seu novo curso.",
-        thumbnailUrl: "https://picsum.photos/seed/new-course/400/600",
+        thumbnailUrl: "https://i.imgur.com/1X3ta7W.png",
         imageHint: 'placeholder',
         createdAt: new Date(),
         modules: [],
@@ -287,7 +287,7 @@ function AdminDashboard() {
                 {courses.map(course => (
                   <div key={course.id} className="group relative flex items-center justify-between p-4 rounded-md bg-background/50 hover:bg-secondary/50 transition-colors">
                     <div className="flex items-center gap-4">
-                      <Image src={course.thumbnailUrl} alt={course.title} width={80} height={45} className="rounded-md object-cover aspect-video" />
+                      <Image src={course.thumbnailUrl || 'https://i.imgur.com/1X3ta7W.png'} alt={course.title} width={80} height={45} className="rounded-md object-cover aspect-video" />
                       <span className="font-medium text-white">{course.title}</span>
                     </div>
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
