@@ -88,7 +88,6 @@ export function useCollection<T = any>(
         // Log the original server error for more detailed debugging
         console.error("Firestore onSnapshot error caught in useCollection:", serverError);
 
-        // This logic extracts the path from either a ref or a query
         const path: string =
           memoizedTargetRefOrQuery.type === 'collection'
             ? (memoizedTargetRefOrQuery as CollectionReference).path
@@ -97,14 +96,16 @@ export function useCollection<T = any>(
         const contextualError = new FirestorePermissionError({
           operation: 'list',
           path,
-        })
+        });
+        
+        console.error("Detailed Permission Error Context:", contextualError);
+        setError(contextualError);
+        setData(null);
+        setIsLoading(false);
 
-        setError(contextualError)
-        setData(null)
-        setIsLoading(false)
-
-        // trigger global error propagation
-        errorEmitter.emit('permission-error', contextualError);
+        // We no longer throw the error, just log it and set the state.
+        // This prevents the application from crashing.
+        // errorEmitter.emit('permission-error', contextualError);
       }
     );
 
