@@ -4,7 +4,7 @@ import { useFirestore } from '@/firebase';
 import AdminGuard from '@/components/admin/admin-guard';
 import { collection, getDocs, deleteDoc, doc, DocumentData } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
-import { Plus, Trash2, Users } from 'lucide-react';
+import { Plus, Trash2, Users, Pencil } from 'lucide-react';
 import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
@@ -91,14 +91,21 @@ function AdminDashboard() {
         <h2 className="text-xl font-semibold text-white mb-4">Gerenciar Cursos</h2>
         <div className="space-y-4">
           {courses.map(course => (
-            <div key={course.id} className="flex items-center justify-between p-4 rounded-md bg-background/50 hover:bg-background">
+            <div key={course.id} className="group relative flex items-center justify-between p-4 rounded-md bg-background/50 hover:bg-background transition-colors">
               <div className="flex items-center gap-4">
                 <Image src={course.thumbnailUrl} alt={course.title} width={80} height={45} className="rounded-md object-cover aspect-video" />
                 <span className="font-medium text-white">{course.title}</span>
               </div>
-              <Button variant="destructive" size="icon" onClick={() => handleDelete(course.id)}>
-                <Trash2 className="h-4 w-4" />
-              </Button>
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                <Button asChild variant="outline" size="icon">
+                  <Link href={`/admin/edit-course/${course.id}`}>
+                    <Pencil className="h-4 w-4" />
+                  </Link>
+                </Button>
+                <Button variant="destructive" size="icon" onClick={() => handleDelete(course.id)}>
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </div>
             </div>
           ))}
           {courses.length === 0 && <p className="text-muted-foreground text-center py-4">Nenhum curso encontrado.</p>}
