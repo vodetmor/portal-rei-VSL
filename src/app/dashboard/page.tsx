@@ -4,8 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { CourseCard } from '@/components/course-card';
 import { Skeleton } from '@/components/ui/skeleton';
-import placeholderData from '@/lib/placeholder-images.json';
-import { doc, getDoc, type DocumentData } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, type DocumentData } from 'firebase/firestore';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -35,6 +34,7 @@ export default function DashboardPage() {
   // State for editable content
   const [heroTitle, setHeroTitle] = useState("Seu Reinado <span class='text-primary'>começa aqui</span>.");
   const [heroSubtitle, setHeroSubtitle] = useState("No Rei da VSL, cada copy se torna uma conversão poderosa.");
+  const [heroImage, setHeroImage] = useState("https://picsum.photos/seed/hero-bg/1920/1080");
 
 
   useEffect(() => {
@@ -77,17 +77,30 @@ export default function DashboardPage() {
   }, [user, firestore]);
 
   useEffect(() => {
-    setLoading(true);
-    // In a real app, you'd fetch courses from Firestore here
-    // For now, we use placeholder data
-    const featuredCourses = placeholderData.placeholderCourses.filter(c => c.isFeatured);
-    const regularCourses = placeholderData.placeholderCourses.filter(c => !c.isFeatured);
-    
-    // In a real app with Firestore data, you would fetch and sort.
-    // For this placeholder version, we just use the data as is.
-    setCourses(placeholderData.placeholderCourses as Course[]);
-    setLoading(false);
-  }, []);
+    const fetchCourses = async () => {
+      if (!firestore) return;
+      setLoading(true);
+      try {
+        const querySnapshot = await getDocs(collection(firestore, 'courses'));
+        if (querySnapshot.empty) {
+          setCourses([]);
+        } else {
+          const coursesData = querySnapshot.docs.map(doc => ({
+            id: doc.id,
+            ...doc.data()
+          })) as Course[];
+          setCourses(coursesData);
+        }
+      } catch (error) {
+        console.error("Error fetching courses: ", error);
+        setCourses([]); // Set to empty array on error
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchCourses();
+  }, [firestore]);
 
   if (userLoading || !user) {
     return (
@@ -98,27 +111,31 @@ export default function DashboardPage() {
   }
   
   return (
-    <div className="w-full">
+    <div className="w-full" data-edit-mode={isEditMode}>
       {/* Hero Section */}
       <section className="relative flex h-[60vh] min-h-[500px] w-full flex-col items-center justify-center bg-black py-12 md:h-screen">
         <div className="absolute inset-0 z-0">
-          <Image
-            src="https://picsum.photos/seed/hero-bg/1920/1080"
-            alt="Hero background"
-            fill
-            className="object-cover"
-            data-ai-hint="digital art collage"
-          />
+          <div data-editable={isEditMode} className="w-full h-full">
+            <Image
+              src={heroImage}
+              alt="Hero background"
+              fill
+              className="object-cover"
+              data-ai-hint="digital art collage"
+            />
+          </div>
           <div className="absolute inset-0 bg-black/70" />
         </div>
         <div className="relative z-10 mx-auto flex max-w-4xl flex-col items-start px-4 text-left">
           {isEditMode ? (
-            <Input
-              type="text"
-              value={heroTitle.replace(/<[^>]+>/g, '')} // Remove HTML for editing
-              onChange={(e) => setHeroTitle(e.target.value)}
-              className="w-full text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl bg-transparent border-dashed"
-            />
+            <div data-editable="true" className="w-full">
+              <Input
+                type="text"
+                value={heroTitle.replace(/<[^>]+>/g, '')} // Remove HTML for editing
+                onChange={(e) => setHeroTitle(e.target.value)}
+                className="w-full text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl bg-transparent border-dashed"
+              />
+            </div>
           ) : (
             <h1 className="text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl"
                 dangerouslySetInnerHTML={{ __html: heroTitle }}
@@ -126,20 +143,24 @@ export default function DashboardPage() {
           )}
 
           {isEditMode ? (
-             <Textarea
-                value={heroSubtitle}
-                onChange={(e) => setHeroSubtitle(e.target.value)}
-                className="mt-4 max-w-2xl text-lg text-muted-foreground md:text-xl bg-transparent border-dashed"
-              />
+             <div data-editable="true" className="w-full mt-4">
+              <Textarea
+                  value={heroSubtitle}
+                  onChange={(e) => setHeroSubtitle(e.target.value)}
+                  className="max-w-2xl text-lg text-muted-foreground md:text-xl bg-transparent border-dashed"
+                />
+             </div>
           ) : (
             <p className="mt-4 max-w-2xl text-lg text-muted-foreground md:text-xl">
               {heroSubtitle}
             </p>
           )}
 
-          <Button asChild size="lg" className="mt-8">
-            <Link href="#">Começar Agora</Link>
-          </Button>
+          <div data-editable={isEditMode} className="mt-8">
+            <Button asChild size="lg">
+              <Link href="#">Começar Agora</Link>
+            </Button>
+          </div>
         </div>
       </section>
 
@@ -172,14 +193,16 @@ export default function DashboardPage() {
             <CarouselContent>
               {courses.map((course, index) => (
                 <CarouselItem key={course.id} className="md:basis-1/2 lg:basis-1/3 xl:basis-1/4 2xl:basis-1/5">
-                  <CourseCard
-                    id={course.id}
-                    title={course.title}
-                    imageUrl={course.thumbnailUrl}
-                    imageHint={course.imageHint}
-                    priority={index < 5}
-                    isAdmin={isAdmin}
-                  />
+                   <div data-editable={isEditMode} className="h-full">
+                      <CourseCard
+                        id={course.id}
+                        title={course.title}
+                        imageUrl={course.thumbnailUrl}
+                        imageHint={course.imageHint || 'abstract'}
+                        priority={index < 5}
+                        isAdmin={isAdmin}
+                      />
+                   </div>
                 </CarouselItem>
               ))}
             </CarouselContent>

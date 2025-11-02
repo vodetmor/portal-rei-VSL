@@ -37,3 +37,12 @@
     -moz-osx-font-smoothing: grayscale;
   }
 }
+
+/* Styles for Edit Mode */
+[data-edit-mode="true"] [data-editable="true"]:hover {
+  outline: 2px dashed hsl(var(--primary));
+  outline-offset: 4px;
+  box-shadow: 0 0 15px hsl(var(--primary) / 0.5);
+  cursor: pointer;
+  transition: outline 0.2s ease, box-shadow 0.2s ease;
+}
