@@ -177,20 +177,19 @@ export default function CoursePlayerPage() {
             const accessData = accessSnap.data();
             const grantedAtDate = accessData.grantedAt.toDate();
             setCourseAccessInfo({ grantedAt: grantedAtDate.toISOString() });
-
-            // Fetch progress only if access is confirmed
-            const progressRef = doc(firestore, `users/${user.uid}/progress`, courseId);
-            const progressSnap = await getDoc(progressRef);
-            if (progressSnap.exists()) {
-                setUserProgress(progressSnap.data() as UserProgress);
-            }
-
           } else {
             // If not an admin and no access record, deny access
             toast({ variant: "destructive", title: "Acesso Negado", description: "Você não tem acesso a este curso."});
             router.push('/dashboard');
             return; // Stop further execution
           }
+        }
+        
+        // Step 5: Fetch progress for the user if they have access
+        const progressRef = doc(firestore, `users/${user.uid}/progress`, courseId);
+        const progressSnap = await getDoc(progressRef);
+        if (progressSnap.exists()) {
+            setUserProgress(progressSnap.data() as UserProgress);
         }
 
       } catch (error) {
