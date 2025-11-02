@@ -3,16 +3,35 @@
  * @core_philosophy This ruleset provides open read access to the 'videos', 'clients', and 'skills' collections,
  *  while restricting write access to authorized users (handled at the application level).
  *  The 'contactMessages' collection allows public creation, but restricts listing/reading to authorized users.
- * @data_structure The Firestore database consists of four top-level collections: 'videos', 'clients', 'skills', and 'contactMessages'.
+ *  The 'users' collection allows users to create their own document upon registration.
+ * @data_structure The Firestore database consists of five top-level collections: 'videos', 'clients', 'skills', 'contactMessages', and 'users'.
  *  Each collection contains documents representing the corresponding entities.
  * @key_security_decisions Read access to the 'videos', 'clients', and 'skills' collections is public.
  *  Write access is restricted and must be handled by the application logic.
  *  Listing and reading of 'contactMessages' is not permitted via the rules.
+ *  Users can create their own user document, and only read/update their own data.
  */
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    /**
+     * @description Allows users to create their own user document and manage their own data.
+     * @path /users/{userId}
+     * @allow (create) A user can create their own user document.
+     * @allow (get, update) A user can only get or update their own document.
+     * @deny (list, delete) No one can list all users or delete user documents directly.
+     * @principle Owner-based access control.
+     */
+    match /users/{userId} {
+      function isOwner() {
+        return request.auth != null && request.auth.uid == userId;
+      }
+      allow create: if request.auth != null;
+      allow get, update: if isOwner();
+      allow list, delete: if false;
+    }
+    
     /**
      * @description Allows public read access to video documents, but restricts write access.
      * @path /videos/{videoId}
