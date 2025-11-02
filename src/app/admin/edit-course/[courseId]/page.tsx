@@ -18,7 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Trash2, Save, Upload, Link2, GripVertical, FileVideo, Eye, CalendarDays, Send, BarChart2, Book, Bold, Italic, Underline, Palette } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, Upload, Link2, GripVertical, FileVideo, Eye, CalendarDays, Send, BarChart2, Book, Bold, Italic, Underline, Palette, Monitor, Smartphone } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
@@ -64,9 +64,13 @@ interface Course {
   description: string;
   modules: Module[];
   status: 'draft' | 'published';
+  heroImageUrlDesktop?: string;
+  heroImageUrlMobile?: string;
 }
 
 const DEFAULT_MODULE_IMAGE = "https://i.imgur.com/1X3ta7W.png";
+const DEFAULT_HERO_IMAGE_DESKTOP = "https://i.imgur.com/1X3ta7W.png";
+const DEFAULT_HERO_IMAGE_MOBILE = "https://i.imgur.com/PFv07gS.png";
 
 function EditCoursePageContent() {
   const firestore = useFirestore();
@@ -86,6 +90,16 @@ function EditCoursePageContent() {
   const [modules, setModules] = useState<Module[]>([]);
   const descriptionRef = useRef<HTMLDivElement>(null);
   const [activeEditor, setActiveEditor] = useState<string | null>(null);
+
+  // States for banner editing
+  const [tempHeroImageDesktop, setTempHeroImageDesktop] = useState(DEFAULT_HERO_IMAGE_DESKTOP);
+  const [tempHeroImageMobile, setTempHeroImageMobile] = useState(DEFAULT_HERO_IMAGE_MOBILE);
+  const [heroImageDesktopFile, setHeroImageDesktopFile] = useState<File | null>(null);
+  const [heroImageMobileFile, setHeroImageMobileFile] = useState<File | null>(null);
+  const [heroImageUrlInputDesktop, setHeroImageUrlInputDesktop] = useState('');
+  const [heroImageUrlInputMobile, setHeroImageUrlInputMobile] = useState('');
+  const [imageInputMode, setImageInputMode] = useState<'desktop' | 'mobile'>('desktop');
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   
   const applyFormat = (command: string, value: string | undefined = undefined) => {
     document.execCommand(command, false, value);
@@ -104,6 +118,10 @@ function EditCoursePageContent() {
         setTempTitle(courseData.title || '');
         setTempSubtitle(courseData.subtitle || '');
         setTempDescription(courseData.description || '');
+        setTempHeroImageDesktop(courseData.heroImageUrlDesktop || DEFAULT_HERO_IMAGE_DESKTOP);
+        setTempHeroImageMobile(courseData.heroImageUrlMobile || DEFAULT_HERO_IMAGE_MOBILE);
+        setHeroImageUrlInputDesktop(courseData.heroImageUrlDesktop || '');
+        setHeroImageUrlInputMobile(courseData.heroImageUrlMobile || '');
         setModules((courseData.modules || []).map(m => ({
           ...m,
           id: m.id || uuidv4(),
@@ -205,12 +223,68 @@ function EditCoursePageContent() {
     }
   };
 
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>, device: 'desktop' | 'mobile') => {
+    const file = event.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      if (device === 'desktop') {
+        setHeroImageDesktopFile(file);
+        reader.onloadend = () => setTempHeroImageDesktop(reader.result as string);
+      } else {
+        setHeroImageMobileFile(file);
+        reader.onloadend = () => setTempHeroImageMobile(reader.result as string);
+      }
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleUrlInputChange = (event: React.ChangeEvent<HTMLInputElement>, device: 'desktop' | 'mobile') => {
+    const newUrl = event.target.value;
+    if (device === 'desktop') {
+        setHeroImageUrlInputDesktop(newUrl);
+        if (newUrl.startsWith('http')) setTempHeroImageDesktop(newUrl);
+    } else {
+        setHeroImageUrlInputMobile(newUrl);
+        if (newUrl.startsWith('http')) setTempHeroImageMobile(newUrl);
+    }
+  };
 
   const handleSave = async (status: 'draft' | 'published' = 'draft') => {
     if (!firestore || !courseId || !adminUser) return;
     setIsSaving(true);
+    setUploadProgress(null);
     
     try {
+      let finalHeroImageUrlDesktop = course?.heroImageUrlDesktop || DEFAULT_HERO_IMAGE_DESKTOP;
+      let finalHeroImageUrlMobile = course?.heroImageUrlMobile || DEFAULT_HERO_IMAGE_MOBILE;
+
+      const uploadImage = async (file: File, path: string) => {
+          const storage = getStorage();
+          const storageRef = ref(storage, `courses/${courseId}/hero/${path}/${Date.now()}-${file.name}`);
+          const uploadTask = uploadBytesResumable(storageRef, file);
+          
+          return new Promise<string>((resolve, reject) => {
+              uploadTask.on('state_changed',
+                  (snapshot) => setUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
+                  (error) => reject(error),
+                  () => getDownloadURL(uploadTask.snapshot.ref).then(resolve)
+              );
+          });
+      };
+      
+      if (heroImageDesktopFile) {
+          finalHeroImageUrlDesktop = await uploadImage(heroImageDesktopFile, 'desktop');
+      } else if (heroImageUrlInputDesktop) {
+          finalHeroImageUrlDesktop = heroImageUrlInputDesktop;
+      }
+
+      if (heroImageMobileFile) {
+          finalHeroImageUrlMobile = await uploadImage(heroImageMobileFile, 'mobile');
+      } else if (heroImageUrlInputMobile) {
+          finalHeroImageUrlMobile = heroImageUrlInputMobile;
+      }
+
+
       const courseRef = doc(firestore, 'courses', courseId);
       const modulesToSave = modules.map(({ ...rest }) => ({
         ...rest,
@@ -227,6 +301,8 @@ function EditCoursePageContent() {
         title: tempTitle,
         subtitle: tempSubtitle,
         description: tempDescription,
+        heroImageUrlDesktop: finalHeroImageUrlDesktop,
+        heroImageUrlMobile: finalHeroImageUrlMobile,
         modules: modulesToSave,
         status: status,
         updatedAt: serverTimestamp(),
@@ -259,6 +335,7 @@ function EditCoursePageContent() {
       toast({ variant: "destructive", title: "Erro ao salvar", description: "Ocorreu um erro ao salvar o curso." });
     } finally {
       setIsSaving(false);
+      setUploadProgress(null);
     }
   };
 
@@ -388,6 +465,63 @@ function EditCoursePageContent() {
                                 }}
                                 className="mt-1 min-h-[120px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 prose prose-sm prose-invert max-w-none"
                             />
+                        </div>
+                         <div className="pt-4 space-y-2">
+                             <label className="text-sm font-medium text-white">Banner do Curso</label>
+                             <div className="p-4 rounded-lg bg-secondary/30 border border-border">
+                                <Tabs value={imageInputMode} onValueChange={(v) => setImageInputMode(v as 'desktop' | 'mobile')} className="w-full">
+                                    <TabsList className="grid w-full grid-cols-2">
+                                        <TabsTrigger value="desktop"><Monitor className="mr-2 h-4 w-4"/> Computador</TabsTrigger>
+                                        <TabsTrigger value="mobile"><Smartphone className="mr-2 h-4 w-4"/> Celular</TabsTrigger>
+                                    </TabsList>
+                                    <TabsContent value="desktop" className="mt-4">
+                                        <div className="space-y-2">
+                                            <div className="aspect-video relative rounded-md overflow-hidden bg-muted mb-2">
+                                                <Image src={tempHeroImageDesktop} alt="Preview Desktop" fill className="object-cover" />
+                                            </div>
+                                            <Tabs defaultValue="upload" className="w-full">
+                                                <TabsList className="grid w-full grid-cols-2"><TabsTrigger value="upload">Enviar</TabsTrigger><TabsTrigger value="url">URL</TabsTrigger></TabsList>
+                                                <TabsContent value="upload" className="mt-2">
+                                                    <label htmlFor="hero-image-upload-desktop" className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground hover:text-white border border-dashed rounded-md p-2 justify-center bg-background/50">
+                                                        <Upload className="h-3 w-3" /><span>{heroImageDesktopFile ? heroImageDesktopFile.name : 'Selecione a imagem'}</span>
+                                                    </label>
+                                                    <Input id="hero-image-upload-desktop" type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'desktop')} className="hidden" />
+                                                </TabsContent>
+                                                <TabsContent value="url" className="mt-2">
+                                                    <div className="relative">
+                                                        <Link2 className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                                                        <Input type="text" placeholder="https://..." value={heroImageUrlInputDesktop} onChange={(e) => handleUrlInputChange(e, 'desktop')} className="w-full bg-background/50 pl-7 text-xs h-9"/>
+                                                    </div>
+                                                </TabsContent>
+                                            </Tabs>
+                                            {uploadProgress !== null && imageInputMode === 'desktop' && (<Progress value={uploadProgress} className="w-full h-1 mt-2" />)}
+                                        </div>
+                                    </TabsContent>
+                                    <TabsContent value="mobile" className="mt-4">
+                                        <div className="space-y-2">
+                                            <div className="aspect-[9/16] relative rounded-md overflow-hidden bg-muted mb-2 max-w-xs mx-auto">
+                                                <Image src={tempHeroImageMobile} alt="Preview Mobile" fill className="object-cover" />
+                                            </div>
+                                            <Tabs defaultValue="upload" className="w-full">
+                                                <TabsList className="grid w-full grid-cols-2"><TabsTrigger value="upload">Enviar</TabsTrigger><TabsTrigger value="url">URL</TabsTrigger></TabsList>
+                                                <TabsContent value="upload" className="mt-2">
+                                                    <label htmlFor="hero-image-upload-mobile" className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground hover:text-white border border-dashed rounded-md p-2 justify-center bg-background/50">
+                                                        <Upload className="h-3 w-3" /><span>{heroImageMobileFile ? heroImageMobileFile.name : 'Selecione a imagem'}</span>
+                                                    </label>
+                                                    <Input id="hero-image-upload-mobile" type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'mobile')} className="hidden" />
+                                                </TabsContent>
+                                                <TabsContent value="url" className="mt-2">
+                                                    <div className="relative">
+                                                        <Link2 className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                                                        <Input type="text" placeholder="https://..." value={heroImageUrlInputMobile} onChange={(e) => handleUrlInputChange(e, 'mobile')} className="w-full bg-background/50 pl-7 text-xs h-9"/>
+                                                    </div>
+                                                </TabsContent>
+                                            </Tabs>
+                                            {uploadProgress !== null && imageInputMode === 'mobile' && (<Progress value={uploadProgress} className="w-full h-1 mt-2" />)}
+                                        </div>
+                                    </TabsContent>
+                                </Tabs>
+                            </div>
                         </div>
                     </CardContent>
                 </Card>
@@ -968,3 +1102,5 @@ export default function EditCoursePage() {
         </AdminGuard>
     )
 }
+
+    
