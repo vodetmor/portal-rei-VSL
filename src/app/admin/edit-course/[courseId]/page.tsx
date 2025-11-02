@@ -25,8 +25,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Separator } from '@/components/ui/separator';
-import { Dock } from '@/components/ui/dock';
-import { cn } from '@/lib/utils';
 
 interface Lesson {
   id: string;
@@ -182,24 +180,6 @@ function EditCoursePageContent() {
     }
   };
   
-  const dockItems = [
-    {
-        icon: Save,
-        label: isSaving ? "Salvando..." : "Salvar",
-        onClick: handleSaveChanges,
-    },
-    {
-        icon: Plus,
-        label: "Adicionar Módulo",
-        onClick: addModule,
-    },
-    {
-        icon: Eye,
-        label: "Visualizar Curso",
-        onClick: () => router.push(`/courses/${courseId}`),
-    }
-  ];
-
   if (loading) {
     return (
         <div className="container mx-auto px-4 py-8 md:px-8 space-y-6 pt-24">
@@ -223,16 +203,18 @@ function EditCoursePageContent() {
           <h1 className="text-2xl md:text-3xl font-bold text-white">Editor de Curso</h1>
           <p className="text-muted-foreground">Edite todos os aspectos do seu curso em um só lugar.</p>
         </div>
+        <div className="flex items-center gap-2">
+            <Button onClick={handleSaveChanges} disabled={isSaving}>
+                <Save className="mr-2 h-4 w-4" />{isSaving ? "Salvando..." : "Salvar Alterações"}
+            </Button>
+            <Button asChild variant="secondary">
+                <Link href={`/courses/${courseId}`}>
+                    <Eye className="mr-2 h-4 w-4" /> Visualizar Curso
+                </Link>
+            </Button>
+        </div>
       </div>
       
-       {/* Dock for actions */}
-       <div className={cn(
-            "fixed left-0 right-0 z-50",
-            "bottom-4 md:bottom-auto md:top-24"
-        )}>
-          <Dock items={dockItems} />
-      </div>
-
       {/* Course Details Editor */}
       <Card className="mb-8">
         <CardHeader>
@@ -268,9 +250,14 @@ function EditCoursePageContent() {
 
       {/* Modules and Lessons Editor */}
       <Card>
-        <CardHeader>
-            <CardTitle>Módulos e Aulas</CardTitle>
-            <CardDescription>Organize o conteúdo do seu curso. Arraste para reordenar, edite os detalhes e adicione aulas.</CardDescription>
+        <CardHeader className="flex flex-row justify-between items-center">
+            <div>
+                <CardTitle>Módulos e Aulas</CardTitle>
+                <CardDescription>Organize o conteúdo do seu curso. Arraste para reordenar, edite os detalhes e adicione aulas.</CardDescription>
+            </div>
+            <Button onClick={addModule} size="sm">
+                <Plus className="mr-2 h-4 w-4" /> Adicionar Módulo
+            </Button>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-4">
