@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback }from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useFirestore } from '@/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
@@ -10,6 +10,7 @@ import { v4 as uuidv4 } from 'uuid';
 import AdminGuard from '@/components/admin/admin-guard';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
@@ -20,10 +21,8 @@ import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Textarea } from '@/components/ui/textarea';
-import { cn } from '@/lib/utils';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-
+import { Separator } from '@/components/ui/separator';
 
 interface Lesson {
   id: string;
@@ -42,6 +41,7 @@ interface Module {
 interface Course {
   id: string;
   title: string;
+  description: string;
   modules: Module[];
 }
 
@@ -57,6 +57,10 @@ function EditCoursePageContent() {
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Temp state for editing course details
+  const [tempTitle, setTempTitle] = useState('');
+  const [tempDescription, setTempDescription] = useState('');
   const [modules, setModules] = useState<Module[]>([]);
 
   const fetchCourse = useCallback(async () => {
@@ -69,6 +73,8 @@ function EditCoursePageContent() {
       if (courseSnap.exists()) {
         const courseData = { id: courseSnap.id, ...courseSnap.data() } as Course;
         setCourse(courseData);
+        setTempTitle(courseData.title || '');
+        setTempDescription(courseData.description || '');
         setModules((courseData.modules || []).map(m => ({
           ...m,
           id: uuidv4(), // Client-side ID
@@ -147,13 +153,17 @@ function EditCoursePageContent() {
         lessons: lessons.map(({ id: lessonId, ...lessonRest }) => lessonRest)
       }));
       
-      await updateDoc(courseRef, {
+      const courseDataToSave = {
+        title: tempTitle,
+        description: tempDescription,
         modules: modulesToSave,
-      });
-      toast({ title: "Sucesso!", description: "A estrutura de módulos e aulas foi atualizada." });
+      };
+
+      await updateDoc(courseRef, courseDataToSave);
+      toast({ title: "Sucesso!", description: "O curso foi atualizado com sucesso." });
     } catch (error) {
-      console.error('Error updating course modules:', error);
-      toast({ variant: "destructive", title: "Erro ao atualizar", description: "Ocorreu um erro ao salvar os módulos." });
+      console.error('Error updating course:', error);
+      toast({ variant: "destructive", title: "Erro ao atualizar", description: "Ocorreu um erro ao salvar o curso." });
     } finally {
       setIsSaving(false);
     }
@@ -162,7 +172,7 @@ function EditCoursePageContent() {
 
   if (loading) {
     return (
-        <div className="container mx-auto px-4 py-8 md:px-8 space-y-6 pt-20">
+        <div className="container mx-auto px-4 py-8 md:px-8 space-y-6 pt-24">
             <Skeleton className="h-10 w-48" />
             <Skeleton className="h-8 w-1/3" />
             <Skeleton className="h-40 w-full" />
@@ -175,21 +185,62 @@ function EditCoursePageContent() {
 
   return (
     <div className="container mx-auto px-4 py-8 md:px-8">
-      <div className="flex flex-wrap justify-between items-center gap-4 mb-8 pt-20">
+      <div className="flex flex-wrap justify-between items-center gap-4 mb-8 pt-24">
         <div>
           <Button asChild variant="outline" size="sm" className="mb-2">
-            <Link href={`/courses/${courseId}`}><ArrowLeft className="mr-2 h-4 w-4" />Voltar para o Curso</Link>
+            <Link href="/admin"><ArrowLeft className="mr-2 h-4 w-4" />Voltar para o Painel</Link>
           </Button>
-          <h1 className="text-2xl md:text-3xl font-bold text-white">Gerenciar Módulos</h1>
-          <p className="text-muted-foreground">Adicione, remova e edite os módulos do curso: <span className="font-semibold text-primary">{course.title}</span></p>
+          <h1 className="text-2xl md:text-3xl font-bold text-white">Editor Unificado de Cursos</h1>
+          <p className="text-muted-foreground">Edite todos os aspectos do seu curso em um só lugar.</p>
         </div>
-        <Button onClick={handleSaveChanges} disabled={isSaving} size="sm"><Save className="mr-2 h-4 w-4" />{isSaving ? 'Salvando...' : 'Salvar Módulos'}</Button>
+        <div className="flex gap-2">
+            <Button asChild variant="secondary">
+                <Link href={`/courses/${courseId}`} target="_blank">
+                    Visualizar Curso
+                </Link>
+            </Button>
+            <Button onClick={handleSaveChanges} disabled={isSaving}><Save className="mr-2 h-4 w-4" />{isSaving ? 'Salvando...' : 'Salvar Alterações'}</Button>
+        </div>
       </div>
       
+      {/* Course Details Editor */}
+      <Card className="mb-8">
+        <CardHeader>
+            <CardTitle>Detalhes do Curso</CardTitle>
+            <CardDescription>Edite as informações principais que os alunos verão primeiro.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+            <div>
+                <label htmlFor="course-title" className="text-sm font-medium text-white">Título do Curso</label>
+                <Input 
+                    id="course-title"
+                    placeholder="Ex: VSL do Zero ao Lançamento" 
+                    value={tempTitle}
+                    onChange={(e) => setTempTitle(e.target.value)}
+                    className="mt-1"
+                />
+            </div>
+            <div>
+                <label htmlFor="course-description" className="text-sm font-medium text-white">Descrição</label>
+                <Textarea 
+                    id="course-description"
+                    placeholder="Descreva o que o aluno irá aprender..." 
+                    value={tempDescription}
+                    onChange={(e) => setTempDescription(e.target.value)}
+                    className="mt-1"
+                    rows={4}
+                />
+            </div>
+        </CardContent>
+      </Card>
+      
+      <Separator className="my-8" />
+
+      {/* Modules and Lessons Editor */}
       <Card>
         <CardHeader>
-            <CardTitle>Estrutura de Módulos</CardTitle>
-            <CardDescription>Arraste para reordenar, edite os detalhes de cada módulo e adicione aulas.</CardDescription>
+            <CardTitle>Módulos e Aulas</CardTitle>
+            <CardDescription>Organize o conteúdo do seu curso. Arraste para reordenar, edite os detalhes e adicione aulas.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-4">
@@ -264,7 +315,7 @@ function ModuleEditor({ module, onUpdate, onRemove, onAddLesson, onUpdateLesson,
     };
 
     return (
-        <Collapsible className="group/collapsible border rounded-lg bg-secondary/30 transition-all hover:bg-secondary/40">
+        <Collapsible defaultOpen className="group/collapsible border rounded-lg bg-secondary/30 transition-all hover:bg-secondary/40">
             <div className="flex items-start gap-4 p-4 ">
                 <div className="flex-shrink-0 flex items-center gap-2">
                     <GripVertical className="h-5 w-5 text-muted-foreground cursor-move" />

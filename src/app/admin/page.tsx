@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useFirestore } from '@/firebase';
 import AdminGuard from '@/components/admin/admin-guard';
-import { collection, getDocs, deleteDoc, doc, DocumentData } from 'firebase/firestore';
+import { collection, getDocs, deleteDoc, doc, addDoc, DocumentData } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Plus, Trash2, Users, Pencil, BookOpen } from 'lucide-react';
 import Image from 'next/image';
@@ -19,7 +19,8 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
   AlertDialogTrigger,
-} from "@/components/ui/alert-dialog"
+} from "@/components/ui/alert-dialog";
+import { useRouter } from 'next/navigation';
 
 interface Course extends DocumentData {
   id: string;
@@ -29,6 +30,7 @@ interface Course extends DocumentData {
 
 function AdminDashboard() {
   const firestore = useFirestore();
+  const router = useRouter();
   const { toast } = useToast();
   const [courses, setCourses] = useState<Course[]>([]);
   const [userCount, setUserCount] = useState(0);
@@ -63,6 +65,34 @@ function AdminDashboard() {
       fetchData();
     }
   }, [firestore]);
+  
+  const handleAddCourse = async () => {
+    if (!firestore) return;
+    try {
+      const newCourseData = {
+        title: "Novo Curso (Rascunho)",
+        description: "Adicione uma descrição incrível para o seu novo curso.",
+        thumbnailUrl: "https://placehold.co/400x600/0f0f0f/b3b3b3?text=400x600",
+        imageHint: 'placeholder',
+        createdAt: new Date(),
+        modules: [],
+      };
+      const docRef = await addDoc(collection(firestore, 'courses'), newCourseData);
+      toast({
+        title: "Rascunho Criado!",
+        description: "Seu novo curso foi iniciado. Agora edite os detalhes.",
+      });
+      router.push(`/admin/edit-course/${docRef.id}`);
+    } catch (error) {
+       console.error("Error creating new course draft: ", error);
+       toast({
+        variant: "destructive",
+        title: "Erro ao Criar Rascunho",
+        description: "Não foi possível criar o rascunho do curso."
+      });
+    }
+  };
+
 
   const handleDelete = async () => {
     if (!firestore || !courseToDelete) return;
@@ -87,7 +117,7 @@ function AdminDashboard() {
   
   return (
     <div className="container mx-auto px-4 py-8 md:px-8">
-      <div className="flex justify-between items-center mb-8 pt-20">
+      <div className="flex justify-between items-center mb-8 pt-24">
         <h1 className="text-3xl font-bold text-white">Painel do Administrador</h1>
       </div>
 
@@ -124,10 +154,8 @@ function AdminDashboard() {
                   <Users className="mr-2 h-4 w-4" /> Gerenciar Usuários
               </Link>
           </Button>
-          <Button asChild>
-            <Link href="/admin/add-course">
-              <Plus className="mr-2 h-4 w-4" /> Adicionar Curso
-            </Link>
+          <Button onClick={handleAddCourse}>
+            <Plus className="mr-2 h-4 w-4" /> Adicionar Curso
           </Button>
       </div>
 
