@@ -7,7 +7,8 @@ const DEFAULT_DEFAULTS = {
     logoUrl: "https://reidavsl.com/wp-content/uploads/2025/03/logo-horizontal.webp",
     heroTitle: "Seu Reinado <span class='text-primary'>começa aqui</span>.",
     heroSubtitle: "No Rei da VSL, cada copy se torna uma conversão poderosa.",
-    heroImage: "https://picsum.photos/seed/hero-bg/1920/1080",
+    heroImageDesktop: "https://picsum.photos/seed/hero-desktop/1920/1080",
+    heroImageMobile: "https://picsum.photos/seed/hero-mobile/750/1334",
     ctaText: "Assistir Agora",
     heroAlignment: "left" as "left" | "center" | "end",
 }
@@ -15,11 +16,12 @@ const DEFAULT_DEFAULTS = {
 interface LayoutData {
   heroTitle: string;
   heroSubtitle: string;
-  heroImage: string;
+  heroImageDesktop: string;
+  heroImageMobile: string;
   ctaText: string;
   heroAlignment: "left" | "center" | "end";
   isLoading: boolean;
-  defaults: Omit<typeof DEFAULT_DEFAULTS, 'membersTitle' | 'membersSubtitle' | 'membersIcon'>;
+  defaults: typeof DEFAULT_DEFAULTS;
 }
 
 interface LayoutContextType {
@@ -53,7 +55,8 @@ export const LayoutProvider = ({ children }: { children: ReactNode }) => {
             ...prev,
             heroTitle: data.title || prev.defaults.heroTitle,
             heroSubtitle: data.subtitle || prev.defaults.heroSubtitle,
-            heroImage: data.imageUrl || prev.defaults.heroImage,
+            heroImageDesktop: data.imageUrlDesktop || prev.defaults.heroImageDesktop,
+            heroImageMobile: data.imageUrlMobile || prev.defaults.heroImageMobile,
             ctaText: data.ctaText || prev.defaults.ctaText,
             heroAlignment: data.heroAlignment || prev.defaults.heroAlignment,
         }));

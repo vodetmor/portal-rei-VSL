@@ -13,7 +13,7 @@ import { PageEditActions } from '@/components/admin/page-edit-actions';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Plus, Pencil, Save, X, Trophy, Gem, Crown, Star, type LucideIcon, Upload, Link2, Trash2, ChevronDown, AlignCenter, AlignLeft, AlignRight, Bold, Italic, Underline, Palette } from 'lucide-react';
+import { Plus, Pencil, Save, X, Trophy, Gem, Crown, Star, type LucideIcon, Upload, Link2, Trash2, ChevronDown, AlignCenter, AlignLeft, AlignRight, Bold, Italic, Underline, Palette, Smartphone, Monitor } from 'lucide-react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
@@ -57,14 +57,18 @@ function DashboardClientPage() {
   // States for temporary edits
   const [tempHeroTitle, setTempHeroTitle] = useState(layoutData.heroTitle);
   const [tempHeroSubtitle, setTempHeroSubtitle] = useState(layoutData.heroSubtitle);
-  const [tempHeroImage, setTempHeroImage] = useState(layoutData.heroImage);
+  const [tempHeroImageDesktop, setTempHeroImageDesktop] = useState(layoutData.heroImageDesktop);
+  const [tempHeroImageMobile, setTempHeroImageMobile] = useState(layoutData.heroImageMobile);
   const [tempCtaText, setTempCtaText] = useState(layoutData.ctaText);
   const [heroAlignment, setHeroAlignment] = useState(layoutData.heroAlignment);
   
-  const [heroImageFile, setHeroImageFile] = useState<File | null>(null);
+  const [heroImageDesktopFile, setHeroImageDesktopFile] = useState<File | null>(null);
+  const [heroImageMobileFile, setHeroImageMobileFile] = useState<File | null>(null);
+
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
-  const [imageInputMode, setImageInputMode] = useState<'upload' | 'url'>('upload');
-  const [tempHeroImageUrlInput, setTempHeroImageUrlInput] = useState('');
+  const [imageInputMode, setImageInputMode] = useState<'desktop' | 'mobile'>('desktop');
+  const [tempHeroImageUrlInputDesktop, setTempHeroImageUrlInputDesktop] = useState('');
+  const [tempHeroImageUrlInputMobile, setTempHeroImageUrlInputMobile] = useState('');
 
   const [openCollapsible, setOpenCollapsible] = useState<string | null>(null);
   
@@ -107,12 +111,14 @@ function DashboardClientPage() {
   const enterEditMode = () => {
     setTempHeroTitle(layoutData.heroTitle);
     setTempHeroSubtitle(layoutData.heroSubtitle);
-    setTempHeroImage(layoutData.heroImage);
+    setTempHeroImageDesktop(layoutData.heroImageDesktop);
+    setTempHeroImageMobile(layoutData.heroImageMobile);
     setTempCtaText(layoutData.ctaText);
     setHeroAlignment(layoutData.heroAlignment);
-    setTempHeroImageUrlInput(layoutData.heroImage);
-    setImageInputMode('upload');
-    setHeroImageFile(null);
+    setTempHeroImageUrlInputDesktop(layoutData.heroImageDesktop);
+    setTempHeroImageUrlInputMobile(layoutData.heroImageMobile);
+    setHeroImageDesktopFile(null);
+    setHeroImageMobileFile(null);
     setUploadProgress(null);
     setIsEditMode(true);
   };
@@ -122,33 +128,6 @@ function DashboardClientPage() {
     setIsEditMode(false);
     setActiveEditor(null);
     setOpenCollapsible(null);
-  };
-
-  // Hero Image Handlers
-  const handleHeroFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setHeroImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setTempHeroImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const handleHeroUrlInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const newUrl = event.target.value;
-    setTempHeroImageUrlInput(newUrl);
-    if (newUrl.startsWith('http://') || newUrl.startsWith('https://')) {
-      setTempHeroImage(newUrl);
-    }
-  };
-  
-  const handleRemoveHeroImage = () => {
-    setTempHeroImage(layoutData.defaults.heroImage);
-    setTempHeroImageUrlInput('');
-    setHeroImageFile(null);
   };
 
   const uploadImage = async (file: File, path: string, progressSetter: (p: number) => void): Promise<string> => {
@@ -174,56 +153,61 @@ function DashboardClientPage() {
     setIsSaving(true);
     setUploadProgress(null);
 
-    let finalHeroImageUrl = tempHeroImage;
-    if (imageInputMode === 'upload' && heroImageFile) {
-        finalHeroImageUrl = await uploadImage(heroImageFile, 'layout/dashboard-hero', setUploadProgress);
-    } else if (imageInputMode === 'url') {
-        finalHeroImageUrl = tempHeroImageUrlInput;
-    }
+    let finalHeroImageUrlDesktop = tempHeroImageDesktop;
+    let finalHeroImageUrlMobile = tempHeroImageMobile;
     
-    if (!finalHeroImageUrl) {
-        toast({ variant: "destructive", title: "Erro", description: "A imagem do banner não foi fornecida." });
-        setIsSaving(false);
-        return;
-    }
-    
-    const titleContent = titleRef.current?.innerHTML || tempHeroTitle;
-    const subtitleContent = subtitleRef.current?.innerHTML || tempHeroSubtitle;
-    const ctaContent = ctaRef.current?.innerHTML || tempCtaText;
-
-    const dataToSave = {
-        title: titleContent,
-        subtitle: subtitleContent,
-        imageUrl: finalHeroImageUrl,
-        ctaText: ctaContent,
-        heroAlignment: heroAlignment,
-    };
-    
-    const layoutRef = doc(firestore, 'layout', 'dashboard-hero');
     try {
-      await setDoc(layoutRef, dataToSave, { merge: true });
-      
-      setLayoutData(prev => ({ 
-          ...prev, 
-          heroTitle: dataToSave.title,
-          heroSubtitle: dataToSave.subtitle,
-          heroImage: dataToSave.imageUrl,
-          ctaText: dataToSave.ctaText,
-          heroAlignment: dataToSave.heroAlignment,
-      }));
+        if (heroImageDesktopFile) {
+            finalHeroImageUrlDesktop = await uploadImage(heroImageDesktopFile, 'layout/dashboard-hero/desktop', setUploadProgress);
+        } else {
+            finalHeroImageUrlDesktop = tempHeroImageUrlInputDesktop;
+        }
 
-      toast({
-        title: "Sucesso!",
-        description: "As alterações do layout foram salvas.",
-      });
-      setIsEditMode(false);
-      setActiveEditor(null);
+        if (heroImageMobileFile) {
+            finalHeroImageUrlMobile = await uploadImage(heroImageMobileFile, 'layout/dashboard-hero/mobile', setUploadProgress);
+        } else {
+            finalHeroImageUrlMobile = tempHeroImageUrlInputMobile;
+        }
+
+        const titleContent = titleRef.current?.innerHTML || tempHeroTitle;
+        const subtitleContent = subtitleRef.current?.innerHTML || tempHeroSubtitle;
+        const ctaContent = ctaRef.current?.innerHTML || tempCtaText;
+
+        const dataToSave = {
+            title: titleContent,
+            subtitle: subtitleContent,
+            imageUrlDesktop: finalHeroImageUrlDesktop,
+            imageUrlMobile: finalHeroImageUrlMobile,
+            ctaText: ctaContent,
+            heroAlignment: heroAlignment,
+        };
+        
+        const layoutRef = doc(firestore, 'layout', 'dashboard-hero');
+      
+        await setDoc(layoutRef, dataToSave, { merge: true });
+        
+        setLayoutData(prev => ({ 
+            ...prev, 
+            heroTitle: dataToSave.title,
+            heroSubtitle: dataToSave.subtitle,
+            heroImageDesktop: dataToSave.imageUrlDesktop,
+            heroImageMobile: dataToSave.imageUrlMobile,
+            ctaText: dataToSave.ctaText,
+            heroAlignment: dataToSave.heroAlignment,
+        }));
+
+        toast({
+            title: "Sucesso!",
+            description: "As alterações do layout foram salvas.",
+        });
+        setIsEditMode(false);
+        setActiveEditor(null);
     } catch (error) {
       console.error("Error saving layout:", error);
       const permissionError = new FirestorePermissionError({
-        path: layoutRef.path,
+        path: 'layout/dashboard-hero',
         operation: 'write',
-        requestResourceData: dataToSave,
+        requestResourceData: { /* data */ },
       });
       errorEmitter.emit('permission-error', permissionError);
 
@@ -235,7 +219,49 @@ function DashboardClientPage() {
     } finally {
       setIsSaving(false);
       setUploadProgress(null);
-      setHeroImageFile(null);
+      setHeroImageDesktopFile(null);
+      setHeroImageMobileFile(null);
+    }
+  };
+
+
+  const handleHeroFileChange = (e: React.ChangeEvent<HTMLInputElement>, device: 'desktop' | 'mobile') => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (device === 'desktop') {
+        setHeroImageDesktopFile(file);
+        const reader = new FileReader();
+        reader.onloadend = () => setTempHeroImageDesktop(reader.result as string);
+        reader.readAsDataURL(file);
+      } else {
+        setHeroImageMobileFile(file);
+        const reader = new FileReader();
+        reader.onloadend = () => setTempHeroImageMobile(reader.result as string);
+        reader.readAsDataURL(file);
+      }
+    }
+  };
+
+  const handleHeroUrlChange = (e: React.ChangeEvent<HTMLInputElement>, device: 'desktop' | 'mobile') => {
+    const url = e.target.value;
+    if (device === 'desktop') {
+      setTempHeroImageUrlInputDesktop(url);
+      if (url.startsWith('http')) setTempHeroImageDesktop(url);
+    } else {
+      setTempHeroImageUrlInputMobile(url);
+      if (url.startsWith('http')) setTempHeroImageMobile(url);
+    }
+  };
+
+  const handleRemoveHeroImage = (device: 'desktop' | 'mobile') => {
+    if (device === 'desktop') {
+        setTempHeroImageDesktop(layoutData.defaults.heroImageDesktop);
+        setTempHeroImageUrlInputDesktop('');
+        setHeroImageDesktopFile(null);
+    } else {
+        setTempHeroImageMobile(layoutData.defaults.heroImageMobile);
+        setTempHeroImageUrlInputMobile('');
+        setHeroImageMobileFile(null);
     }
   };
 
@@ -435,14 +461,18 @@ useEffect(() => {
         )}>
           {layoutData.isLoading ? <Skeleton className="absolute inset-0 z-0" /> : (
               <div className="absolute inset-0 z-0">
-                <Image
-                  src={isEditMode ? tempHeroImage : layoutData.heroImage}
-                  alt="Hero background"
-                  fill
-                  className="object-cover"
-                  data-ai-hint="digital art collage"
-                  priority
-                />
+                <picture>
+                  <source srcSet={isEditMode ? tempHeroImageMobile : layoutData.heroImageMobile} media="(max-width: 768px)" />
+                  <source srcSet={isEditMode ? tempHeroImageDesktop : layoutData.heroImageDesktop} media="(min-width: 769px)" />
+                  <Image
+                    src={isEditMode ? tempHeroImageDesktop : layoutData.heroImageDesktop}
+                    alt="Hero background"
+                    fill
+                    className="object-cover"
+                    data-ai-hint="digital art collage"
+                    priority
+                  />
+                </picture>
                 <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-transparent" />
               </div>
           )}
@@ -535,49 +565,39 @@ useEffect(() => {
           )}
           {isAdmin && isEditMode && (
              <div className="absolute top-24 right-8 z-20 flex flex-col items-end gap-4">
-                 <Collapsible open={openCollapsible === 'banner'} onOpenChange={(isOpen) => setOpenCollapsible(isOpen ? 'banner' : null)} className="w-full max-w-xs">
+                <Collapsible open={openCollapsible === 'banner'} onOpenChange={(isOpen) => setOpenCollapsible(isOpen ? 'banner' : null)} className="w-full max-w-xs">
                     <CollapsibleTrigger asChild>
                         <Button variant="outline"><Pencil className="mr-2 h-4 w-4" /> Editar Banner</Button>
                     </CollapsibleTrigger>
                     <CollapsibleContent className="mt-2 w-full space-y-2 p-4 rounded-lg bg-background/80 border border-border backdrop-blur-sm">
-                        <Tabs value={imageInputMode} onValueChange={(value) => setImageInputMode(value as 'upload' | 'url')} className="w-full">
+                        <Tabs value={imageInputMode} onValueChange={(value) => setImageInputMode(value as 'desktop' | 'mobile')} className="w-full">
                             <TabsList className="grid w-full grid-cols-2">
-                            <TabsTrigger value="upload">Enviar Arquivo</TabsTrigger>
-                            <TabsTrigger value="url">Usar URL</TabsTrigger>
+                                <TabsTrigger value="desktop"><Monitor className="mr-2 h-4 w-4" /> Computador</TabsTrigger>
+                                <TabsTrigger value="mobile"><Smartphone className="mr-2 h-4 w-4" /> Celular</TabsTrigger>
                             </TabsList>
-                            <TabsContent value="upload" className="mt-4">
-                            <label htmlFor="hero-image-upload" className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-white border border-dashed rounded-md p-3 justify-center bg-background/50">
-                                <Upload className="h-4 w-4" />
-                                <span>{heroImageFile ? heroImageFile.name : 'Clique para selecionar a imagem'}</span>
-                            </label>
-                            <Input
-                                id="hero-image-upload"
-                                type="file"
-                                accept="image/*"
-                                onChange={handleHeroFileChange}
-                                className="hidden"
-                            />
-                            {uploadProgress !== null && imageInputMode === 'upload' && (
-                                <Progress value={uploadProgress} className="w-full h-2 mt-2" />
-                            )}
-                            </TabsContent>
-                            <TabsContent value="url" className="mt-4">
-                            <div className="relative">
-                                <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                                <Input
-                                type="text"
-                                placeholder="https://exemplo.com/imagem.png"
-                                value={tempHeroImageUrlInput}
-                                onChange={handleHeroUrlInputChange}
-                                className="w-full bg-background/50 pl-9"
+                            <TabsContent value="desktop" className="mt-4 space-y-3">
+                                <ImageUploader
+                                    device="desktop"
+                                    file={heroImageDesktopFile}
+                                    onFileChange={handleHeroFileChange}
+                                    url={tempHeroImageUrlInputDesktop}
+                                    onUrlChange={handleHeroUrlChange}
+                                    onRemove={handleRemoveHeroImage}
+                                    uploadProgress={uploadProgress}
                                 />
-                            </div>
+                            </TabsContent>
+                            <TabsContent value="mobile" className="mt-4 space-y-3">
+                                <ImageUploader
+                                    device="mobile"
+                                    file={heroImageMobileFile}
+                                    onFileChange={handleHeroFileChange}
+                                    url={tempHeroImageUrlInputMobile}
+                                    onUrlChange={handleHeroUrlChange}
+                                    onRemove={handleRemoveHeroImage}
+                                    uploadProgress={uploadProgress}
+                                />
                             </TabsContent>
                         </Tabs>
-                        <Button onClick={handleRemoveHeroImage} variant="outline" size="sm" className="w-full gap-2 text-destructive border-destructive/50 hover:bg-destructive/10 hover:text-destructive">
-                            <Trash2 className="h-4 w-4" />
-                            Remover Imagem do Banner
-                        </Button>
                     </CollapsibleContent>
                 </Collapsible>
              </div>
@@ -631,6 +651,51 @@ useEffect(() => {
           />
         )}
       </div>
+  );
+}
+
+function ImageUploader({
+  device,
+  file,
+  onFileChange,
+  url,
+  onUrlChange,
+  onRemove,
+  uploadProgress
+}: {
+  device: 'desktop' | 'mobile';
+  file: File | null;
+  onFileChange: (e: React.ChangeEvent<HTMLInputElement>, device: 'desktop' | 'mobile') => void;
+  url: string;
+  onUrlChange: (e: React.ChangeEvent<HTMLInputElement>, device: 'desktop' | 'mobile') => void;
+  onRemove: (device: 'desktop' | 'mobile') => void;
+  uploadProgress: number | null;
+}) {
+  return (
+    <Tabs defaultValue="upload" className="w-full">
+      <TabsList className="grid w-full grid-cols-2">
+        <TabsTrigger value="upload">Enviar</TabsTrigger>
+        <TabsTrigger value="url">URL</TabsTrigger>
+      </TabsList>
+      <TabsContent value="upload" className="mt-4 space-y-3">
+        <label htmlFor={`hero-image-upload-${device}`} className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-white border border-dashed rounded-md p-3 justify-center bg-background/50">
+          <Upload className="h-4 w-4" />
+          <span>{file ? file.name : 'Selecionar imagem'}</span>
+        </label>
+        <Input id={`hero-image-upload-${device}`} type="file" accept="image/*" onChange={(e) => onFileChange(e, device)} className="hidden" />
+        {uploadProgress !== null && <Progress value={uploadProgress} className="w-full h-2" />}
+      </TabsContent>
+      <TabsContent value="url" className="mt-4">
+        <div className="relative">
+          <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input type="text" placeholder="https://exemplo.com/imagem.png" value={url} onChange={(e) => onUrlChange(e, device)} className="w-full bg-background/50 pl-9" />
+        </div>
+      </TabsContent>
+      <Button onClick={() => onRemove(device)} variant="outline" size="sm" className="w-full gap-2 text-destructive border-destructive/50 hover:bg-destructive/10 hover:text-destructive">
+        <Trash2 className="h-4 w-4" />
+        Remover Imagem
+      </Button>
+    </Tabs>
   );
 }
 
