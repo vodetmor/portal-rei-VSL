@@ -1,20 +1,15 @@
 import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  cacheComponents: true,
+  reactCompiler: false,
   typescript: {
     ignoreBuildErrors: true,
   },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   images: {
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: '**',
-      },
-    ],
+    minimumCacheTTL: 14400,
+    maximumRedirects: 3,
+    dangerouslyAllowLocalIP: false,
   },
 };
 
