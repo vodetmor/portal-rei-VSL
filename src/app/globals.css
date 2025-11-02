@@ -13,8 +13,8 @@
     --popover: 0 0% 6%;
     --popover-foreground: 0 0% 100%;
 
-    --primary: 357 92% 45%; /* #e50914 - Netflix Red */
-    --primary-foreground: 0 0% 100%;
+    --primary: 45 95% 55%; /* #f7b733 - VSL Yellow */
+    --primary-foreground: 0 0% 10%;
 
     --secondary: 0 0% 15%;
     --secondary-foreground: 0 0% 98%;
@@ -30,7 +30,7 @@
 
     --border: 0 0% 15%;
     --input: 0 0% 15%;
-    --ring: 357 92% 45%;
+    --ring: 45 95% 55%;
 
     --radius: 0.5rem;
   }

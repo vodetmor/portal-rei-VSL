@@ -89,10 +89,11 @@ function DashboardClientPage() {
 
 
   const enterEditMode = () => {
-    setTempHeroTitle(layoutData.heroTitle);
+    // Strip HTML for editing, but keep the full version in state if needed
+    setTempHeroTitle(layoutData.heroTitle.replace(/ <span.*$/,''));
     setTempHeroSubtitle(layoutData.heroSubtitle);
     setTempHeroImage(layoutData.heroImage);
-    setTempMembersTitle(layoutData.membersTitle);
+    setTempMembersTitle(layoutData.membersTitle.replace(/ <span.*$/,''));
     setTempMembersSubtitle(layoutData.membersSubtitle);
     setTempMembersIcon(layoutData.membersIcon);
     
@@ -177,10 +178,10 @@ function DashboardClientPage() {
     const layoutRef = doc(firestore, 'layout', 'dashboard-hero');
     try {
       const dataToSave = {
-        title: tempHeroTitle,
+        title: tempHeroTitle + " <span class='text-primary'>começa aqui</span>.",
         subtitle: tempHeroSubtitle,
         imageUrl: finalHeroImageUrl,
-        membersTitle: tempMembersTitle,
+        membersTitle: tempMembersTitle + " <span class='text-primary'>Premium</span>",
         membersSubtitle: tempMembersSubtitle,
         membersIcon: tempMembersIcon,
       };
@@ -335,8 +336,8 @@ function DashboardClientPage() {
                   <div className='w-full max-w-lg space-y-4 rounded-xl bg-background/50 p-4 border border-border backdrop-blur-sm'>
                       <Input 
                         data-editable="true"
-                        value={tempHeroTitle.replace(/<[^>]+>/g, '')} 
-                        onChange={(e) => setTempHeroTitle(e.target.value.replace(/<[^>]+>/g, '') + " <span class='text-primary'>começa aqui</span>.")} 
+                        value={tempHeroTitle}
+                        onChange={(e) => setTempHeroTitle(e.target.value)} 
                         className="text-4xl font-bold tracking-tight md:text-5xl lg:text-6xl bg-transparent border-dashed"
                       />
                       <Input
@@ -408,7 +409,7 @@ function DashboardClientPage() {
               )}
 
             <div className="mt-8">
-              <Button asChild size="lg" variant="destructive" className="bg-primary hover:bg-primary/90 text-primary-foreground">
+              <Button asChild size="lg" variant="default" className="bg-primary hover:bg-primary/90 text-primary-foreground">
                 <Link href="#">Assistir Agora</Link>
               </Button>
             </div>
@@ -438,7 +439,7 @@ function DashboardClientPage() {
           
           {/* Featured Carousel */}
           <div>
-            <div className="mb-4 flex items-center gap-4">
+            <div className="mb-8 flex items-center gap-4">
                 {isEditMode ? (
                   <div className='flex items-center gap-2 p-2 rounded-lg bg-background/50 border border-dashed border-border'>
                     <Select value={tempMembersIcon} onValueChange={setTempMembersIcon}>
@@ -457,8 +458,8 @@ function DashboardClientPage() {
                     <div className='flex flex-col'>
                       <Input
                           data-editable="true"
-                          value={tempMembersTitle.replace(/<[^>]+>/g, '')}
-                          onChange={(e) => setTempMembersTitle(e.target.value.replace(/<[^>]+>/g, '') + " <span class='text-primary'>Premium</span>")}
+                          value={tempMembersTitle}
+                          onChange={(e) => setTempMembersTitle(e.target.value)}
                           className="text-2xl font-bold bg-transparent border-none"
                       />
                        <Input

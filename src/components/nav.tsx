@@ -155,7 +155,7 @@ export function Nav() {
               </div>
             </>
           ) : (
-            <Button asChild variant="destructive" className="bg-primary hover:bg-primary/90">
+            <Button asChild>
                 <Link href="/login">Login</Link>
             </Button>
           )}
@@ -192,7 +192,7 @@ export function Nav() {
                            <LogOut className="h-4 w-4"/> Sair
                          </Button>
                       ) : (
-                        <Button asChild variant="destructive" className="w-full">
+                        <Button asChild className="w-full">
                           <Link href="/login">Login</Link>
                         </Button>
                       )}
