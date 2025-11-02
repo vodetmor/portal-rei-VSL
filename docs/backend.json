@@ -24,6 +24,7 @@
         "title": { "type": "string", "description": "Title of the course." },
         "subtitle": { "type": "string", "description": "Subtitle of the course, displayed below the main title." },
         "description": { "type": "string", "description": "Description of the course." },
+        "status": { "type": "string", "description": "The current status of the course.", "enum": ["draft", "published"] },
         "modules": {
           "type": "array",
           "description": "An array of modules belonging to the course.",
@@ -54,7 +55,7 @@
           }
         }
       },
-      "required": ["id", "title", "description"]
+      "required": ["id", "title", "description", "status"]
     },
     "CourseAccess": {
       "$schema": "http://json-schema.org/draft-07-schema#",

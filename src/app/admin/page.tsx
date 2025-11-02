@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useFirestore, useUser } from '@/firebase';
 import AdminGuard from '@/components/admin/admin-guard';
-import { collection, getDocs, deleteDoc, doc, addDoc, setDoc, DocumentData, serverTimestamp } from 'firebase/firestore';
+import { collection, getDocs, deleteDoc, doc, addDoc, setDoc, DocumentData, serverTimestamp } from 'firestore';
 import { Button } from '@/components/ui/button';
 import { Plus, Trash2, Users, Pencil, BookOpen, Link as LinkIcon, Copy, History } from 'lucide-react';
 import Image from 'next/image';
@@ -36,11 +36,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { logAdminAction } from '@/lib/audit';
+import { Badge } from '@/components/ui/badge';
 
 interface Course extends DocumentData {
   id: string;
   title: string;
   thumbnailUrl: string;
+  status: 'draft' | 'published';
 }
 
 interface PremiumLink extends DocumentData {
@@ -105,6 +107,7 @@ function AdminDashboard() {
         imageHint: 'placeholder',
         createdAt: serverTimestamp(),
         modules: [],
+        status: 'draft', // New courses start as drafts
       };
       // Step 1: Create the course
       const docRef = await addDoc(collection(firestore, 'courses'), newCourseData);
@@ -329,7 +332,16 @@ function AdminDashboard() {
                   <div key={course.id} className="group relative flex items-center justify-between p-4 rounded-md bg-background/50 hover:bg-secondary/50 transition-colors">
                     <div className="flex items-center gap-4">
                       <Image src={course.thumbnailUrl || 'https://i.imgur.com/1X3ta7W.png'} alt={course.title} width={80} height={45} className="rounded-md object-cover aspect-video" />
-                      <span className="font-medium text-white">{course.title}</span>
+                      <div>
+                        <span className="font-medium text-white">{course.title}</span>
+                        <div>
+                          {course.status === 'published' ? (
+                            <Badge variant="default" className="bg-green-600">Publicado</Badge>
+                          ) : (
+                            <Badge variant="secondary">Rascunho</Badge>
+                          )}
+                        </div>
+                      </div>
                     </div>
                     <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                       <Button asChild variant="outline" size="icon">
@@ -375,5 +387,3 @@ export default function AdminPage() {
         </AdminGuard>
     )
 }
-
-    

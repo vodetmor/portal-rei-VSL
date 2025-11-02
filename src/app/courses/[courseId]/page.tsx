@@ -41,6 +41,7 @@ interface Course extends DocumentData {
   modules: Module[];
   heroImageUrlDesktop?: string;
   heroImageUrlMobile?: string;
+  status: 'draft' | 'published';
 }
 
 interface CourseAccessInfo {
@@ -141,6 +142,14 @@ export default function CoursePlayerPage() {
         }
 
         const courseData = { id: courseSnap.id, ...courseSnap.data() } as Course;
+        
+        // Step 3: Verify access and status
+        if (!userIsAdmin && courseData.status !== 'published') {
+            toast({ variant: "destructive", title: "Curso Indisponível", description: "Este curso não está disponível no momento."});
+            router.push('/dashboard');
+            return;
+        }
+        
         setCourse(courseData);
         // Initialize editing states
         setTempTitle(courseData.title);
@@ -151,7 +160,7 @@ export default function CoursePlayerPage() {
         setHeroImageUrlInputDesktop(courseData.heroImageUrlDesktop || '');
         setHeroImageUrlInputMobile(courseData.heroImageUrlMobile || '');
 
-        // Step 3: Verify access
+        // Step 4: Verify access record
         if (userIsAdmin) {
           // Admins always have access
           setCourseAccessInfo({ grantedAt: new Date().toISOString() });
@@ -591,5 +600,3 @@ function TrophyIcon(props: React.SVGProps<SVGSVGElement>) {
     </svg>
   )
 }
-
-    

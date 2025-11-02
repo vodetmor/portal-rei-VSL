@@ -18,7 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Trash2, Save, Upload, Link2, GripVertical, FileVideo, Eye, CalendarDays } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, Upload, Link2, GripVertical, FileVideo, Eye, CalendarDays, Send } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
@@ -27,6 +27,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Separator } from '@/components/ui/separator';
 import { logAdminAction } from '@/lib/audit';
+import { Badge } from '@/components/ui/badge';
 
 interface Lesson {
   id: string;
@@ -52,6 +53,7 @@ interface Course {
   subtitle: string;
   description: string;
   modules: Module[];
+  status: 'draft' | 'published';
 }
 
 const DEFAULT_MODULE_IMAGE = "https://i.imgur.com/1X3ta7W.png";
@@ -178,13 +180,12 @@ function EditCoursePageContent() {
   };
 
 
-  const handleSaveChanges = async () => {
+  const handleSave = async (status: 'draft' | 'published' = 'draft') => {
     if (!firestore || !courseId || !adminUser) return;
     setIsSaving(true);
     
     try {
       const courseRef = doc(firestore, 'courses', courseId);
-      // Ensure releaseDelayDays is a number before saving
       const modulesToSave = modules.map(({ ...rest }) => ({
         ...rest,
         releaseDelayDays: Number(rest.releaseDelayDays || 0),
@@ -199,21 +200,29 @@ function EditCoursePageContent() {
         subtitle: tempSubtitle,
         description: tempDescription,
         modules: modulesToSave,
+        status: status,
         updatedAt: serverTimestamp(),
       };
 
       await updateDoc(courseRef, courseDataToSave);
       
-      await logAdminAction(firestore, adminUser, 'course_updated', {
+      const action = status === 'published' ? 'course_published' : 'course_updated';
+      const toastTitle = status === 'published' ? 'Curso Publicado!' : 'Rascunho Salvo!';
+      const toastDescription = status === 'published' 
+          ? "O curso e todas as suas alterações estão agora visíveis para os alunos."
+          : "Suas alterações foram salvas como um rascunho.";
+
+      await logAdminAction(firestore, adminUser, action, {
           type: 'Course',
           id: courseId,
           title: tempTitle
-      })
+      });
 
-      toast({ title: "Sucesso!", description: "O curso foi atualizado com sucesso." });
+      toast({ title: toastTitle, description: toastDescription });
+      fetchCourse(); // Re-fetch to update status indicator
     } catch (error) {
       console.error('Error updating course:', error);
-      toast({ variant: "destructive", title: "Erro ao atualizar", description: "Ocorreu um erro ao salvar o curso." });
+      toast({ variant: "destructive", title: "Erro ao salvar", description: "Ocorreu um erro ao salvar o curso." });
     } finally {
       setIsSaving(false);
     }
@@ -239,7 +248,14 @@ function EditCoursePageContent() {
           <Button asChild variant="outline" size="sm" className="mb-2">
             <Link href="/admin"><ArrowLeft className="mr-2 h-4 w-4" />Voltar para o Painel</Link>
           </Button>
-          <h1 className="text-2xl md:text-3xl font-bold text-white">Editor de Curso</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl md:text-3xl font-bold text-white">Editor de Curso</h1>
+            {course.status === 'published' ? (
+                <Badge variant="default" className="bg-green-600">Publicado</Badge>
+            ) : (
+                <Badge variant="secondary">Rascunho</Badge>
+            )}
+          </div>
           <p className="text-muted-foreground">Edite todos os aspectos do seu curso em um só lugar.</p>
         </div>
       </div>
@@ -295,38 +311,59 @@ function EditCoursePageContent() {
                 <CardDescription>Organize o conteúdo do seu curso. Arraste para reordenar, edite os detalhes e adicione aulas.</CardDescription>
             </div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <Reorder.Group axis="y" values={modules} onReorder={setModules} className="space-y-4">
-              {modules.map((module) => (
-                <ModuleEditor 
-                    key={module.id} 
-                    module={module}
-                    onUpdate={updateModuleField}
-                    onRemove={removeModule}
-                    onAddLesson={addLesson}
-                    onUpdateLesson={updateLessonField}
-                    onRemoveLesson={removeLesson}
-                    onReorderLessons={reorderLessons}
-                />
-              ))}
-          </Reorder.Group>
-            <Button onClick={addModule} size="sm" variant="outline" className="w-full mt-4">
-                <Plus className="mr-2 h-4 w-4" /> Adicionar Módulo
-            </Button>
+        <CardContent>
+          <div className="space-y-4">
+            <Reorder.Group axis="y" values={modules} onReorder={setModules} className="space-y-4">
+                {modules.map((module) => (
+                  <ModuleEditor 
+                      key={module.id} 
+                      module={module}
+                      onUpdate={updateModuleField}
+                      onRemove={removeModule}
+                      onAddLesson={addLesson}
+                      onUpdateLesson={updateLessonField}
+                      onRemoveLesson={removeLesson}
+                      onReorderLessons={reorderLessons}
+                  />
+                ))}
+            </Reorder.Group>
+              <Button onClick={addModule} size="sm" variant="outline" className="w-full mt-4">
+                  <Plus className="mr-2 h-4 w-4" /> Adicionar Módulo
+              </Button>
+          </div>
         </CardContent>
       </Card>
       
       {/* Floating Action Bar */}
       <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-background/80 backdrop-blur-md border-t border-border">
           <div className="container mx-auto flex justify-end items-center gap-4">
-               <Button asChild variant="secondary">
-                    <Link href={`/courses/${courseId}`}>
-                        <Eye className="mr-2 h-4 w-4" /> Visualizar Curso
+               <Button asChild variant="outline">
+                    <Link href={`/courses/${courseId}`} target="_blank">
+                        <Eye className="mr-2 h-4 w-4" /> Visualizar
                     </Link>
                 </Button>
-                <Button onClick={handleSaveChanges} disabled={isSaving}>
-                    <Save className="mr-2 h-4 w-4" />{isSaving ? "Salvando..." : "Salvar Alterações"}
+                <Button onClick={() => handleSave('draft')} disabled={isSaving} variant="secondary">
+                    <Save className="mr-2 h-4 w-4" />{isSaving ? "Salvando..." : "Salvar Rascunho"}
                 </Button>
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button disabled={isSaving}>
+                      <Send className="mr-2 h-4 w-4" />{isSaving ? "Publicando..." : "Publicar"}
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Publicar o curso?</AlertDialogTitle>
+                      <AlertDialogDescription>
+                        Esta ação tornará o curso e todas as suas alterações visíveis para os alunos com acesso.
+                      </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                      <AlertDialogAction onClick={() => handleSave('published')}>Confirmar e Publicar</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
           </div>
       </div>
     </div>
