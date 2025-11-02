@@ -8,13 +8,15 @@ import { doc, getDoc, collection, getDocs, setDoc, type DocumentData } from 'fir
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Trophy } from 'lucide-react';
+import { Trophy, UploadCloud } from 'lucide-react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { useEditMode } from '@/context/EditModeContext';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
+
 
 interface Course extends DocumentData {
   id: string;
@@ -178,7 +180,7 @@ export default function DashboardPage() {
 
 
   const handleImageContainerClick = () => {
-    if (isEditMode) {
+    if (isEditMode && !isUploading) {
       fileInputRef.current?.click();
     }
   };
@@ -238,36 +240,56 @@ export default function DashboardPage() {
     <div className="w-full" data-edit-mode={isEditMode}>
       {/* Hero Section */}
       <section className="relative flex h-[60vh] min-h-[500px] w-full flex-col items-center justify-center bg-black py-12 md:h-screen">
-       {contentLoading ? <Skeleton className="absolute inset-0 z-0" /> : (
-        <div className="absolute inset-0 z-0">
-          <div 
-            data-editable={isEditMode}
-            className="w-full h-full relative"
-            onClick={handleImageContainerClick}
-          >
-             {isEditMode && (
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleImageUpload}
-                  className="hidden"
-                  accept="image/png, image/jpeg, image/webp"
-                />
-              )}
-            <Image
-              src={heroImage}
-              alt="Hero background"
-              fill
-              className="object-cover"
-              data-ai-hint="digital art collage"
-              priority
-            />
-             {isUploading && <div className="absolute inset-0 bg-black/50 flex items-center justify-center"><div className="h-10 w-10 animate-spin rounded-full border-4 border-white border-t-transparent" /></div>}
-          </div>
-          <div className="absolute inset-0 bg-black/70" />
-        </div>
-       )}
-        <div className="relative z-10 mx-auto flex max-w-4xl flex-col items-start px-4 text-left">
+        {contentLoading ? <Skeleton className="absolute inset-0 z-0" /> : (
+            <>
+              {/* Background Image and Overlay Container */}
+              <div className="absolute inset-0 z-0">
+                  <Image
+                    src={heroImage}
+                    alt="Hero background"
+                    fill
+                    className="object-cover"
+                    data-ai-hint="digital art collage"
+                    priority
+                  />
+                  <div className="absolute inset-0 bg-black/70" />
+              </div>
+              
+              {/* Interactive container for editing */}
+              <div 
+                  data-editable={isEditMode}
+                  className={cn(
+                    "absolute inset-0 z-10 flex items-center justify-center",
+                    isEditMode && "cursor-pointer"
+                  )}
+                  onClick={handleImageContainerClick}
+              >
+                  {isUploading && (
+                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-20">
+                          <div className="h-10 w-10 animate-spin rounded-full border-4 border-white border-t-transparent" />
+                      </div>
+                  )}
+                   {isEditMode && !isUploading && (
+                      <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300 bg-black/30">
+                          <div className="flex flex-col items-center text-white">
+                              <UploadCloud className="h-12 w-12" />
+                              <p className="font-semibold mt-2">Trocar Imagem de Fundo</p>
+                          </div>
+                      </div>
+                  )}
+              </div>
+              
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={handleImageUpload}
+                className="hidden"
+                accept="image/png, image/jpeg, image/webp"
+              />
+            </>
+        )}
+
+        <div className="relative z-20 mx-auto flex max-w-4xl flex-col items-start px-4 text-left">
           {isEditMode ? (
             <div data-editable="true" className="w-full">
               <Input

@@ -46,3 +46,12 @@
   cursor: pointer;
   transition: outline 0.2s ease, box-shadow 0.2s ease;
 }
+
+[data-edit-mode="true"] [data-editable="true"] {
+  transition: outline 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Specific styling for the hero image container to ensure visibility */
+[data-edit-mode="true"] .hero-image-container[data-editable="true"]:hover {
+    background-color: hsla(var(--primary), 0.1);
+}
