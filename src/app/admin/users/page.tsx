@@ -133,12 +133,16 @@ function UserManagementPage() {
                     </div>
                   </TableCell>
                   <TableCell className="hidden sm:table-cell">
-                    <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
-                      {user.role}
-                    </Badge>
+                    {user.email === 'admin@reidavsl.com' ? (
+                        <Badge variant="destructive">Dono</Badge>
+                    ) : (
+                        <Badge variant={user.role === 'admin' ? 'default' : 'secondary'}>
+                            {user.role}
+                        </Badge>
+                    )}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button asChild variant="outline" size="sm">
+                    <Button asChild variant="outline" size="sm" disabled={user.email === 'admin@reidavsl.com'}>
                       <Link href={`/admin/users/${user.id}`}>
                         <UserCog className="mr-2 h-4 w-4" />
                         Gerenciar
