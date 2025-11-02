@@ -93,52 +93,22 @@ export default function CoursePlayerPage() {
 
 
   const applyFormat = (command: string) => {
-    const editorId = activeEditor;
-    if (!editorId) return;
-
-    const editorElement = document.getElementById(editorId);
-    if (!editorElement || !editorElement.isContentEditable) return;
-    
-    // For applying color, we'll wrap the selection in a span
-    if (command === 'foreColor') {
-        const selection = window.getSelection();
-        if (!selection || selection.rangeCount === 0) return;
-        
-        const range = selection.getRangeAt(0);
-        const selectedText = range.toString();
-
-        if (selectedText) {
-            const span = document.createElement('span');
-            span.className = 'text-primary';
-            span.textContent = selectedText;
-            
-            range.deleteContents();
-            range.insertNode(span);
-        }
-        return;
-    }
-
-    document.execCommand(command, false, undefined);
-  
-    if (editorId === 'course-title-editor') setTempTitle(editorElement.innerHTML);
-    else if (editorId === 'course-subtitle-editor') setTempSubtitle(editorElement.innerHTML);
-    else if (editorId === 'course-description-editor') setTempDescription(editorElement.innerHTML);
-  };
+    document.execCommand(command, false);
+};
 
   const checkAdminStatus = useCallback(async () => {
-    if (!user || !auth) return false;
+    if (!user || !auth || !firestore) return false;
     if (user.email === 'admin@reidavsl.com') return true;
 
     try {
-        const idTokenResult = await auth.currentUser?.getIdTokenResult();
-        return idTokenResult?.claims.admin === true;
+        const userDocRef = doc(firestore, 'users', user.uid);
+        const userDoc = await getDoc(userDocRef);
+        return userDoc.exists() && userDoc.data().role === 'admin';
     } catch (error) {
-        console.error("Error checking admin status from token:", error);
-        // Fallback for environments where token inspection might fail, though less secure.
-        // This should ideally rely on a backend-verified role.
+        console.error("Error checking admin status:", error);
         return false;
     }
-  }, [user, auth]);
+  }, [user, auth, firestore]);
 
 
   useEffect(() => {

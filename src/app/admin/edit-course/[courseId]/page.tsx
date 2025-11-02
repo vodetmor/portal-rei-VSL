@@ -88,34 +88,8 @@ function EditCoursePageContent() {
   const [activeEditor, setActiveEditor] = useState<string | null>(null);
 
   const applyFormat = (command: string) => {
-    const editorId = activeEditor;
-    if (!editorId) return;
-
-    const editorElement = document.getElementById(editorId);
-    if (!editorElement || !editorElement.isContentEditable) return;
-    
-    // Use a more robust method for applying color
-    if (command === 'foreColor') {
-        const selection = window.getSelection();
-        if (!selection || selection.rangeCount === 0) return;
-        const range = selection.getRangeAt(0);
-        if (range.toString()) {
-            const span = document.createElement('span');
-            span.className = 'text-primary';
-            span.textContent = range.toString();
-            range.deleteContents();
-            range.insertNode(span);
-        }
-        return;
-    }
-
-    document.execCommand(command, false, undefined);
-    
-    // Manually trigger state update after command
-    if (editorId === 'course-description-editor') {
-      setTempDescription(editorElement.innerHTML);
-    }
-  };
+    document.execCommand(command, false);
+};
 
 
   const fetchCourse = useCallback(async () => {
@@ -393,7 +367,7 @@ function EditCoursePageContent() {
                                 onInput={(e) => setTempDescription(e.currentTarget.innerHTML)}
                                 dangerouslySetInnerHTML={{ __html: tempDescription }}
                                 className={cn(
-                                    "mt-1 min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 md:text-sm",
+                                    "mt-1 min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
                                     "prose prose-sm prose-invert max-w-none"
                                 )}
                             />
@@ -707,26 +681,8 @@ function LessonEditor({ lesson, moduleId, onUpdate, onRemove, activeEditor, setA
   const isDriveLink = lesson.videoUrl && lesson.videoUrl.includes('drive.google.com');
 
   const applyFormat = (command: string) => {
-    const editorElement = document.getElementById(descriptionEditorId);
-    if (!editorElement || !editorElement.isContentEditable) return;
-
-    if (command === 'foreColor') {
-        const selection = window.getSelection();
-        if (!selection || selection.rangeCount === 0) return;
-        const range = selection.getRangeAt(0);
-        if (range.toString()) {
-            const span = document.createElement('span');
-            span.className = 'text-primary';
-            span.textContent = range.toString();
-            range.deleteContents();
-            range.insertNode(span);
-        }
-        return;
-    }
-
-    document.execCommand(command, false, undefined);
-    onUpdate(moduleId, lesson.id, 'description', editorElement.innerHTML);
-  };
+    document.execCommand(command, false);
+};
 
 
   const handleVideoFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
