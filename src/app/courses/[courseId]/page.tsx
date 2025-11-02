@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useFirestore, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useFirestore, useUser } from '@/firebase';
 import { doc, getDoc, updateDoc, type DocumentData, collection } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 
@@ -20,6 +20,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Progress } from '@/components/ui/progress';
 import { ActionToolbar } from '@/components/ui/action-toolbar';
 import { addDays, differenceInDays, parseISO } from 'date-fns';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 interface Module {
     id: string;
@@ -162,6 +164,11 @@ export default function CoursePlayerPage() {
             setIsAdmin(false);
           }
         } catch (error) {
+           const permissionError = new FirestorePermissionError({
+             path: userDocRef.path,
+             operation: 'get',
+           });
+           errorEmitter.emit('permission-error', permissionError);
            setIsAdmin(false);
         }
       } else {
@@ -263,7 +270,14 @@ export default function CoursePlayerPage() {
             heroImageUrlMobile: finalHeroImageUrlMobile,
         };
 
-        await updateDoc(courseRef, dataToSave);
+        updateDoc(courseRef, dataToSave).catch(async (serverError) => {
+            const permissionError = new FirestorePermissionError({
+                path: courseRef.path,
+                operation: 'update',
+                requestResourceData: dataToSave,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        });
 
         setCourse(prev => prev ? { ...prev, ...dataToSave } : null);
         toast({ title: "Sucesso!", description: "O curso foi atualizado." });
@@ -273,8 +287,6 @@ export default function CoursePlayerPage() {
     } catch (error) {
         console.error('Error saving course:', error);
         toast({ variant: "destructive", title: "Erro ao Salvar", description: "Não foi possível salvar as alterações." });
-        const permissionError = new FirestorePermissionError({ path: `courses/${courseId}`, operation: 'update', requestResourceData: { title: tempTitle } });
-        errorEmitter.emit('permission-error', permissionError);
     } finally {
         setIsSaving(false);
         setUploadProgress(null);

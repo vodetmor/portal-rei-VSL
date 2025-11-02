@@ -1,5 +1,5 @@
 'use client';
-import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useUser, useFirestore } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { CourseCard } from '@/components/course-card';
@@ -21,6 +21,8 @@ import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { cn } from '@/lib/utils';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 
 interface Course extends DocumentData {
@@ -179,7 +181,14 @@ function DashboardClientPage() {
         
         const layoutRef = doc(firestore, 'layout', 'dashboard-hero');
       
-        await setDoc(layoutRef, dataToSave, { merge: true });
+        setDoc(layoutRef, dataToSave, { merge: true }).catch(async (serverError) => {
+            const permissionError = new FirestorePermissionError({
+                path: layoutRef.path,
+                operation: 'update',
+                requestResourceData: dataToSave,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        });
         
         setLayoutData(prev => ({ 
             ...prev, 
@@ -199,13 +208,6 @@ function DashboardClientPage() {
         setActiveEditor(null);
     } catch (error) {
       console.error("Error saving layout:", error);
-      const permissionError = new FirestorePermissionError({
-        path: 'layout/dashboard-hero',
-        operation: 'write',
-        requestResourceData: { /* data */ },
-      });
-      errorEmitter.emit('permission-error', permissionError);
-
       toast({
         variant: "destructive",
         title: "Erro ao Salvar",
@@ -271,6 +273,12 @@ function DashboardClientPage() {
       setCourses(courses.map(c => c.id === courseId ? { ...c, ...data } : c));
     } catch (error) {
       console.error('Error updating course:', error);
+      const permissionError = new FirestorePermissionError({
+        path: courseRef.path,
+        operation: 'update',
+        requestResourceData: data,
+      });
+      errorEmitter.emit('permission-error', permissionError);
       toast({ variant: 'destructive', title: 'Erro ao atualizar curso.' });
     }
   };
@@ -296,48 +304,63 @@ function DashboardClientPage() {
   
   const handleConfirmDelete = (courseId: string) => {
     if (!firestore) return;
-    try {
-      deleteDoc(doc(firestore, 'courses', courseId));
-      toast({
-        title: "Curso Excluído",
-        description: "O curso foi removido com sucesso.",
+    const courseRef = doc(firestore, 'courses', courseId);
+    deleteDoc(courseRef)
+      .then(() => {
+        toast({
+          title: "Curso Excluído",
+          description: "O curso foi removido com sucesso.",
+        });
+        fetchCourses();
       })
-      fetchCourses();
-    } catch (error) {
-      console.error("Error deleting course: ", error);
-      toast({
-        variant: "destructive",
-        title: "Erro ao Excluir",
-        description: "Não foi possível excluir o curso. Verifique as permissões."
+      .catch((error) => {
+        console.error("Error deleting course: ", error);
+        const permissionError = new FirestorePermissionError({
+          path: courseRef.path,
+          operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        toast({
+          variant: "destructive",
+          title: "Erro ao Excluir",
+          description: "Não foi possível excluir o curso. Verifique as permissões."
+        });
       });
-    }
   };
 
-  const handleAddCourse = async () => {
+  const handleAddCourse = () => {
     if (!firestore) return;
-    try {
-      const newCourseData = {
-        title: "Novo Curso (Rascunho)",
-        description: "Adicione uma descrição incrível para o seu novo curso.",
-        thumbnailUrl: "https://picsum.photos/seed/new-course/400/600",
-        imageHint: 'placeholder',
-        createdAt: new Date(),
-        modules: [],
-      };
-      const docRef = await addDoc(collection(firestore, 'courses'), newCourseData);
-      toast({
-        title: "Rascunho Criado!",
-        description: "Seu novo curso foi iniciado. Agora edite os detalhes.",
+    const newCourseData = {
+      title: "Novo Curso (Rascunho)",
+      description: "Adicione uma descrição incrível para o seu novo curso.",
+      thumbnailUrl: "https://picsum.photos/seed/new-course/400/600",
+      imageHint: 'placeholder',
+      createdAt: new Date(),
+      modules: [],
+    };
+    const coursesCollection = collection(firestore, 'courses');
+    addDoc(coursesCollection, newCourseData)
+      .then((docRef) => {
+        toast({
+          title: "Rascunho Criado!",
+          description: "Seu novo curso foi iniciado. Agora edite os detalhes.",
+        });
+        router.push(`/admin/edit-course/${docRef.id}`);
+      })
+      .catch((error) => {
+        console.error("Error creating new course draft: ", error);
+        const permissionError = new FirestorePermissionError({
+            path: coursesCollection.path,
+            operation: 'create',
+            requestResourceData: newCourseData
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        toast({
+          variant: "destructive",
+          title: "Erro ao Criar Rascunho",
+          description: "Não foi possível criar o rascunho do curso."
+        });
       });
-      router.push(`/admin/edit-course/${docRef.id}`);
-    } catch (error) {
-       console.error("Error creating new course draft: ", error);
-       toast({
-        variant: "destructive",
-        title: "Erro ao Criar Rascunho",
-        description: "Não foi possível criar o rascunho do curso."
-      });
-    }
   };
 
 
@@ -703,5 +726,3 @@ export default function DashboardPage() {
     <DashboardClientPage />
   )
 }
-
-    

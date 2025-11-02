@@ -1,6 +1,6 @@
 'use client';
 import { Button } from '@/components/ui/button';
-import { useAuth, useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useAuth, useUser, useFirestore } from '@/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
@@ -12,6 +12,8 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import Link from 'next/link';
 import { Eye, EyeOff } from 'lucide-react';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 const registerSchema = z.object({
   email: z.string().email({ message: 'Por favor, insira um email válido.' }),
@@ -80,7 +82,7 @@ export default function RegisterPage() {
         .then(() => {
           router.push('/dashboard');
         })
-        .catch((error) => {
+        .catch(async (serverError) => {
             const permissionError = new FirestorePermissionError({
                 path: userDocRef.path,
                 operation: 'create',

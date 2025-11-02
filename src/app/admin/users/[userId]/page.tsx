@@ -12,7 +12,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { ArrowLeft, Check, X } from 'lucide-react';
-import { errorEmitter, FirestorePermissionError } from '@/firebase';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 interface User extends DocumentData {
   id: string;
@@ -83,7 +84,7 @@ function ManageUserAccessPage() {
     fetchData();
   }, [fetchData]);
 
-  const handleAccessChange = async (courseId: string, hasAccess: boolean) => {
+  const handleAccessChange = (courseId: string, hasAccess: boolean) => {
     if (!firestore || !userId) return;
 
     // Optimistically update UI
@@ -96,7 +97,7 @@ function ManageUserAccessPage() {
         const dataToSet = { courseId: courseId, grantedAt: new Date() };
         // Use non-blocking write with error handling
         setDoc(accessDocRef, dataToSet)
-          .catch((error) => {
+          .catch(async (serverError) => {
              // Revert UI on failure
             setCourseAccess(prev => ({ ...prev, [courseId]: !hasAccess }));
             const permissionError = new FirestorePermissionError({
@@ -109,7 +110,7 @@ function ManageUserAccessPage() {
       } else {
         // Use non-blocking delete with error handling
         deleteDoc(accessDocRef)
-          .catch((error) => {
+          .catch(async (serverError) => {
             // Revert UI on failure
             setCourseAccess(prev => ({ ...prev, [courseId]: !hasAccess }));
             const permissionError = new FirestorePermissionError({
