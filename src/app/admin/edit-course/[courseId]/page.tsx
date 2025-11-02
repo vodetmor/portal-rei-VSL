@@ -88,7 +88,31 @@ function EditCoursePageContent() {
   const [activeEditor, setActiveEditor] = useState<string | null>(null);
 
   const applyFormat = (command: string) => {
-    document.execCommand(command, false);
+    if (command === 'foreColor') {
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0) return;
+
+        const range = selection.getRangeAt(0);
+        if (range.collapsed) return;
+
+        const span = document.createElement('span');
+        span.className = 'text-primary';
+        
+        try {
+            // This is the robust way to wrap the selected content
+            range.surroundContents(span);
+        } catch(e) {
+            // Fallback for complex selections that can't be surrounded
+            document.execCommand('foreColor', false, 'hsl(var(--primary))');
+            console.warn("surroundContents failed, using fallback.", e);
+        }
+        
+        // Clear the selection after applying the format
+        selection.removeAllRanges();
+
+    } else {
+        document.execCommand(command, false);
+    }
 };
 
 
@@ -411,6 +435,7 @@ function EditCoursePageContent() {
                                 onReorderLessons={reorderLessons}
                                 setActiveEditor={setActiveEditor}
                                 activeEditor={activeEditor}
+                                applyFormat={applyFormat}
                             />
                             ))}
                         </Reorder.Group>
@@ -501,9 +526,10 @@ interface ModuleEditorProps {
     onReorderLessons: (moduleId: string, reorderedLessons: Lesson[]) => void;
     activeEditor: string | null;
     setActiveEditor: (id: string | null) => void;
+    applyFormat: (command: string) => void;
 }
 
-function ModuleEditor({ module, onUpdate, onRemove, onAddLesson, onUpdateLesson, onRemoveLesson, onReorderLessons, activeEditor, setActiveEditor }: ModuleEditorProps) {
+function ModuleEditor({ module, onUpdate, onRemove, onAddLesson, onUpdateLesson, onRemoveLesson, onReorderLessons, activeEditor, setActiveEditor, applyFormat }: ModuleEditorProps) {
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [uploadProgress, setUploadProgress] = useState<number | null>(null);
     const [imageInputMode, setImageInputMode] = useState<'upload' | 'url'>('upload');
@@ -647,6 +673,7 @@ function ModuleEditor({ module, onUpdate, onRemove, onAddLesson, onUpdateLesson,
                                   onRemove={onRemoveLesson}
                                   activeEditor={activeEditor}
                                   setActiveEditor={setActiveEditor}
+                                  applyFormat={applyFormat}
                                />
                             ))}
                         </Reorder.Group>
@@ -669,9 +696,10 @@ interface LessonEditorProps {
   onRemove: (moduleId: string, lessonId: string, lessonTitle: string) => void;
   activeEditor: string | null;
   setActiveEditor: (id: string | null) => void;
+  applyFormat: (command: string) => void;
 }
 
-function LessonEditor({ lesson, moduleId, onUpdate, onRemove, activeEditor, setActiveEditor }: LessonEditorProps) {
+function LessonEditor({ lesson, moduleId, onUpdate, onRemove, activeEditor, setActiveEditor, applyFormat }: LessonEditorProps) {
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const { toast } = useToast();
@@ -679,10 +707,6 @@ function LessonEditor({ lesson, moduleId, onUpdate, onRemove, activeEditor, setA
   const descriptionEditorId = `lesson-desc-${lesson.id}`;
 
   const isDriveLink = lesson.videoUrl && lesson.videoUrl.includes('drive.google.com');
-
-  const applyFormat = (command: string) => {
-    document.execCommand(command, false);
-};
 
 
   const handleVideoFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {

@@ -93,7 +93,31 @@ export default function CoursePlayerPage() {
 
 
   const applyFormat = (command: string) => {
-    document.execCommand(command, false);
+    if (command === 'foreColor') {
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0) return;
+
+        const range = selection.getRangeAt(0);
+        if (range.collapsed) return;
+
+        const span = document.createElement('span');
+        span.className = 'text-primary';
+        
+        try {
+            // This is the robust way to wrap the selected content
+            range.surroundContents(span);
+        } catch(e) {
+            // Fallback for complex selections that can't be surrounded
+            document.execCommand('foreColor', false, 'hsl(var(--primary))');
+            console.warn("surroundContents failed, using fallback.", e);
+        }
+        
+        // Clear the selection after applying the format
+        selection.removeAllRanges();
+
+    } else {
+        document.execCommand(command, false);
+    }
 };
 
   const checkAdminStatus = useCallback(async () => {
