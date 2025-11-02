@@ -6,7 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useFirestore } from '@/firebase';
-import { doc, getDoc, updateDoc, DocumentData } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, deleteDoc, DocumentData } from 'firebase/firestore';
 import { v4 as uuidv4 } from 'uuid';
 
 
@@ -21,6 +21,17 @@ import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
 import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 const editCourseSchema = z.object({
   title: z.string().min(5, 'O título deve ter pelo menos 5 caracteres.'),
@@ -57,6 +68,7 @@ function EditCourseForm() {
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [modules, setModules] = useState<Module[]>([]);
 
   const form = useForm<EditCourseFormValues>({
@@ -175,6 +187,28 @@ function EditCourseForm() {
         setIsSubmitting(false);
     }
   };
+
+  const handleDelete = async () => {
+    if (!firestore || !courseId) return;
+    setIsDeleting(true);
+
+    try {
+        await deleteDoc(doc(firestore, 'courses', courseId));
+        toast({
+            title: "Curso Excluído",
+            description: "O curso foi removido com sucesso.",
+        });
+        router.push('/admin');
+    } catch (error) {
+        console.error("Error deleting course: ", error);
+        toast({
+            variant: "destructive",
+            title: "Erro ao Excluir",
+            description: "Não foi possível excluir o curso. Verifique as permissões."
+        });
+        setIsDeleting(false);
+    }
+  };
   
   if (loading) {
     return (
@@ -220,10 +254,36 @@ function EditCourseForm() {
         </div>
       <Card>
          <CardHeader>
-          <CardTitle>Editar Curso: {course.title}</CardTitle>
-          <CardDescription>
-            Faça alterações nos detalhes, módulos e aulas do curso abaixo.
-          </CardDescription>
+            <div className="flex justify-between items-start">
+                <div>
+                    <CardTitle>Editar Curso: {course.title}</CardTitle>
+                    <CardDescription className="mt-2">
+                        Faça alterações nos detalhes, módulos e aulas do curso abaixo.
+                    </CardDescription>
+                </div>
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="destructive" disabled={isSubmitting || isDeleting}>
+                            <Trash2 className="mr-2 h-4 w-4" />
+                            Excluir Curso
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                        <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Esta ação não pode ser desfeita. Isso irá excluir permanentemente o curso e todos os seus dados.
+                        </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleDelete} disabled={isDeleting}>
+                            {isDeleting ? 'Excluindo...' : 'Excluir'}
+                        </AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            </div>
         </CardHeader>
         <CardContent>
             <Form {...form}>
@@ -310,7 +370,7 @@ function EditCourseForm() {
 
 
                     <div className="flex justify-end mt-8">
-                        <Button type="submit" disabled={isSubmitting}>
+                        <Button type="submit" disabled={isSubmitting || isDeleting}>
                             {isSubmitting ? 'Salvando...' : 'Salvar Alterações'}
                         </Button>
                     </div>
@@ -330,3 +390,5 @@ export default function EditCoursePage() {
         </AdminGuard>
     )
 }
+
+    
