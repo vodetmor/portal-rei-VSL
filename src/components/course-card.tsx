@@ -31,6 +31,7 @@ interface CourseCardProps {
     thumbnailUrl?: string;
     imageHint: string;
   };
+  progress?: number | null; // Progress percentage (0-100)
   priority?: boolean;
   isAdmin?: boolean;
   isEditing?: boolean;
@@ -39,7 +40,7 @@ interface CourseCardProps {
   onDelete?: (id: string) => void;
 }
 
-export function CourseCard({ course, priority = false, isAdmin = false, isEditing = false, isLocked = false, onUpdate, onDelete }: CourseCardProps) {
+export function CourseCard({ course, progress = null, priority = false, isAdmin = false, isEditing = false, isLocked = false, onUpdate, onDelete }: CourseCardProps) {
   const { toast } = useToast();
   const [tempTitle, setTempTitle] = useState(course.title);
   const [tempThumbnailUrl, setTempThumbnailUrl] = useState(course.thumbnailUrl || '');
@@ -139,6 +140,12 @@ export function CourseCard({ course, priority = false, isAdmin = false, isEditin
             ) : (
                 <h3 className="font-semibold text-white transition-all duration-300 group-hover:text-primary">{course.title}</h3>
             )}
+             {progress !== null && progress > 0 && !isEditing && (
+                <div className="mt-2">
+                    <Progress value={progress} className="h-1.5" />
+                    <p className="text-xs text-white/80 mt-1">{Math.round(progress)}% concluído</p>
+                </div>
+            )}
         </div>
     </>
   );
@@ -230,3 +237,5 @@ export function CourseCard({ course, priority = false, isAdmin = false, isEditin
     </motion.div>
   );
 }
+
+    

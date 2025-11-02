@@ -12,12 +12,17 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { ArrowLeft, Check, X, ShieldAlert } from 'lucide-react';
+import { ArrowLeft, Check, X, ShieldAlert, BookOpen, Lock, ChevronDown } from 'lucide-react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Label } from '@/components/ui/label';
 import { logAdminAction } from '@/lib/audit';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Progress } from '@/components/ui/progress';
+import { Badge } from '@/components/ui/badge';
+import { addDays, differenceInDays, parseISO } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 interface User extends DocumentData {
   id: string;
@@ -31,10 +36,17 @@ interface Course extends DocumentData {
   id: string;
   title: string;
   thumbnailUrl: string;
+  modules: { id: string; title: string; releaseDelayDays?: number; lessons: {id: string; releaseDelayDays?: number;}[] }[];
 }
 
 interface CourseAccess {
-    [courseId: string]: boolean;
+    [courseId: string]: { grantedAt: any };
+}
+
+interface UserProgress {
+    [courseId: string]: {
+        completedLessons: Record<string, any>;
+    }
 }
 
 function ManageUserAccessPage() {
@@ -47,8 +59,10 @@ function ManageUserAccessPage() {
   const [user, setUser] = useState<User | null>(null);
   const [courses, setCourses] = useState<Course[]>([]);
   const [courseAccess, setCourseAccess] = useState<CourseAccess>({});
+  const [userProgress, setUserProgress] = useState<UserProgress>({});
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  
   const [isConfirmingRoleChange, setIsConfirmingRoleChange] = useState(false);
   const [targetRole, setTargetRole] = useState<'admin' | 'user' | null>(null);
 
@@ -78,9 +92,19 @@ function ManageUserAccessPage() {
       const accessSnap = await getDocs(accessRef);
       const accessData: CourseAccess = {};
       accessSnap.forEach(doc => {
-        accessData[doc.id] = true;
+        accessData[doc.id] = { grantedAt: doc.data().grantedAt };
       });
       setCourseAccess(accessData);
+      
+      // Fetch user's progress
+      const progressRef = collection(firestore, `users/${userId}/progress`);
+      const progressSnap = await getDocs(progressRef);
+      const progressData: UserProgress = {};
+      progressSnap.forEach(snap => {
+        progressData[snap.id] = snap.data() as UserProgress[string];
+      });
+      setUserProgress(progressData);
+
 
     } catch (error) {
       console.error("Error fetching data:", error);
@@ -94,12 +118,20 @@ function ManageUserAccessPage() {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+  
 
   const handleAccessChange = (courseId: string, courseTitle: string, hasAccess: boolean) => {
     if (!firestore || !userId || !adminUser) return;
 
-    // Optimistically update UI
-    setCourseAccess(prev => ({ ...prev, [courseId]: hasAccess }));
+    setCourseAccess(prev => {
+        const newState = { ...prev };
+        if (hasAccess) {
+            newState[courseId] = { grantedAt: serverTimestamp() }; // Placeholder, will be replaced by server
+        } else {
+            delete newState[courseId];
+        }
+        return newState;
+    });
 
     const accessDocRef = doc(firestore, `users/${userId}/courseAccess`, courseId);
 
@@ -112,9 +144,14 @@ function ManageUserAccessPage() {
             id: courseId,
             title: `Acesso a '${courseTitle}' para ${user?.email}`
           });
+          fetchData(); // Re-fetch to get server timestamp
         })
         .catch(async (serverError) => {
-           setCourseAccess(prev => ({ ...prev, [courseId]: !hasAccess }));
+           setCourseAccess(prev => {
+                const newState = { ...prev };
+                delete newState[courseId];
+                return newState;
+            });
           const permissionError = new FirestorePermissionError({ path: accessDocRef.path, operation: 'create', requestResourceData: dataToSet });
           errorEmitter.emit('permission-error', permissionError);
         });
@@ -128,14 +165,14 @@ function ManageUserAccessPage() {
           });
         })
         .catch(async (serverError) => {
-          setCourseAccess(prev => ({ ...prev, [courseId]: !hasAccess }));
+          setCourseAccess(prev => ({ ...prev, [courseId]: { grantedAt: 'reverting' } })); // Revert UI optimistically
           const permissionError = new FirestorePermissionError({ path: accessDocRef.path, operation: 'delete' });
           errorEmitter.emit('permission-error', permissionError);
         });
     }
   };
   
-  const handleRoleChangeConfirm = async () => {
+  const handleRoleChange = async () => {
     if (!firestore || !user || !adminUser || targetRole === null) return;
     
     const userRef = doc(firestore, 'users', user.id);
@@ -161,7 +198,7 @@ function ManageUserAccessPage() {
       toast({
         variant: "destructive",
         title: "Erro de Permissão",
-        description: "Não foi possível alterar a função do usuário.",
+        description: "Não foi possível alterar la função do usuário.",
       });
     } finally {
       setIsConfirmingRoleChange(false);
@@ -247,7 +284,7 @@ function ManageUserAccessPage() {
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                         <AlertDialogCancel onClick={() => setTargetRole(null)}>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleRoleChangeConfirm}>Confirmar</AlertDialogAction>
+                        <AlertDialogAction onClick={handleRoleChange}>Confirmar</AlertDialogAction>
                     </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
@@ -256,27 +293,18 @@ function ManageUserAccessPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>Acesso aos Cursos</CardTitle>
-          <CardDescription>Conceda ou revogue o acesso do usuário aos cursos da plataforma.</CardDescription>
+          <CardTitle>Acesso e Progresso nos Cursos</CardTitle>
+          <CardDescription>Gerencie o acesso e visualize o progresso do usuário.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
+        <CardContent className="space-y-2">
           {courses.length > 0 ? courses.map(course => (
-            <div key={course.id} className="flex items-center justify-between p-4 rounded-lg border bg-secondary/50">
-              <div>
-                <p className="font-medium text-white">{course.title}</p>
-                <p className="text-sm text-muted-foreground">ID: {course.id}</p>
-              </div>
-              <div className="flex items-center gap-2">
-                {courseAccess[course.id] ? 
-                    <Check className="h-5 w-5 text-green-500" /> :
-                    <X className="h-5 w-5 text-destructive" />
-                }
-                <Switch
-                  checked={courseAccess[course.id] || false}
-                  onCheckedChange={(checked) => handleAccessChange(course.id, course.title, checked)}
-                />
-              </div>
-            </div>
+             <CourseProgressCard 
+                key={course.id}
+                course={course}
+                access={courseAccess[course.id] || null}
+                progress={userProgress[course.id] || null}
+                onAccessChange={(hasAccess) => handleAccessChange(course.id, course.title, hasAccess)}
+             />
           )) : (
             <p className="text-muted-foreground text-center py-4">Nenhum curso encontrado na plataforma.</p>
           )}
@@ -286,6 +314,124 @@ function ManageUserAccessPage() {
   );
 }
 
+
+interface CourseProgressCardProps {
+    course: Course;
+    access: { grantedAt: any } | null;
+    progress: UserProgress[string] | null;
+    onAccessChange: (hasAccess: boolean) => void;
+}
+
+function CourseProgressCard({ course, access, progress, onAccessChange }: CourseProgressCardProps) {
+    const totalLessons = course.modules?.reduce((acc, mod) => acc + (mod.lessons?.length || 0), 0) || 0;
+    const completedLessonsCount = progress ? Object.keys(progress.completedLessons).length : 0;
+    const overallProgress = totalLessons > 0 ? (completedLessonsCount / totalLessons) * 100 : 0;
+    const hasAccess = !!access;
+    
+    const isModuleUnlocked = (module: Course['modules'][0]) => {
+        if (!access) return false;
+        const delay = module.releaseDelayDays || 0;
+        if (delay === 0) return true;
+
+        const grantedAtDate = access.grantedAt.toDate();
+        const releaseDate = addDays(grantedAtDate, delay);
+        return new Date() >= releaseDate;
+    };
+
+    const getDaysUntilRelease = (module: Course['modules'][0]): number | null => {
+        if (!access) return null;
+        const delay = module.releaseDelayDays || 0;
+        if (delay === 0) return null;
+        
+        const grantedAtDate = access.grantedAt.toDate();
+        const releaseDate = addDays(grantedAtDate, delay);
+        const daysRemaining = differenceInDays(releaseDate, new Date());
+        
+        return daysRemaining >= 0 ? daysRemaining : null; // Show 0 if it's today
+    };
+
+    return (
+        <Collapsible className="p-4 rounded-lg border bg-secondary/50 group">
+            <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                     <div className={`h-8 w-8 rounded-full flex items-center justify-center ${hasAccess ? 'bg-primary/20' : 'bg-muted'}`}>
+                        <BookOpen className={`h-4 w-4 ${hasAccess ? 'text-primary' : 'text-muted-foreground'}`} />
+                    </div>
+                    <div>
+                        <p className="font-medium text-white">{course.title}</p>
+                        <div className="flex items-center gap-2">
+                             {hasAccess ? (
+                                <Badge variant="default" className="bg-green-600/80">Com Acesso</Badge>
+                             ) : (
+                                <Badge variant="destructive">Sem Acesso</Badge>
+                             )}
+                              {hasAccess && (
+                                <div className="text-xs text-muted-foreground">
+                                    {Math.round(overallProgress)}% concluído
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+                <div className="flex items-center gap-4">
+                    {hasAccess && course.modules?.length > 0 && (
+                        <CollapsibleTrigger asChild>
+                            <Button variant="ghost" size="sm" className="flex gap-2">
+                                Detalhes <ChevronDown className="h-4 w-4 transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                            </Button>
+                        </CollapsibleTrigger>
+                    )}
+                     <Switch
+                        checked={hasAccess}
+                        onCheckedChange={onAccessChange}
+                        aria-label={`Toggle access for ${course.title}`}
+                    />
+                </div>
+            </div>
+            
+            {hasAccess && overallProgress > 0 && (
+                 <Progress value={overallProgress} className="mt-3 h-1.5" />
+            )}
+
+            <CollapsibleContent className="mt-4 pt-4 border-t border-border/50 space-y-3">
+                 <h4 className="text-sm font-semibold text-muted-foreground">Progresso por Módulo</h4>
+                 {course.modules?.map(module => {
+                     const moduleTotalLessons = module.lessons?.length || 0;
+                     const moduleCompletedLessons = module.lessons?.filter(l => progress?.completedLessons[l.id]).length || 0;
+                     const moduleProgress = moduleTotalLessons > 0 ? (moduleCompletedLessons / moduleTotalLessons) * 100 : 0;
+                     const unlocked = isModuleUnlocked(module);
+                     const daysRemaining = getDaysUntilRelease(module);
+
+                     return (
+                         <div key={module.id} className="p-3 rounded-md bg-background/50">
+                             <div className="flex justify-between items-center">
+                                 <div>
+                                    <p className="font-medium text-sm text-white">{module.title}</p>
+                                     <p className="text-xs text-muted-foreground">{moduleCompletedLessons} / {moduleTotalLessons} aulas</p>
+                                 </div>
+                                 <div className="flex items-center gap-2">
+                                     {!unlocked ? (
+                                        <Badge variant="outline" className="text-xs">
+                                             <Lock className="mr-1.5 h-3 w-3"/>
+                                            {daysRemaining !== null ? `Libera em ${daysRemaining} ${daysRemaining === 1 ? 'dia' : 'dias'}` : 'Bloqueado'}
+                                        </Badge>
+                                     ) : (
+                                        <span className="text-sm font-semibold text-white">{Math.round(moduleProgress)}%</span>
+                                     )}
+                                </div>
+                             </div>
+                             {unlocked && <Progress value={moduleProgress} className="mt-2 h-1" />}
+                         </div>
+                     )
+                 })}
+                 {(!course.modules || course.modules.length === 0) && (
+                     <p className="text-center text-sm text-muted-foreground py-4">Este curso ainda não possui módulos.</p>
+                 )}
+            </CollapsibleContent>
+        </Collapsible>
+    )
+}
+
 export default function ManageUserPage() {
     return (
         <AdminGuard>
@@ -293,3 +439,5 @@ export default function ManageUserPage() {
         </AdminGuard>
     )
 }
+
+    

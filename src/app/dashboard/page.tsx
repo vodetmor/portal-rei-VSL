@@ -30,6 +30,13 @@ interface Course extends DocumentData {
   title: string;
   thumbnailUrl: string;
   imageHint: string;
+  modules: { lessons: any[] }[];
+}
+
+interface UserProgress {
+    [courseId: string]: {
+        completedLessons: Record<string, any>;
+    }
 }
 
 const iconMap: { [key: string]: LucideIcon } = {
@@ -51,6 +58,7 @@ function DashboardClientPage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [userProgress, setUserProgress] = useState<UserProgress>({});
   
   const [isSaving, setIsSaving] = useState(false);
   const [activeEditor, setActiveEditor] = useState<string | null>(null);
@@ -78,6 +86,17 @@ function DashboardClientPage() {
   const subtitleRef = useRef<HTMLDivElement>(null);
   const ctaRef = useRef<HTMLDivElement>(null);
   const coursesSectionRef = useRef<HTMLDivElement>(null);
+
+  const calculateProgress = (course: Course, progressData: UserProgress) => {
+    const courseProgress = progressData[course.id];
+    if (!courseProgress) return 0;
+
+    const totalLessons = course.modules.reduce((acc, module) => acc + (module.lessons?.length || 0), 0);
+    if (totalLessons === 0) return 0;
+    
+    const completedCount = Object.keys(courseProgress.completedLessons).length;
+    return (completedCount / totalLessons) * 100;
+  };
 
 
   const applyFormat = (command: string) => {
@@ -284,23 +303,46 @@ function DashboardClientPage() {
   };
 
 
-  const fetchCourses = useCallback(async () => {
-    if (!firestore) return;
+  const fetchCoursesAndProgress = useCallback(async () => {
+    if (!firestore || !user) return;
     setLoading(true);
     try {
-      const querySnapshot = await getDocs(collection(firestore, 'courses'));
-      const coursesData = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-      })) as Course[];
-      setCourses(coursesData);
+        // Fetch courses user has access to
+        const accessDocs = await getDocs(collection(firestore, `users/${user.uid}/courseAccess`));
+        const courseIds = accessDocs.docs.map(doc => doc.id);
+
+        if (courseIds.length === 0) {
+            setCourses([]);
+            setLoading(false);
+            return;
+        }
+
+        const coursePromises = courseIds.map(id => getDoc(doc(firestore, 'courses', id)));
+        const courseSnaps = await Promise.all(coursePromises);
+        const coursesData = courseSnaps
+            .filter(snap => snap.exists())
+            .map(snap => ({ id: snap.id, ...snap.data() } as Course));
+        
+        setCourses(coursesData);
+        
+        // Fetch progress for these courses
+        const progressPromises = courseIds.map(id => getDoc(doc(firestore, `users/${user.uid}/progress`, id)));
+        const progressSnaps = await Promise.all(progressPromises);
+        const progressData: UserProgress = {};
+        progressSnaps.forEach(snap => {
+            if(snap.exists()) {
+                progressData[snap.id] = snap.data() as UserProgress[string];
+            }
+        });
+        setUserProgress(progressData);
+
     } catch (error) {
-      console.error("Error fetching courses: ", error);
-      setCourses([]);
+        console.error("Error fetching courses and progress: ", error);
+        setCourses([]);
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
-  }, [firestore]);
+  }, [firestore, user]);
   
   const handleConfirmDelete = (courseId: string) => {
     if (!firestore) return;
@@ -311,7 +353,7 @@ function DashboardClientPage() {
           title: "Curso Excluído",
           description: "O curso foi removido com sucesso.",
         });
-        fetchCourses();
+        fetchCoursesAndProgress();
       })
       .catch((error) => {
         console.error("Error deleting course: ", error);
@@ -394,7 +436,7 @@ function DashboardClientPage() {
             }
         }
         
-        await fetchCourses();
+        await fetchCoursesAndProgress();
 
       } else {
         setIsAdmin(false);
@@ -405,7 +447,7 @@ function DashboardClientPage() {
     if (user && firestore) {
       checkAdminAndFetchData();
     }
-  }, [user, firestore, fetchCourses]);
+  }, [user, firestore, fetchCoursesAndProgress]);
   
   // Effect to set initial content of contentEditable divs & sync state
   useEffect(() => {
@@ -630,7 +672,7 @@ useEffect(() => {
           
            <div>
             <div className="flex justify-between items-center mb-4 pt-20">
-                <h2 className="text-2xl font-bold text-white">Todos os Cursos</h2>
+                <h2 className="text-2xl font-bold text-white">Meus Cursos</h2>
                  {isAdmin && (
                     <Button onClick={handleAddCourse} variant="outline" size="sm">
                         <Plus className="mr-2 h-4 w-4" /> Adicionar Curso
@@ -645,12 +687,13 @@ useEffect(() => {
                       </div>
                   ))}
                 </div>
-            ) : (
+            ) : courses.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                   {courses.map((course, index) => (
                     <CourseCard
                         key={course.id}
                         course={course}
+                        progress={calculateProgress(course, userProgress)}
                         priority={index < 4}
                         isAdmin={isAdmin}
                         isEditing={isEditMode}
@@ -659,6 +702,11 @@ useEffect(() => {
                     />
                   ))}
               </div>
+            ) : (
+                <div className="text-center py-16 px-4 border-2 border-dashed rounded-lg">
+                    <p className="text-muted-foreground">Você ainda não tem acesso a nenhum curso.</p>
+                    <p className="text-sm text-muted-foreground mt-2">Explore a plataforma ou contate o suporte.</p>
+                </div>
             )}
           </div>
         </section>
@@ -726,3 +774,5 @@ export default function DashboardPage() {
     <DashboardClientPage />
   )
 }
+
+    
