@@ -1,209 +1,147 @@
 {
   "entities": {
-    "Video": {
+    "User": {
       "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user in the system.",
+      "properties": {
+        "id": { "type": "string", "description": "Unique identifier for the User entity." },
+        "email": { "type": "string", "description": "Email address of the user.", "format": "email" },
+        "displayName": { "type": "string", "description": "Public display name of the user." },
+        "photoURL": { "type": "string", "description": "URL of the user's profile picture.", "format": "uri" },
+        "role": { "type": "string", "description": "Role of the user in the system.", "enum": ["admin", "user"] }
+      },
+      "required": ["id", "email"]
+    },
+    "CourseAccess": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CourseAccess",
+      "type": "object",
+      "description": "Represents a user's access grant to a specific course.",
+      "properties": {
+        "courseId": { "type": "string", "description": "The ID of the course access is granted to." },
+        "grantedAt": { "type": "string", "description": "Timestamp when access was granted.", "format": "date-time" }
+      },
+      "required": ["courseId", "grantedAt"]
+    },
+    "Video": {
+      "$schema": "http://json-schema.org/draft-07-schema#",
       "title": "Video",
       "type": "object",
       "description": "Represents a video in the portfolio.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Video entity."
-        },
-        "title": {
-          "type": "string",
-          "description": "Title of the video."
-        },
-        "description": {
-          "type": "string",
-          "description": "Description of the video."
-        },
-        "url": {
-          "type": "string",
-          "description": "URL of the video.",
-          "format": "uri"
-        },
-        "aspectRatio": {
-          "type": "string",
-          "description": "Aspect ratio of the video (e.g., '16:9', '9:16')."
-        }
+        "id": { "type": "string", "description": "Unique identifier for the Video entity." },
+        "title": { "type": "string", "description": "Title of the video." },
+        "description": { "type": "string", "description": "Description of the video." },
+        "url": { "type": "string", "description": "URL of the video.", "format": "uri" },
+        "aspectRatio": { "type": "string", "description": "Aspect ratio of the video (e.g., '16:9', '9:16')." }
       },
-      "required": [
-        "id",
-        "title",
-        "description",
-        "url",
-        "aspectRatio"
-      ]
+      "required": ["id", "title", "description", "url", "aspectRatio"]
     },
     "Client": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
+      "$schema": "http://json-schema.org/draft-07-schema#",
       "title": "Client",
       "type": "object",
       "description": "Represents a client whose logo is displayed in the carousel.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Client entity."
-        },
-        "name": {
-          "type": "string",
-          "description": "Name of the client."
-        },
-        "logoUrl": {
-          "type": "string",
-          "description": "URL of the client's logo image.",
-          "format": "uri"
-        }
+        "id": { "type": "string", "description": "Unique identifier for the Client entity." },
+        "name": { "type": "string", "description": "Name of the client." },
+        "logoUrl": { "type": "string", "description": "URL of the client's logo image.", "format": "uri" }
       },
-      "required": [
-        "id",
-        "name",
-        "logoUrl"
-      ]
+      "required": ["id", "name", "logoUrl"]
     },
     "Skill": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
+      "$schema": "http://json-schema.org/draft-07-schema#",
       "title": "Skill",
       "type": "object",
       "description": "Represents a skill showcased on the website.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Skill entity."
-        },
-        "name": {
-          "type": "string",
-          "description": "Name of the skill (e.g., 'YouTube Editing')."
-        },
-        "description": {
-          "type": "string",
-          "description": "Description of the skill."
-        },
-        "iconUrl": {
-          "type": "string",
-          "description": "URL of the icon representing the skill.",
-          "format": "uri"
-        }
+        "id": { "type": "string", "description": "Unique identifier for the Skill entity." },
+        "name": { "type": "string", "description": "Name of the skill (e.g., 'YouTube Editing')." },
+        "description": { "type": "string", "description": "Description of the skill." },
+        "iconUrl": { "type": "string", "description": "URL of the icon representing the skill.", "format": "uri" }
       },
-      "required": [
-        "id",
-        "name",
-        "description",
-        "iconUrl"
-      ]
+      "required": ["id", "name", "description", "iconUrl"]
     },
     "ContactMessage": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
+      "$schema": "http://json-schema.org/draft-07-schema#",
       "title": "ContactMessage",
       "type": "object",
       "description": "Represents a message submitted through the contact form.",
       "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the ContactMessage entity."
-        },
-        "name": {
-          "type": "string",
-          "description": "Name of the sender."
-        },
-        "email": {
-          "type": "string",
-          "description": "Email address of the sender.",
-          "format": "email"
-        },
-        "message": {
-          "type": "string",
-          "description": "The message content."
-        },
-        "sentAt": {
-          "type": "string",
-          "description": "Timestamp indicating when the message was sent.",
-          "format": "date-time"
-        }
+        "id": { "type": "string", "description": "Unique identifier for the ContactMessage entity." },
+        "name": { "type": "string", "description": "Name of the sender." },
+        "email": { "type": "string", "description": "Email address of the sender.", "format": "email" },
+        "message": { "type": "string", "description": "The message content." },
+        "sentAt": { "type": "string", "description": "Timestamp indicating when the message was sent.", "format": "date-time" }
       },
-      "required": [
-        "id",
-        "name",
-        "email",
-        "message",
-        "sentAt"
-      ]
+      "required": ["id", "name", "email", "message", "sentAt"]
     }
   },
   "auth": {
-    "providers": [
-      "password",
-      "anonymous"
-    ]
+    "providers": ["password", "anonymous"]
   },
   "firestore": {
     "structure": [
       {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": { "$ref": "#/backend/entities/User" },
+          "description": "Stores user profile information.",
+          "params": [{ "name": "userId", "description": "The unique ID of the user." }]
+        }
+      },
+      {
+        "path": "/users/{userId}/courseAccess/{courseId}",
+        "definition": {
+          "entityName": "CourseAccess",
+          "schema": { "$ref": "#/backend/entities/CourseAccess" },
+          "description": "Stores a record of a user's access to a specific course.",
+          "params": [
+            { "name": "userId", "description": "The ID of the user." },
+            { "name": "courseId", "description": "The ID of the course." }
+          ]
+        }
+      },
+      {
         "path": "/videos/{videoId}",
         "definition": {
           "entityName": "Video",
-          "schema": {
-            "$ref": "#/backend/entities/Video"
-          },
+          "schema": { "$ref": "#/backend/entities/Video" },
           "description": "Stores video data for the portfolio.",
-          "params": [
-            {
-              "name": "videoId",
-              "description": "Unique identifier for the video."
-            }
-          ]
+          "params": [{ "name": "videoId", "description": "Unique identifier for the video." }]
         }
       },
       {
         "path": "/clients/{clientId}",
         "definition": {
           "entityName": "Client",
-          "schema": {
-            "$ref": "#/backend/entities/Client"
-          },
+          "schema": { "$ref": "#/backend/entities/Client" },
           "description": "Stores client logos for the carousel.",
-          "params": [
-            {
-              "name": "clientId",
-              "description": "Unique identifier for the client."
-            }
-          ]
+          "params": [{ "name": "clientId", "description": "Unique identifier for the client." }]
         }
       },
       {
         "path": "/skills/{skillId}",
         "definition": {
           "entityName": "Skill",
-          "schema": {
-            "$ref": "#/backend/entities/Skill"
-          },
+          "schema": { "$ref": "#/backend/entities/Skill" },
           "description": "Stores skills to be displayed on the website.",
-          "params": [
-            {
-              "name": "skillId",
-              "description": "Unique identifier for the skill."
-            }
-          ]
+          "params": [{ "name": "skillId", "description": "Unique identifier for the skill." }]
         }
       },
       {
         "path": "/contactMessages/{messageId}",
         "definition": {
           "entityName": "ContactMessage",
-          "schema": {
-            "$ref": "#/backend/entities/ContactMessage"
-          },
+          "schema": { "$ref": "#/backend/entities/ContactMessage" },
           "description": "Stores contact messages submitted through the contact form.",
-          "params": [
-            {
-              "name": "messageId",
-              "description": "Unique identifier for the contact message."
-            }
-          ]
+          "params": [{ "name": "messageId", "description": "Unique identifier for the contact message." }]
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to store data for the 'Portfólio Hades' application, focusing on separation of concerns, security, and scalability.  \n\n**Videos:** Stored in the `/videos` collection.  \n**Clients:** Stored in the `/clients` collection.\n**Skills:** Stored in the `/skills` collection.\n**Contact Messages:** Stored in the `/contactMessages` collection.\n\n**Authorization Independence:** None of the collections require complex authorization.  Access control is managed at the application level (e.g., admin panel to manage data).  There is no need for denormalization because the data is generally intended for public display (videos, skills, clients) or internal processing (contact messages).  If specific roles or user-based restrictions were added in the future (e.g., drafts only accessible by certain users), denormalization would become essential.\n\n**QAPs (Rules are not Filters):**  The structure supports straightforward `list` operations because each collection stores homogeneous data with similar access requirements.  Access to the `videos`, `clients`, and `skills` collections is generally open (read-only for the public), while write access is restricted to authorized administrative users (handled at the application level, rather than via Firestore Rules).  `contactMessages` are created by all users, but listing/reading is restricted to admins (again, enforced at the application level).\n"
+    "reasoning": "The Firestore structure is designed to store data for the 'Portfólio Hades' application, focusing on separation of concerns, security, and scalability. User management has been added with a specific subcollection for course access to allow granular control. \n\n**Users:** Stored in the `/users` collection, containing public profile information and roles.\n**Course Access:** A subcollection `/users/{userId}/courseAccess` explicitly grants users access to courses, allowing admins to manage permissions easily.\n**Videos:** Stored in the `/videos` collection.\n**Clients:** Stored in the `/clients` collection.\n**Skills:** Stored in the `/skills` collection.\n**Contact Messages:** Stored in the `/contactMessages` collection.\n\n**Authorization:** Access control is managed via Firestore Rules, restricting sensitive operations to admins. The `courseAccess` subcollection is writable only by admins, providing a secure way to manage user entitlements."
   }
 }

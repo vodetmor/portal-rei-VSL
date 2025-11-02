@@ -4,7 +4,7 @@ import { useFirestore } from '@/firebase';
 import AdminGuard from '@/components/admin/admin-guard';
 import { collection, getDocs, deleteDoc, doc, DocumentData } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
-import { Plus, Trash2, Users, Pencil } from 'lucide-react';
+import { Plus, Trash2, Users, Pencil, BookOpen } from 'lucide-react';
 import Image from 'next/image';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
@@ -32,45 +32,35 @@ function AdminDashboard() {
   const { toast } = useToast();
   const [courses, setCourses] = useState<Course[]>([]);
   const [userCount, setUserCount] = useState(0);
+  const [courseCount, setCourseCount] = useState(0);
   const [courseToDelete, setCourseToDelete] = useState<string | null>(null);
 
-  const fetchCourses = async () => {
+  const fetchData = async () => {
     if (!firestore) return;
     try {
-        const querySnapshot = await getDocs(collection(firestore, 'courses'));
-        const coursesData = querySnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
+        const coursesQuery = await getDocs(collection(firestore, 'courses'));
+        const coursesData = coursesQuery.docs.map(doc => ({
+          id: doc.id,
+          ...doc.data()
         })) as Course[];
         setCourses(coursesData);
+        setCourseCount(coursesData.length);
+
+        const usersQuery = await getDocs(collection(firestore, 'users'));
+        setUserCount(usersQuery.size);
+
     } catch (e) {
         toast({
             variant: "destructive",
             title: "Erro de Permissão",
-            description: "Não foi possível carregar os cursos. Verifique suas permissões."
+            description: "Não foi possível carregar os dados do painel. Verifique suas permissões."
         })
     }
   };
-  
-  const fetchUserCount = async () => {
-    if (!firestore) return;
-    try {
-        const querySnapshot = await getDocs(collection(firestore, 'users'));
-        setUserCount(querySnapshot.size);
-    } catch(e) {
-        toast({
-            variant: "destructive",
-            title: "Erro de Permissão",
-            description: "Não foi possível carregar o número de usuários."
-        })
-    }
-  };
-
 
   useEffect(() => {
     if (firestore) {
-      fetchCourses();
-      fetchUserCount();
+      fetchData();
     }
   }, [firestore]);
 
@@ -82,7 +72,7 @@ function AdminDashboard() {
         title: "Curso Excluído",
         description: "O curso foi removido com sucesso.",
       })
-      fetchCourses(); 
+      fetchData(); 
     } catch (error) {
       console.error("Error deleting course: ", error);
       toast({
@@ -95,16 +85,10 @@ function AdminDashboard() {
     }
   };
   
-
   return (
     <div className="container mx-auto px-4 py-8 pt-24 md:px-8">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-bold text-white">Painel do Administrador</h1>
-        <Button asChild>
-          <Link href="/admin/add-course">
-            <Plus className="mr-2 h-4 w-4" /> Adicionar Curso
-          </Link>
-        </Button>
       </div>
 
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mb-8">
@@ -116,10 +100,35 @@ function AdminDashboard() {
           <CardContent>
             <div className="text-2xl font-bold">{userCount}</div>
             <p className="text-xs text-muted-foreground">
-              Total de usuários cadastrados na plataforma.
+              Total de usuários cadastrados.
             </p>
           </CardContent>
         </Card>
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+            <CardTitle className="text-sm font-medium">Cursos Totais</CardTitle>
+            <BookOpen className="h-4 w-4 text-muted-foreground" />
+          </CardHeader>
+          <CardContent>
+            <div className="text-2xl font-bold">{courseCount}</div>
+            <p className="text-xs text-muted-foreground">
+              Total de cursos na plataforma.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+      
+       <div className="flex justify-end gap-4 mb-8">
+          <Button asChild>
+              <Link href="/admin/users">
+                  <Users className="mr-2 h-4 w-4" /> Gerenciar Usuários
+              </Link>
+          </Button>
+          <Button asChild>
+            <Link href="/admin/add-course">
+              <Plus className="mr-2 h-4 w-4" /> Adicionar Curso
+            </Link>
+          </Button>
       </div>
 
       <AlertDialog>

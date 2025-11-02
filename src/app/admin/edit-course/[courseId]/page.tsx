@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback }from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useFirestore } from '@/firebase';
-import { doc, getDoc, updateDoc, deleteDoc, DocumentData } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -14,21 +14,32 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Trash2, Save, Upload, Link2, GripVertical } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, Upload, Link2, GripVertical, FileVideo } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Textarea } from '@/components/ui/textarea';
+import { cn } from '@/lib/utils';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 
-interface Module {
-    id: string;
-    title: string;
-    thumbnailUrl: string;
-    imageHint: string;
+interface Lesson {
+  id: string;
+  title: string;
+  videoUrl: string;
 }
 
-interface Course extends DocumentData {
+interface Module {
+  id: string;
+  title: string;
+  thumbnailUrl: string;
+  imageHint: string;
+  lessons: Lesson[];
+}
+
+interface Course {
   id: string;
   title: string;
   modules: Module[];
@@ -46,7 +57,6 @@ function EditCoursePageContent() {
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  
   const [modules, setModules] = useState<Module[]>([]);
 
   const fetchCourse = useCallback(async () => {
@@ -59,8 +69,11 @@ function EditCoursePageContent() {
       if (courseSnap.exists()) {
         const courseData = { id: courseSnap.id, ...courseSnap.data() } as Course;
         setCourse(courseData);
-        // Ensure every module has a client-side ID for React keys
-        setModules((courseData.modules || []).map(m => ({ ...m, id: uuidv4() })));
+        setModules((courseData.modules || []).map(m => ({
+          ...m,
+          id: uuidv4(), // Client-side ID
+          lessons: (m.lessons || []).map(l => ({ ...l, id: uuidv4() }))
+        })));
       } else {
         toast({ variant: "destructive", title: "Erro", description: "Curso não encontrado." });
         router.push('/admin');
@@ -83,7 +96,8 @@ function EditCoursePageContent() {
       id: uuidv4(),
       title: `Novo Módulo ${modules.length + 1}`,
       thumbnailUrl: DEFAULT_MODULE_IMAGE,
-      imageHint: 'abstract'
+      imageHint: 'abstract',
+      lessons: [],
     };
     setModules([...modules, newModule]);
   };
@@ -96,23 +110,47 @@ function EditCoursePageContent() {
     setModules(modules.map(m => m.id === moduleId ? { ...m, [field]: value } : m));
   };
 
+  const addLesson = (moduleId: string) => {
+    setModules(modules.map(m => 
+      m.id === moduleId 
+        ? { ...m, lessons: [...m.lessons, { id: uuidv4(), title: '', videoUrl: '' }] }
+        : m
+    ));
+  };
+
+  const updateLessonField = (moduleId: string, lessonId: string, field: keyof Lesson, value: string) => {
+    setModules(modules.map(m => 
+      m.id === moduleId 
+        ? { ...m, lessons: m.lessons.map(l => l.id === lessonId ? { ...l, [field]: value } : l) }
+        : m
+    ));
+  };
+
+  const removeLesson = (moduleId: string, lessonId: string) => {
+    setModules(modules.map(m => 
+      m.id === moduleId 
+        ? { ...m, lessons: m.lessons.filter(l => l.id !== lessonId) }
+        : m
+    ));
+  };
+
 
   const handleSaveChanges = async () => {
     if (!firestore || !courseId) return;
     setIsSaving(true);
     
-    // Here we can also add logic to upload images for modules if they were changed.
-    // For now, we just save the structure.
-
     try {
       const courseRef = doc(firestore, 'courses', courseId);
-      // Strip client-side 'id' before saving to Firestore
-      const modulesToSave = modules.map(({ id, ...rest }) => rest);
+      // Strip client-side 'id's before saving to Firestore
+      const modulesToSave = modules.map(({ id, lessons, ...rest }) => ({
+        ...rest,
+        lessons: lessons.map(({ id: lessonId, ...lessonRest }) => lessonRest)
+      }));
       
       await updateDoc(courseRef, {
         modules: modulesToSave,
       });
-      toast({ title: "Sucesso!", description: "A estrutura de módulos foi atualizada." });
+      toast({ title: "Sucesso!", description: "A estrutura de módulos e aulas foi atualizada." });
     } catch (error) {
       console.error('Error updating course modules:', error);
       toast({ variant: "destructive", title: "Erro ao atualizar", description: "Ocorreu um erro ao salvar os módulos." });
@@ -151,16 +189,19 @@ function EditCoursePageContent() {
       <Card>
         <CardHeader>
             <CardTitle>Estrutura de Módulos</CardTitle>
-            <CardDescription>Arraste para reordenar, edite os detalhes de cada módulo.</CardDescription>
+            <CardDescription>Arraste para reordenar, edite os detalhes de cada módulo e adicione aulas.</CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-4">
-              {modules.map((module, moduleIndex) => (
+              {modules.map((module) => (
                 <ModuleEditor 
                     key={module.id} 
                     module={module}
                     onUpdate={updateModuleField}
                     onRemove={removeModule}
+                    onAddLesson={addLesson}
+                    onUpdateLesson={updateLessonField}
+                    onRemoveLesson={removeLesson}
                 />
               ))}
           </div>
@@ -179,9 +220,12 @@ interface ModuleEditorProps {
     module: Module;
     onUpdate: <K extends keyof Module>(moduleId: string, field: K, value: Module[K]) => void;
     onRemove: (moduleId: string) => void;
+    onAddLesson: (moduleId: string) => void;
+    onUpdateLesson: (moduleId: string, lessonId: string, field: keyof Lesson, value: string) => void;
+    onRemoveLesson: (moduleId: string, lessonId: string) => void;
 }
 
-function ModuleEditor({ module, onUpdate, onRemove }: ModuleEditorProps) {
+function ModuleEditor({ module, onUpdate, onRemove, onAddLesson, onUpdateLesson, onRemoveLesson }: ModuleEditorProps) {
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [uploadProgress, setUploadProgress] = useState<number | null>(null);
     const [imageInputMode, setImageInputMode] = useState<'upload' | 'url'>('upload');
@@ -214,66 +258,116 @@ function ModuleEditor({ module, onUpdate, onRemove }: ModuleEditorProps) {
             );
         }
     };
-
-    const handleUrlChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-        const newUrl = event.target.value;
+    
+    const handleUrlChange = (newUrl: string) => {
         onUpdate(module.id, 'thumbnailUrl', newUrl);
     };
 
     return (
-        <div className="flex flex-col md:flex-row items-start gap-4 p-4 border rounded-lg bg-secondary/30">
-            <div className="flex-shrink-0 flex items-center gap-2">
-                <GripVertical className="h-5 w-5 text-muted-foreground cursor-move" />
-                <div className="relative aspect-[2/3] w-24 rounded-md overflow-hidden bg-muted">
-                    <Image src={module.thumbnailUrl || DEFAULT_MODULE_IMAGE} alt={module.title} fill className="object-cover" />
+        <Collapsible className="group/collapsible border rounded-lg bg-secondary/30 transition-all hover:bg-secondary/40">
+            <div className="flex items-start gap-4 p-4 ">
+                <div className="flex-shrink-0 flex items-center gap-2">
+                    <GripVertical className="h-5 w-5 text-muted-foreground cursor-move" />
+                    <div className="relative aspect-[2/3] w-24 rounded-md overflow-hidden bg-muted">
+                        <Image src={module.thumbnailUrl || DEFAULT_MODULE_IMAGE} alt={module.title} fill className="object-cover" />
+                    </div>
+                </div>
+
+                <div className="flex-grow w-full space-y-3">
+                     <Input
+                        placeholder="Título do Módulo"
+                        value={module.title}
+                        onChange={(e) => onUpdate(module.id, 'title', e.target.value)}
+                        className="font-semibold"
+                    />
+
+                    <Tabs value={imageInputMode} onValueChange={(v) => setImageInputMode(v as 'upload' | 'url')} className="w-full">
+                        <TabsList className="grid w-full grid-cols-2 h-9">
+                            <TabsTrigger value="upload" className="text-xs">Enviar Capa</TabsTrigger>
+                            <TabsTrigger value="url" className="text-xs">Usar URL</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="upload" className="mt-2">
+                            <label htmlFor={`module-img-${module.id}`} className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground hover:text-white border border-dashed rounded-md p-2 justify-center bg-background/50">
+                                <Upload className="h-3 w-3" /><span>{imageFile ? imageFile.name : 'Selecionar imagem'}</span>
+                            </label>
+                            <Input id={`module-img-${module.id}`} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+                            {uploadProgress !== null && (<Progress value={uploadProgress} className="w-full h-1 mt-2" />)}
+                        </TabsContent>
+                        <TabsContent value="url" className="mt-2">
+                             <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" size="sm" className="w-full h-9 text-xs gap-2">
+                                        <Link2 className="h-3 w-3" /> Colar URL da Capa
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-64 p-2" side="bottom" align="start">
+                                    <div className="grid gap-2">
+                                    <p className="text-xs text-muted-foreground">Cole a URL da imagem</p>
+                                    <Input 
+                                        type="text" 
+                                        placeholder="https://exemplo.com/capa.png" 
+                                        value={module.thumbnailUrl === DEFAULT_MODULE_IMAGE ? '' : module.thumbnailUrl} 
+                                        onChange={(e) => handleUrlChange(e.target.value)} 
+                                        className="w-full bg-background/50 pl-2 text-xs h-8"
+                                    />
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
+                        </TabsContent>
+                    </Tabs>
+                </div>
+                
+                <div className="flex flex-col gap-2">
+                    <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                            <Button type="button" variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                            <AlertDialogHeader><AlertDialogTitle>Excluir Módulo?</AlertDialogTitle><AlertDialogDescription>Isso removerá "{module.title}" permanentemente. Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
+                            <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => onRemove(module.id)}>Confirmar Exclusão</AlertDialogAction>
+                            </AlertDialogFooter>
+                        </AlertDialogContent>
+                    </AlertDialog>
+                    <CollapsibleTrigger asChild>
+                         <Button variant="ghost" size="icon" className="group-data-[state=open]/collapsible:bg-accent">
+                            <FileVideo className="h-4 w-4" />
+                        </Button>
+                    </CollapsibleTrigger>
                 </div>
             </div>
 
-            <div className="flex-grow w-full space-y-3">
-                 <Input
-                    placeholder="Título do Módulo"
-                    value={module.title}
-                    onChange={(e) => onUpdate(module.id, 'title', e.target.value)}
-                    className="font-semibold"
-                />
-
-                <Tabs value={imageInputMode} onValueChange={(v) => setImageInputMode(v as 'upload' | 'url')} className="w-full">
-                    <TabsList className="grid w-full grid-cols-2 h-9">
-                        <TabsTrigger value="upload" className="text-xs">Enviar Capa</TabsTrigger>
-                        <TabsTrigger value="url" className="text-xs">Usar URL</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="upload" className="mt-2">
-                        <label htmlFor={`module-img-${module.id}`} className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground hover:text-white border border-dashed rounded-md p-2 justify-center bg-background/50">
-                            <Upload className="h-3 w-3" /><span>{imageFile ? imageFile.name : 'Selecionar imagem'}</span>
-                        </label>
-                        <Input id={`module-img-${module.id}`} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
-                        {uploadProgress !== null && (<Progress value={uploadProgress} className="w-full h-1 mt-2" />)}
-                    </TabsContent>
-                    <TabsContent value="url" className="mt-2">
-                        <div className="relative">
-                            <Link2 className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-                            <Input type="text" placeholder="https://exemplo.com/capa.png" value={module.thumbnailUrl === DEFAULT_MODULE_IMAGE ? '' : module.thumbnailUrl} onChange={handleUrlChange} className="w-full bg-background/50 pl-6 text-xs h-9"/>
+            <CollapsibleContent className="px-4 pb-4">
+                 <div className="border-t pt-4 mt-4 space-y-3">
+                    <h4 className="text-sm font-semibold text-muted-foreground mb-2">Aulas do Módulo</h4>
+                    {module.lessons.map((lesson, lessonIndex) => (
+                        <div key={lesson.id} className="flex items-center gap-2 p-3 rounded-md border bg-background/50">
+                            <Input
+                                placeholder={`Título da Aula ${lessonIndex + 1}`}
+                                value={lesson.title}
+                                onChange={(e) => onUpdateLesson(module.id, lesson.id, 'title', e.target.value)}
+                                className="h-9"
+                            />
+                            <Input
+                                placeholder="URL do Vídeo"
+                                value={lesson.videoUrl}
+                                onChange={(e) => onUpdateLesson(module.id, lesson.id, 'videoUrl', e.target.value)}
+                                className="h-9"
+                            />
+                            <Button type="button" variant="ghost" size="icon" onClick={() => onRemoveLesson(module.id, lesson.id)}>
+                                <Trash2 className="h-4 w-4 text-destructive/70" />
+                            </Button>
                         </div>
-                    </TabsContent>
-                </Tabs>
-            </div>
-            
-            <AlertDialog>
-                <AlertDialogTrigger asChild>
-                    <Button type="button" variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                    <AlertDialogHeader><AlertDialogTitle>Excluir Módulo?</AlertDialogTitle><AlertDialogDescription>Isso removerá "{module.title}" permanentemente. Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                        <AlertDialogAction onClick={() => onRemove(module.id)}>Confirmar Exclusão</AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-        </div>
+                    ))}
+                     <Button type="button" variant="link" size="sm" className="w-full" onClick={() => onAddLesson(module.id)}>
+                        <Plus className="mr-2 h-4 w-4" /> Adicionar Aula
+                    </Button>
+                 </div>
+            </CollapsibleContent>
+        </Collapsible>
     );
 }
-
 
 export default function EditCoursePage() {
     return (

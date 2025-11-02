@@ -15,7 +15,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { LayoutGrid, UserCircle, LogOut, ShieldCheck } from 'lucide-react';
+import { LayoutGrid, UserCircle, LogOut, ShieldCheck, Users } from 'lucide-react';
 import { useLayout } from '@/context/layout-context';
 import Image from 'next/image';
 import { doc, getDoc } from 'firebase/firestore';
@@ -92,12 +92,13 @@ export function Header() {
 		<header
 			className={cn(
 				'z-[100] mx-auto w-full max-w-5xl md:transition-all md:ease-out',
-        !isEditMode && 'sticky top-0 border-b border-transparent md:rounded-lg',
-        isEditMode && 'border-b border-border',
+        !isEditMode && 'sticky top-0',
 				{
+					'border-b border-transparent md:rounded-lg': !isEditMode,
 					'bg-background/80 supports-[backdrop-filter]:bg-background/60 border-border backdrop-blur-xl md:top-4 md:shadow-lg':
 						scrolled && !open && !isEditMode,
 					'bg-background/90': open,
+          'border-b border-border': isEditMode
 				},
 			)}
 		>
@@ -120,7 +121,7 @@ export function Header() {
 						priority
 					/>
 				)}
-            </Link>
+        </Link>
 				<div className="hidden items-center gap-2 md:flex">
 				{loading ? (
 					<div className="h-10 w-24 animate-pulse rounded-md bg-muted/50"></div>
@@ -131,8 +132,7 @@ export function Header() {
 								{link.label}
 							</Link>
 						))}
-						{isAdmin && <Link href="/admin" className={buttonVariants({ variant: 'ghost' })}>Painel Admin</Link>}
-
+						
 						<DropdownMenu>
 							<DropdownMenuTrigger asChild>
 								<button className="flex items-center gap-2 transition-opacity hover:opacity-80">
@@ -152,7 +152,14 @@ export function Header() {
 								<DropdownMenuSeparator />
 								<DropdownMenuItem asChild><Link href="/dashboard"><LayoutGrid className="mr-2 h-4 w-4" /><span>Dashboard</span></Link></DropdownMenuItem>
 								<DropdownMenuItem asChild><Link href="/profile"><UserCircle className="mr-2 h-4 w-4" /><span>Perfil</span></Link></DropdownMenuItem>
-								{isAdmin && <DropdownMenuItem asChild><Link href="/admin"><ShieldCheck className="mr-2 h-4 w-4" /><span>Painel Admin</span></Link></DropdownMenuItem>}
+								{isAdmin && (
+									<>
+									<DropdownMenuSeparator />
+									<DropdownMenuLabel>Admin</DropdownMenuLabel>
+									<DropdownMenuItem asChild><Link href="/admin"><ShieldCheck className="mr-2 h-4 w-4" /><span>Painel Geral</span></Link></DropdownMenuItem>
+									<DropdownMenuItem asChild><Link href="/admin/users"><Users className="mr-2 h-4 w-4" /><span>Usuários</span></Link></DropdownMenuItem>
+									</>
+								)}
 								<DropdownMenuSeparator />
 								<DropdownMenuItem onClick={handleSignOut} className="text-red-500 focus:text-red-400 focus:bg-red-500/10">
 									<LogOut className="mr-2 h-4 w-4" />
@@ -205,9 +212,15 @@ export function Header() {
 							</a>
 						))}
 						{isAdmin && (
-							<Link href="/admin" className={buttonVariants({ variant: 'ghost', size: 'lg', className: 'justify-start' })}>
-								Painel Admin
-							</Link>
+							<>
+								<div className="px-4 pt-4 pb-2 text-xs font-medium text-muted-foreground">Admin</div>
+								<Link href="/admin" className={buttonVariants({ variant: 'ghost', size: 'lg', className: 'justify-start' })}>
+									Painel Geral
+								</Link>
+								<Link href="/admin/users" className={buttonVariants({ variant: 'ghost', size: 'lg', className: 'justify-start' })}>
+									Usuários
+								</Link>
+							</>
 						)}
 					</div>
 					<div className="flex flex-col gap-2">
