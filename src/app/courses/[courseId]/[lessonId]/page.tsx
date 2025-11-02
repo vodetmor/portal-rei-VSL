@@ -245,7 +245,7 @@ export default function LessonPage() {
         "bg-background h-full flex flex-col transition-all duration-300 ease-in-out",
         isSidebarOpen ? "w-80" : "w-0 overflow-hidden"
       )}>
-        <div className="flex items-center justify-between p-4 border-b border-border">
+        <div className="flex items-center justify-between p-4 border-b border-border h-20">
           <Link href={`/courses/${courseId}`} className="text-sm font-semibold hover:text-primary">
             <ArrowLeft className="inline-block mr-2 h-4 w-4" /> Voltar ao Curso
           </Link>
@@ -290,7 +290,7 @@ export default function LessonPage() {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col h-screen overflow-y-auto">
-        <header className="flex items-center justify-between p-4 bg-background/80 backdrop-blur-sm z-10 sticky top-0 border-b border-border">
+        <header className="flex items-center justify-between p-4 bg-background/80 backdrop-blur-sm z-10 sticky top-0 border-b border-border h-20">
            <div className="flex items-center gap-4">
                 <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -376,6 +376,3 @@ export default function LessonPage() {
     </div>
   );
 }
-
-
-    
