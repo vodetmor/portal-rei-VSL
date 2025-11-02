@@ -68,7 +68,7 @@ service cloud.firestore {
           allow create: if (request.auth != null && hasCourseAccess(courseId)) || isAdmin();
           
           // Atualização: admins podem modificar apenas o campo isPinned, usuário pode editar o próprio comentário se tiver acesso
-          allow update: if (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isPinned']))
+          allow update: if (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isPinned', 'likeCount', 'replyCount']))
                         || (request.auth != null && request.auth.uid == resource.data.userId && hasCourseAccess(courseId));
           
           // Exclusão: usuário pode deletar próprio comentário se tiver acesso ou admin pode deletar qualquer

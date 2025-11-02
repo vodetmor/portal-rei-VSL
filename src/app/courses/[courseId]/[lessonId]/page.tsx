@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
@@ -6,18 +5,25 @@ import { useParams, useRouter } from 'next/navigation';
 import { useFirestore, useUser, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { doc, getDoc, updateDoc, serverTimestamp, setDoc, addDoc, collection, query, orderBy, deleteDoc, writeBatch, runTransaction, increment } from 'firebase/firestore';
 import ReactPlayer from 'react-player/lazy';
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { CheckCircle, Circle, Lock, ArrowLeft, ArrowRight, X, Download, Link2, FileText, Check, ThumbsUp } from 'lucide-react';
+import { CheckCircle, Circle, Lock, ArrowLeft, ArrowRight, X, Download, Link2, FileText, Check, ThumbsUp, ThumbsDown, MessageSquare, CornerUpLeft, Send, Heart, MoreVertical, Pin, Trash2 } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { addDays, parseISO } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BookOpen } from 'lucide-react';
+import { BookOpen, MessagesSquare } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Textarea } from '@/components/ui/textarea';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Badge } from '@/components/ui/badge';
 
 
 // --- Type Definitions ---
@@ -62,6 +68,33 @@ interface LessonReaction {
     userId: string;
     type: 'like' | 'dislike';
 }
+
+interface LessonComment {
+    id: string;
+    userId: string;
+    userDisplayName: string;
+    userPhotoURL: string;
+    text: string;
+    timestamp: any;
+    isPinned?: boolean;
+    likeCount?: number;
+    replyCount?: number;
+}
+
+interface CommentLike {
+    userId: string;
+    timestamp: any;
+}
+
+interface CommentReply {
+    id: string;
+    userId: string;
+    userDisplayName: string;
+    userPhotoURL: string;
+    text: string;
+    timestamp: any;
+}
+
 
 const urlRegex = /(https?:\/\/[^\s]+)/g;
 
@@ -109,6 +142,7 @@ export default function LessonPage() {
   const [nextLesson, setNextLesson] = useState<{ courseId: string; lessonId: string } | null>(null);
   const [isCurrentLessonCompleted, setIsCurrentLessonCompleted] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const [hasAccess, setHasAccess] = useState(false);
 
   useEffect(() => {
     setIsClient(true);
@@ -131,6 +165,7 @@ export default function LessonPage() {
         router.push('/dashboard');
         return;
       }
+      setHasAccess(true);
       const accessTimestamp = accessDocSnap.data()?.grantedAt?.toDate();
       setCourseAccessInfo({ grantedAt: accessTimestamp ? accessTimestamp.toISOString() : new Date().toISOString() });
 
@@ -443,9 +478,12 @@ export default function LessonPage() {
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
                   <h1 className="text-2xl md:text-3xl font-bold text-white">{currentLesson.title}</h1>
                   <div className="flex items-center gap-2 shrink-0">
-                      <div className="flex items-center gap-1.5 p-1 rounded-full bg-secondary/50">
+                      <div className="flex items-center gap-1 p-1 rounded-full bg-secondary/50">
                         <Button size="sm" variant="ghost" onClick={() => handleReaction('like')} className={cn("rounded-full h-8 px-3", userReaction === 'like' && 'bg-primary/20 text-primary')}>
                             <ThumbsUp className="mr-2 h-4 w-4" /> {likes}
+                        </Button>
+                        <Button size="sm" variant="ghost" onClick={() => handleReaction('dislike')} className={cn("rounded-full h-8 px-3", userReaction === 'dislike' && 'bg-destructive/20 text-destructive')}>
+                           <ThumbsDown className="h-4 w-4" />
                         </Button>
                       </div>
                       {!currentLesson.videoUrl && !isCurrentLessonCompleted && (
@@ -459,6 +497,7 @@ export default function LessonPage() {
                 <Tabs defaultValue="description" className="w-full">
                     <TabsList>
                         <TabsTrigger value="description"><BookOpen className="h-4 w-4 mr-2" />Descrição</TabsTrigger>
+                         {hasAccess && <TabsTrigger value="comments"><MessagesSquare className="h-4 w-4 mr-2" />Comentários</TabsTrigger>}
                     </TabsList>
                     <TabsContent value="description" className="py-6">
                         {currentLesson.description && (
@@ -501,6 +540,16 @@ export default function LessonPage() {
                             </div>
                         )}
                     </TabsContent>
+                    {hasAccess && (
+                        <TabsContent value="comments" className="py-6">
+                            <CommentsSection 
+                                courseId={courseId as string}
+                                lessonId={lessonId as string}
+                                user={user}
+                                isAdmin={isAdmin}
+                            />
+                        </TabsContent>
+                    )}
                 </Tabs>
             </div>
         </div>
@@ -509,4 +558,384 @@ export default function LessonPage() {
   );
 }
 
+
+// --- Comments Section ---
+
+interface CommentsSectionProps {
+    courseId: string;
+    lessonId: string;
+    user: any;
+    isAdmin: boolean;
+}
+
+function CommentsSection({ courseId, lessonId, user, isAdmin }: CommentsSectionProps) {
+    const firestore = useFirestore();
+    const [commentText, setCommentText] = useState("");
+    const [isSubmitting, setIsSubmitting] = useState(false);
     
+    const commentsQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(
+            collection(firestore, `courses/${courseId}/lessons/${lessonId}/comments`), 
+            orderBy('isPinned', 'desc'), 
+            orderBy('timestamp', 'desc')
+        );
+    }, [firestore, courseId, lessonId]);
+
+    const { data: comments, isLoading: commentsLoading } = useCollection<LessonComment>(commentsQuery);
+
+    const handlePostComment = async () => {
+        if (!firestore || !user || !commentText.trim()) return;
+        setIsSubmitting(true);
+
+        const commentsRef = collection(firestore, `courses/${courseId}/lessons/${lessonId}/comments`);
+        const commentData = {
+            userId: user.uid,
+            userDisplayName: user.displayName || 'Anônimo',
+            userPhotoURL: user.photoURL || '',
+            text: commentText,
+            timestamp: serverTimestamp(),
+            isPinned: false,
+            likeCount: 0,
+            replyCount: 0,
+        };
+
+        try {
+            await addDoc(commentsRef, commentData);
+            setCommentText("");
+        } catch (error) {
+            console.error("Error posting comment:", error);
+            const permissionError = new FirestorePermissionError({
+                path: commentsRef.path,
+                operation: 'create',
+                requestResourceData: commentData
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+    
+    return (
+        <div className="space-y-8">
+            <div className="flex items-start gap-4">
+                <Avatar>
+                    <AvatarImage src={user?.photoURL || undefined} />
+                    <AvatarFallback>{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1 space-y-2">
+                    <Textarea 
+                        placeholder="Adicionar um comentário..." 
+                        value={commentText}
+                        onChange={(e) => setCommentText(e.target.value)}
+                        className="bg-secondary/50"
+                        rows={3}
+                    />
+                    <div className="flex justify-end">
+                        <Button onClick={handlePostComment} disabled={!commentText.trim() || isSubmitting}>
+                            {isSubmitting ? 'Enviando...' : 'Comentar'}
+                        </Button>
+                    </div>
+                </div>
+            </div>
+
+            <div className="space-y-6">
+                {commentsLoading && Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-24 w-full" />)}
+                {comments && comments.map(comment => (
+                    <CommentItem 
+                        key={comment.id}
+                        comment={comment}
+                        courseId={courseId}
+                        lessonId={lessonId}
+                        currentUser={user}
+                        isAdmin={isAdmin}
+                    />
+                ))}
+                 {comments && comments.length === 0 && !commentsLoading && (
+                    <p className="text-center text-muted-foreground py-8">Nenhum comentário ainda. Seja o primeiro a comentar!</p>
+                )}
+            </div>
+        </div>
+    );
+}
+
+// --- Comment Item ---
+
+interface CommentItemProps {
+    comment: LessonComment;
+    courseId: string;
+    lessonId: string;
+    currentUser: any;
+    isAdmin: boolean;
+}
+
+function CommentItem({ comment, courseId, lessonId, currentUser, isAdmin }: CommentItemProps) {
+    const firestore = useFirestore();
+    const [showReplies, setShowReplies] = useState(false);
+    
+    const likesQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return collection(firestore, `courses/${courseId}/lessons/${lessonId}/comments/${comment.id}/likes`);
+    }, [firestore, courseId, lessonId, comment.id]);
+    const { data: likes } = useCollection<CommentLike>(likesQuery);
+    
+    const userHasLiked = useMemo(() => likes?.some(like => like.userId === currentUser.uid), [likes, currentUser]);
+
+    const handleToggleLike = async () => {
+        if (!firestore || !currentUser) return;
+        const likeRef = doc(firestore, `courses/${courseId}/lessons/${lessonId}/comments/${comment.id}/likes`, currentUser.uid);
+        const commentRef = doc(firestore, `courses/${courseId}/lessons/${lessonId}/comments`, comment.id);
+
+        try {
+            await runTransaction(firestore, async (transaction) => {
+                const likeDoc = await transaction.get(likeRef);
+                if (likeDoc.exists()) {
+                    transaction.delete(likeRef);
+                    transaction.update(commentRef, { likeCount: increment(-1) });
+                } else {
+                    transaction.set(likeRef, { userId: currentUser.uid, timestamp: serverTimestamp() });
+                    transaction.update(commentRef, { likeCount: increment(1) });
+                }
+            });
+        } catch (error) {
+            console.error("Error toggling like:", error);
+            const permissionError = new FirestorePermissionError({
+                path: likeRef.path,
+                operation: 'write',
+                requestResourceData: { userId: currentUser.uid }
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        }
+    };
+
+    const handlePinComment = async () => {
+        if (!firestore || !isAdmin) return;
+        const commentRef = doc(firestore, `courses/${courseId}/lessons/${lessonId}/comments`, comment.id);
+        updateDoc(commentRef, { isPinned: !comment.isPinned }).catch(error => {
+            const permissionError = new FirestorePermissionError({
+                path: commentRef.path,
+                operation: 'update',
+                requestResourceData: { isPinned: !comment.isPinned }
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        });
+    };
+
+    const handleDeleteComment = async () => {
+        if (!firestore) return;
+        const commentRef = doc(firestore, `courses/${courseId}/lessons/${lessonId}/comments`, comment.id);
+        deleteDoc(commentRef).catch(error => {
+            const permissionError = new FirestorePermissionError({
+                path: commentRef.path,
+                operation: 'delete'
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        });
+    };
+
+    return (
+        <div className="flex items-start gap-4 relative">
+            <Avatar>
+                <AvatarImage src={comment.userPhotoURL} />
+                <AvatarFallback>{comment.userDisplayName?.charAt(0) || 'U'}</AvatarFallback>
+            </Avatar>
+            <div className="flex-1">
+                 {comment.isPinned && <Badge variant="secondary" className="absolute -top-2 -left-8 text-xs"><Pin className="mr-1 h-3 w-3" /> Fixo</Badge>}
+                <div className="flex items-center gap-2">
+                    <span className="font-semibold text-white">{comment.userDisplayName}</span>
+                    <span className="text-xs text-muted-foreground">
+                        {comment.timestamp ? formatDistanceToNow(comment.timestamp.toDate(), { addSuffix: true, locale: ptBR }) : 'agora'}
+                    </span>
+                </div>
+                <p className="text-muted-foreground whitespace-pre-wrap">{comment.text}</p>
+                <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
+                    <button onClick={handleToggleLike} className={cn("flex items-center gap-1 hover:text-primary", userHasLiked && "text-primary")}>
+                        <Heart className={cn("h-4 w-4", userHasLiked && "fill-current")} /> {comment.likeCount || 0}
+                    </button>
+                    <button onClick={() => setShowReplies(!showReplies)} className="flex items-center gap-1 hover:text-white">
+                        <CornerUpLeft className="h-4 w-4" /> {comment.replyCount || 0}
+                    </button>
+                </div>
+                {showReplies && (
+                    <RepliesSection 
+                        courseId={courseId}
+                        lessonId={lessonId}
+                        commentId={comment.id}
+                        currentUser={currentUser}
+                        isAdmin={isAdmin}
+                    />
+                )}
+            </div>
+             <div className="absolute top-0 right-0">
+                <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
+                            <MoreVertical className="h-4 w-4" />
+                        </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                        {isAdmin && (
+                            <DropdownMenuItem onClick={handlePinComment}>
+                                <Pin className="mr-2 h-4 w-4" /> {comment.isPinned ? 'Desafixar' : 'Fixar'}
+                            </DropdownMenuItem>
+                        )}
+                        {(isAdmin || currentUser.uid === comment.userId) && (
+                             <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <DropdownMenuItem onSelect={(e) => e.preventDefault()} className="text-destructive focus:text-destructive">
+                                        <Trash2 className="mr-2 h-4 w-4" />Excluir
+                                    </DropdownMenuItem>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader><AlertDialogTitle>Excluir comentário?</AlertDialogTitle><AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={handleDeleteComment}>Confirmar</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        )}
+                    </DropdownMenuContent>
+                </DropdownMenu>
+             </div>
+        </div>
+    )
+}
+
+// --- Replies Section ---
+interface RepliesSectionProps {
+    courseId: string;
+    lessonId: string;
+    commentId: string;
+    currentUser: any;
+    isAdmin: boolean;
+}
+
+function RepliesSection({ courseId, lessonId, commentId, currentUser, isAdmin }: RepliesSectionProps) {
+    const firestore = useFirestore();
+    const [replyText, setReplyText] = useState("");
+    const [isSubmitting, setIsSubmitting] = useState(false);
+
+    const repliesQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(
+            collection(firestore, `courses/${courseId}/lessons/${lessonId}/comments/${commentId}/replies`),
+            orderBy('timestamp', 'asc')
+        );
+    }, [firestore, courseId, lessonId, commentId]);
+
+    const { data: replies, isLoading: repliesLoading } = useCollection<CommentReply>(repliesQuery);
+    
+    const handlePostReply = async () => {
+        if (!firestore || !currentUser || !replyText.trim()) return;
+        setIsSubmitting(true);
+        const repliesRef = collection(firestore, `courses/${courseId}/lessons/${lessonId}/comments/${commentId}/replies`);
+        const commentRef = doc(firestore, `courses/${courseId}/lessons/${lessonId}/comments`, commentId);
+
+        const replyData = {
+            userId: currentUser.uid,
+            userDisplayName: currentUser.displayName || 'Anônimo',
+            userPhotoURL: currentUser.photoURL || '',
+            text: replyText,
+            timestamp: serverTimestamp(),
+        };
+
+        try {
+            await runTransaction(firestore, async (transaction) => {
+                transaction.set(doc(repliesRef), replyData);
+                transaction.update(commentRef, { replyCount: increment(1) });
+            });
+            setReplyText("");
+        } catch (error) {
+            console.error("Error posting reply:", error);
+             const permissionError = new FirestorePermissionError({
+                path: repliesRef.path,
+                operation: 'create',
+                requestResourceData: replyData
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const handleDeleteReply = async (replyId: string) => {
+        if (!firestore) return;
+        const replyRef = doc(firestore, `courses/${courseId}/lessons/${lessonId}/comments/${commentId}/replies`, replyId);
+        const commentRef = doc(firestore, `courses/${courseId}/lessons/${lessonId}/comments`, commentId);
+        
+        try {
+            await runTransaction(firestore, async (transaction) => {
+                transaction.delete(replyRef);
+                transaction.update(commentRef, { replyCount: increment(-1) });
+            });
+        } catch(error) {
+            const permissionError = new FirestorePermissionError({
+                path: replyRef.path,
+                operation: 'delete'
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        }
+    };
+
+    return (
+        <div className="mt-4 pl-6 border-l-2 border-border space-y-4">
+            {repliesLoading && <Skeleton className="h-16 w-full" />}
+            {replies && replies.map(reply => (
+                <div key={reply.id} className="flex items-start gap-3 relative group">
+                    <Avatar className="h-8 w-8">
+                        <AvatarImage src={reply.userPhotoURL} />
+                        <AvatarFallback>{reply.userDisplayName?.charAt(0) || 'U'}</AvatarFallback>
+                    </Avatar>
+                    <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                            <span className="font-semibold text-sm text-white">{reply.userDisplayName}</span>
+                            <span className="text-xs text-muted-foreground">
+                                {reply.timestamp ? formatDistanceToNow(reply.timestamp.toDate(), { addSuffix: true, locale: ptBR }) : 'agora'}
+                            </span>
+                        </div>
+                        <p className="text-sm text-muted-foreground whitespace-pre-wrap">{reply.text}</p>
+                    </div>
+                     {(isAdmin || currentUser.uid === reply.userId) && (
+                         <div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="h-7 w-7">
+                                        <Trash2 className="h-3 w-3 text-destructive" />
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader><AlertDialogTitle>Excluir resposta?</AlertDialogTitle><AlertDialogDescription>Esta ação não pode ser desfeita.</AlertDialogDescription></AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                        <AlertDialogAction onClick={() => handleDeleteReply(reply.id)}>Confirmar</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </div>
+                     )}
+                </div>
+            ))}
+             <div className="flex items-start gap-3 pt-4">
+                <Avatar className="h-8 w-8">
+                    <AvatarImage src={currentUser?.photoURL || undefined} />
+                    <AvatarFallback>{currentUser?.displayName?.charAt(0) || 'U'}</AvatarFallback>
+                </Avatar>
+                <div className="flex-1">
+                     <Textarea 
+                        placeholder="Adicionar uma resposta..." 
+                        value={replyText}
+                        onChange={(e) => setReplyText(e.target.value)}
+                        className="bg-secondary/50 text-sm"
+                        rows={2}
+                    />
+                    <div className="flex justify-end mt-2">
+                        <Button onClick={handlePostReply} size="sm" disabled={!replyText.trim() || isSubmitting}>
+                            {isSubmitting ? 'Enviando...' : 'Responder'}
+                        </Button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    )
+}
