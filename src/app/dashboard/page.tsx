@@ -1,22 +1,23 @@
 'use client';
-import { useUser, useFirestore } from '@/firebase';
+import { useUser } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { CourseCard } from '@/components/course-card';
-import { collection, getDocs } from 'firebase/firestore';
-import type { DocumentData } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
+import placeholderData from '@/lib/placeholder-images.json';
+import type { DocumentData } from 'firebase/firestore';
+
 
 interface Course extends DocumentData {
   id: string;
   title: string;
   thumbnailUrl: string;
+  imageHint: string;
   isFeatured?: boolean;
 }
 
 export default function DashboardPage() {
   const { user, loading: userLoading } = useUser();
-  const firestore = useFirestore();
   const router = useRouter();
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
@@ -28,25 +29,12 @@ export default function DashboardPage() {
   }, [user, userLoading, router]);
 
   useEffect(() => {
-    const fetchCourses = async () => {
-      if (!firestore) return;
-      setLoading(true);
-      try {
-        const querySnapshot = await getDocs(collection(firestore, 'courses'));
-        const coursesData = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-        })) as Course[];
-        setCourses(coursesData);
-      } catch (error) {
-        console.error("Error fetching courses: ", error);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchCourses();
-  }, [firestore]);
+    // Simulate fetching data
+    setLoading(true);
+    // Use placeholder data instead of fetching from Firestore
+    setCourses(placeholderData.placeholderCourses as Course[]);
+    setLoading(false);
+  }, []);
 
 
   if (userLoading || !user) {
@@ -85,7 +73,7 @@ export default function DashboardPage() {
                     id={course.id}
                     title={course.title}
                     imageUrl={course.thumbnailUrl}
-                    imageHint=""
+                    imageHint={course.imageHint}
                     priority={index < 4}
                 />
                 ))}
@@ -105,7 +93,7 @@ export default function DashboardPage() {
                     id={course.id}
                     title={course.title}
                     imageUrl={course.thumbnailUrl}
-                    imageHint=""
+                    imageHint={course.imageHint}
                 />
                 ))}
             </div>
