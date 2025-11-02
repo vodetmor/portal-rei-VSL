@@ -91,15 +91,13 @@ function EditCoursePageContent() {
 
 
     const applyFormat = (command: string, value?: string) => {
-        if (command === 'formatBlock' && value === 'h3') {
-             const selection = window.getSelection();
-            if (selection && selection.rangeCount > 0) {
-                const range = selection.getRangeAt(0);
-                const isAlreadyH3 = range.startContainer.parentElement?.tagName === 'H3';
-                document.execCommand('formatBlock', false, isAlreadyH3 ? 'p' : 'h3');
-            }
-        } else {
+        // For simple commands, execCommand is reliable.
+        if (command === 'bold' || command === 'italic' || command === 'underline' || command === 'foreColor') {
             document.execCommand(command, false, value);
+        }
+        // For block-level commands like headings, this is more stable.
+        else if (command === 'formatBlock') {
+             document.execCommand(command, false, value);
         }
     };
 
