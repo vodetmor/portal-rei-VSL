@@ -39,8 +39,10 @@ function AdminDashboard() {
 
 
   useEffect(() => {
-    fetchCourses();
-    fetchUserCount();
+    if (firestore) {
+      fetchCourses();
+      fetchUserCount();
+    }
   }, [firestore]);
 
   const handleDelete = async (courseId: string) => {
