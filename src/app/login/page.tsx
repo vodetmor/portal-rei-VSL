@@ -1,5 +1,5 @@
 'use client';
-import { useAuth, useUser } from '@/firebase';
+import { useAuth, useUser, useFirestore } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -38,6 +38,21 @@ export default function LoginPage() {
     }
   }, [user, loading, router]);
 
+  const mapFirebaseError = (code: string) => {
+    switch (code) {
+      case 'auth/user-not-found':
+      case 'auth/wrong-password':
+      case 'auth/invalid-credential':
+        return 'Credenciais inválidas. Verifique seu e-mail e senha.';
+      case 'auth/invalid-email':
+          return "Email inválido.";
+      case 'auth/too-many-requests':
+        return "Muitas tentativas. Tente mais tarde.";
+      default:
+        return 'Ocorreu um erro ao fazer login. Tente novamente mais tarde.';
+    }
+  };
+
   const onSubmit = async (data: LoginFormValues) => {
     if (!auth) return;
     setAuthError(null);
@@ -45,17 +60,9 @@ export default function LoginPage() {
       await signInWithEmailAndPassword(auth, data.email, data.password);
       router.push('/dashboard');
     } catch (error: any) {
+      const message = mapFirebaseError(error.code);
+      setAuthError(message);
       console.error('Error signing in', error);
-      switch (error.code) {
-        case 'auth/user-not-found':
-        case 'auth/wrong-password':
-        case 'auth/invalid-credential':
-          setAuthError('Credenciais inválidas. Verifique seu e-mail e senha.');
-          break;
-        default:
-          setAuthError('Ocorreu um erro ao fazer login. Tente novamente mais tarde.');
-          break;
-      }
     }
   };
 
@@ -105,7 +112,7 @@ export default function LoginPage() {
               )}
             />
             {authError && <p className="text-sm font-medium text-destructive">{authError}</p>}
-            <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" disabled={form.formState.isSubmitting}>
+            <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
               {form.formState.isSubmitting ? 'Entrando...' : 'Entrar'}
             </Button>
           </form>

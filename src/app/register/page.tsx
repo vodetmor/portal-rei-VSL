@@ -40,6 +40,19 @@ export default function RegisterPage() {
     }
   }, [user, loading, router]);
 
+  const mapFirebaseError = (code: string | undefined) => {
+    switch (code) {
+      case "auth/email-already-in-use":
+        return "Este email já está em uso.";
+      case "auth/invalid-email":
+        return "Email inválido.";
+      case "auth/weak-password":
+        return "Senha fraca. Escolha uma senha mais segura.";
+      default:
+        return "Erro ao criar conta. Tente novamente.";
+    }
+  };
+
   const onSubmit = async (data: RegisterFormValues) => {
     if (!auth || !firestore) {
         setAuthError('O serviço de autenticação não está disponível. Tente novamente mais tarde.');
@@ -50,25 +63,21 @@ export default function RegisterPage() {
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
       const newUser = userCredential.user;
 
-      // Assign role based on email
       const userRole = data.email === 'admin@reidavsl.com' ? 'admin' : 'user';
 
-      // Create a user profile in Firestore
       await setDoc(doc(firestore, 'users', newUser.uid), {
         email: newUser.email,
         displayName: newUser.email?.split('@')[0] || 'Novo Usuário',
         photoURL: '',
         role: userRole,
+        createdAt: new Date().toISOString(),
       });
 
       router.push('/dashboard');
     } catch (error: any) {
+      const message = mapFirebaseError(error.code);
+      setAuthError(message);
       console.error('Error signing up', error);
-      if (error.code === 'auth/email-already-in-use') {
-        setAuthError('Este email já está em uso. Tente fazer login.');
-      } else {
-        setAuthError('Ocorreu um erro ao criar a conta. Tente novamente mais tarde.');
-      }
     }
   };
 
@@ -114,7 +123,7 @@ export default function RegisterPage() {
               )}
             />
             {authError && <p className="text-sm font-medium text-destructive">{authError}</p>}
-            <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" disabled={form.formState.isSubmitting}>
+            <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
               {form.formState.isSubmitting ? 'Criando...' : 'Criar Conta'}
             </Button>
           </form>
