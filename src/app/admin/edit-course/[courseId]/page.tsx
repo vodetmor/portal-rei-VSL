@@ -18,7 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Trash2, Save, Upload, Link2, GripVertical, FileVideo, Eye, CalendarDays, Send, BarChart2, Book } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, Upload, Link2, GripVertical, FileVideo, Eye, CalendarDays, Send, BarChart2, Book, Bold, Italic, Underline } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
@@ -28,6 +28,9 @@ import { Separator } from '@/components/ui/separator';
 import { logAdminAction } from '@/lib/audit';
 import { Badge } from '@/components/ui/badge';
 import CourseAnalytics from '@/components/admin/course-analytics';
+import { ActionToolbar } from '@/components/ui/action-toolbar';
+import { cn } from '@/lib/utils';
+
 
 interface ComplementaryMaterial {
   id: string;
@@ -82,6 +85,21 @@ function EditCoursePageContent() {
   const [tempSubtitle, setTempSubtitle] = useState('');
   const [tempDescription, setTempDescription] = useState('');
   const [modules, setModules] = useState<Module[]>([]);
+  
+  const [activeEditor, setActiveEditor] = useState<string | null>(null);
+  const descriptionRef = useRef<HTMLDivElement>(null);
+
+
+    const applyFormat = (command: string) => {
+        // Use the stable execCommand for simple, reliable formatting
+        document.execCommand(command, false, undefined);
+    };
+
+    useEffect(() => {
+        if (descriptionRef.current) {
+            descriptionRef.current.innerHTML = tempDescription;
+        }
+    }, [tempDescription]);
 
   const fetchCourse = useCallback(async () => {
     if (!firestore || !courseId) return;
@@ -196,6 +214,9 @@ function EditCoursePageContent() {
     if (!firestore || !courseId || !adminUser) return;
     setIsSaving(true);
     
+    // Get the latest HTML content from the contentEditable div
+    const finalDescription = descriptionRef.current?.innerHTML || tempDescription;
+    
     try {
       const courseRef = doc(firestore, 'courses', courseId);
       const modulesToSave = modules.map(({ ...rest }) => ({
@@ -203,6 +224,7 @@ function EditCoursePageContent() {
         releaseDelayDays: Number(rest.releaseDelayDays || 0),
         lessons: rest.lessons.map(({ ...lessonRest }) => ({
             ...lessonRest,
+            description: lessonRest.description || '',
             releaseDelayDays: Number(lessonRest.releaseDelayDays || 0)
         }))
       }));
@@ -210,7 +232,7 @@ function EditCoursePageContent() {
       const courseDataToSave = {
         title: tempTitle,
         subtitle: tempSubtitle,
-        description: tempDescription,
+        description: finalDescription,
         modules: modulesToSave,
         status: status,
         updatedAt: serverTimestamp(),
@@ -347,15 +369,31 @@ function EditCoursePageContent() {
                                 className="mt-1"
                             />
                         </div>
-                        <div>
-                            <label htmlFor="course-description" className="text-sm font-medium text-white">Descrição</label>
-                            <Textarea
-                                id="course-description"
-                                placeholder="Descreva o que os alunos aprenderão neste curso..."
-                                value={tempDescription}
-                                onChange={(e) => setTempDescription(e.target.value)}
-                                className="mt-1 min-h-[120px]"
+                         <div className="relative">
+                            <label htmlFor="course-description-editor" className="text-sm font-medium text-white">Descrição</label>
+                             <div
+                                id="course-description-editor"
+                                ref={descriptionRef}
+                                contentEditable={true}
+                                suppressContentEditableWarning
+                                onFocus={() => setActiveEditor('course-description-editor')}
+                                onBlur={() => setActiveEditor(null)}
+                                className={cn(
+                                    "mt-1 min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50",
+                                    "prose prose-sm prose-invert max-w-none"
+                                )}
+                                dangerouslySetInnerHTML={{ __html: tempDescription }}
                             />
+                            {activeEditor === 'course-description-editor' && (
+                                <ActionToolbar
+                                    className="absolute -bottom-14"
+                                    buttons={[
+                                        { label: "Negrito", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
+                                        { label: "Itálico", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
+                                        { label: "Sublinhado", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
+                                    ]}
+                                />
+                            )}
                         </div>
                     </CardContent>
                 </Card>
@@ -383,6 +421,7 @@ function EditCoursePageContent() {
                                 onUpdateLesson={updateLessonField}
                                 onRemoveLesson={removeLesson}
                                 onReorderLessons={reorderLessons}
+                                applyFormat={applyFormat}
                             />
                             ))}
                         </Reorder.Group>
@@ -471,9 +510,10 @@ interface ModuleEditorProps {
     onUpdateLesson: (moduleId: string, lessonId: string, field: keyof Lesson, value: any) => void;
     onRemoveLesson: (moduleId: string, lessonId: string, lessonTitle: string) => void;
     onReorderLessons: (moduleId: string, reorderedLessons: Lesson[]) => void;
+    applyFormat: (command: string) => void;
 }
 
-function ModuleEditor({ module, onUpdate, onRemove, onAddLesson, onUpdateLesson, onRemoveLesson, onReorderLessons }: ModuleEditorProps) {
+function ModuleEditor({ module, onUpdate, onRemove, onAddLesson, onUpdateLesson, onRemoveLesson, onReorderLessons, applyFormat }: ModuleEditorProps) {
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [uploadProgress, setUploadProgress] = useState<number | null>(null);
     const [imageInputMode, setImageInputMode] = useState<'upload' | 'url'>('upload');
@@ -615,6 +655,7 @@ function ModuleEditor({ module, onUpdate, onRemove, onAddLesson, onUpdateLesson,
                                   moduleId={module.id}
                                   onUpdate={onUpdateLesson}
                                   onRemove={onRemoveLesson}
+                                  applyFormat={applyFormat}
                                />
                             ))}
                         </Reorder.Group>
@@ -635,15 +676,31 @@ interface LessonEditorProps {
   moduleId: string;
   onUpdate: (moduleId: string, lessonId: string, field: keyof Lesson, value: any) => void;
   onRemove: (moduleId: string, lessonId: string, lessonTitle: string) => void;
+  applyFormat: (command: string) => void;
 }
 
-function LessonEditor({ lesson, moduleId, onUpdate, onRemove }: LessonEditorProps) {
+function LessonEditor({ lesson, moduleId, onUpdate, onRemove, applyFormat }: LessonEditorProps) {
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const { toast } = useToast();
   const dragControls = useDragControls();
 
   const isDriveLink = lesson.videoUrl && lesson.videoUrl.includes('drive.google.com');
+
+  const [activeEditor, setActiveEditor] = useState<string | null>(null);
+  const lessonDescriptionRef = useRef<HTMLDivElement>(null);
+
+  const handleDescriptionChange = () => {
+    if (lessonDescriptionRef.current) {
+        onUpdate(moduleId, lesson.id, 'description', lessonDescriptionRef.current.innerHTML);
+    }
+  };
+
+  useEffect(() => {
+    if (lessonDescriptionRef.current) {
+        lessonDescriptionRef.current.innerHTML = lesson.description || '';
+    }
+  }, [lesson.description]);
 
 
   const handleVideoFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -733,12 +790,34 @@ function LessonEditor({ lesson, moduleId, onUpdate, onRemove }: LessonEditorProp
         </Button>
       </div>
       
-      <Textarea
-        placeholder="Descrição da aula..."
-        value={lesson.description}
-        onChange={(e) => onUpdate(moduleId, lesson.id, 'description', e.target.value)}
-        className="min-h-[60px] text-sm"
-      />
+       <div className="relative">
+          <div
+              ref={lessonDescriptionRef}
+              id={`lesson-desc-${lesson.id}`}
+              contentEditable={true}
+              suppressContentEditableWarning
+              onFocus={() => setActiveEditor(`lesson-desc-${lesson.id}`)}
+              onBlur={() => {
+                  setActiveEditor(null);
+                  handleDescriptionChange();
+              }}
+              className={cn(
+                  "min-h-[80px] w-full rounded-md border border-input bg-inherit px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
+                  "prose prose-sm prose-invert max-w-none"
+              )}
+              dangerouslySetInnerHTML={{ __html: lesson.description || '' }}
+          />
+          {activeEditor === `lesson-desc-${lesson.id}` && (
+              <ActionToolbar
+                  className="absolute -bottom-14"
+                  buttons={[
+                      { label: "Negrito", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
+                      { label: "Itálico", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
+                      { label: "Sublinhado", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
+                  ]}
+              />
+          )}
+      </div>
       
        {/* Main Video Section */}
        <div className="space-y-2 pt-2">

@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useFirestore, useUser, useAuth, useMemoFirebase } from '@/firebase';
 import { doc, getDoc, updateDoc, type DocumentData } from 'firebase/firestore';
@@ -13,7 +13,7 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
 import { CourseCard } from '@/components/course-card';
-import { Plus, Pencil, Save, X, Upload, Link2, Smartphone, Monitor, Lock, Trophy } from 'lucide-react';
+import { Plus, Pencil, Save, X, Upload, Link2, Smartphone, Monitor, Lock, Trophy, AlignCenter, AlignLeft, AlignRight, Bold, Italic, Underline, Palette } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -23,6 +23,7 @@ import { addDays, differenceInDays, parseISO } from 'date-fns';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
+import { ActionToolbar } from '@/components/ui/action-toolbar';
 
 interface Module {
     id: string;
@@ -90,20 +91,32 @@ export default function CoursePlayerPage() {
   const [tempSubtitle, setTempSubtitle] = useState('');
   const [tempDescription, setTempDescription] = useState('');
 
+  const [activeEditor, setActiveEditor] = useState<string | null>(null);
+  const titleRef = useRef<HTMLDivElement>(null);
+  const descriptionRef = useRef<HTMLDivElement>(null);
 
   const checkAdminStatus = useCallback(async () => {
     if (!user || !firestore) return false;
-    if (user.email === 'admin@reidavsl.com') return true;
-
+    // The most reliable check is the custom claim on the token.
     try {
+        const idTokenResult = await user.getIdTokenResult();
+        const isAdminClaim = idTokenResult.claims.admin === true;
+        
+        // Fallback for the primary admin email, just in case.
+        if (isAdminClaim || user.email === 'admin@reidavsl.com') {
+            return true;
+        }
+
+        // Final check against the user document as a last resort.
         const userDocRef = doc(firestore, 'users', user.uid);
         const userDoc = await getDoc(userDocRef);
         return userDoc.exists() && userDoc.data().role === 'admin';
     } catch (error) {
         console.error("Error checking admin status:", error);
-        return false;
+        // If checking claims or doc fails, check email as a final fallback.
+        return user.email === 'admin@reidavsl.com';
     }
-  }, [user, firestore]);
+}, [user, firestore]);
 
 
   useEffect(() => {
@@ -200,7 +213,20 @@ export default function CoursePlayerPage() {
   }, [user, userLoading, firestore, courseId, router, toast, auth, checkAdminStatus]);
 
   // Edit Mode Handlers
-  const enterEditMode = () => setIsEditMode(true);
+  const enterEditMode = () => {
+    setIsEditMode(true);
+    // Ensure the content is set correctly when entering edit mode
+    if (course) {
+        setTempTitle(course.title);
+        setTempSubtitle(course.subtitle || 'Rei da VSL®');
+        setTempDescription(course.description);
+        setTempHeroImageDesktop(course.heroImageUrlDesktop || DEFAULT_HERO_IMAGE_DESKTOP);
+        setTempHeroImageMobile(course.heroImageUrlMobile || DEFAULT_HERO_IMAGE_MOBILE);
+        setHeroImageUrlInputDesktop(course.heroImageUrlDesktop || '');
+        setHeroImageUrlInputMobile(course.heroImageUrlMobile || '');
+    }
+  };
+
   const cancelEditMode = () => {
     setIsEditMode(false);
     if (course) {
@@ -210,7 +236,7 @@ export default function CoursePlayerPage() {
       setTempHeroImageDesktop(course.heroImageUrlDesktop || DEFAULT_HERO_IMAGE_DESKTOP);
       setTempHeroImageMobile(course.heroImageUrlMobile || DEFAULT_HERO_IMAGE_MOBILE);
       setHeroImageUrlInputDesktop(course.heroImageUrlDesktop || '');
-      setHeroImageUrlInputMobile(course.heroImageUrlMobile || '');
+      setHeroImageUrlInputMobile(course.heroImageUrlInputMobile || '');
     }
     setHeroImageDesktopFile(null);
     setHeroImageMobileFile(null);
@@ -280,21 +306,14 @@ export default function CoursePlayerPage() {
 
         const courseRef = doc(firestore, 'courses', courseId);
         const dataToSave = {
-            title: tempTitle,
+            title: titleRef.current?.innerHTML || tempTitle,
             subtitle: tempSubtitle,
-            description: tempDescription,
+            description: descriptionRef.current?.innerHTML || tempDescription,
             heroImageUrlDesktop: finalHeroImageUrlDesktop,
             heroImageUrlMobile: finalHeroImageUrlMobile,
         };
 
-        updateDoc(courseRef, dataToSave).catch(async (serverError) => {
-            const permissionError = new FirestorePermissionError({
-                path: courseRef.path,
-                operation: 'update',
-                requestResourceData: dataToSave,
-            });
-            errorEmitter.emit('permission-error', permissionError);
-        });
+        await updateDoc(courseRef, dataToSave);
 
         setCourse(prev => prev ? { ...prev, ...dataToSave } : null);
         toast({ title: "Sucesso!", description: "O curso foi atualizado." });
@@ -302,6 +321,12 @@ export default function CoursePlayerPage() {
 
     } catch (error) {
         console.error('Error saving course:', error);
+        const permissionError = new FirestorePermissionError({
+            path: `courses/${courseId}`,
+            operation: 'update',
+            requestResourceData: { title: tempTitle }
+        });
+        errorEmitter.emit('permission-error', permissionError);
         toast({ variant: "destructive", title: "Erro ao Salvar", description: "Não foi possível salvar as alterações." });
     } finally {
         setIsSaving(false);
@@ -344,6 +369,18 @@ export default function CoursePlayerPage() {
     
     return (completedLessonsInModule / moduleLessons.length) * 100;
   };
+  
+    const applyFormat = (command: string) => {
+        // Use the stable execCommand for simple, reliable formatting
+        document.execCommand(command, false, undefined);
+    };
+
+    useEffect(() => {
+        if (isEditMode) {
+            if (titleRef.current) titleRef.current.innerHTML = tempTitle;
+            if (descriptionRef.current) descriptionRef.current.innerHTML = tempDescription;
+        }
+    }, [isEditMode, tempTitle, tempDescription]);
 
 
   if (loading || userLoading) {
@@ -386,25 +423,53 @@ export default function CoursePlayerPage() {
         </div>
 
         <div className="relative z-10 p-4 max-w-3xl mx-auto">
-             {isEditMode ? (
-                <div className="space-y-4">
-                    <Input 
-                        value={tempTitle}
-                        onChange={e => setTempTitle(e.target.value)}
-                        className="text-4xl md:text-6xl font-bold tracking-tight text-white bg-transparent border-2 border-dashed border-primary/50 text-center h-auto"
-                    />
-                     <Textarea 
-                        value={tempDescription}
-                        onChange={e => setTempDescription(e.target.value)}
-                        className="text-lg text-muted-foreground bg-transparent border-2 border-dashed border-primary/50 text-center min-h-[100px]"
-                    />
-                </div>
-             ) : (
-                <>
-                    <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-white" dangerouslySetInnerHTML={{ __html: course.title }}></h1>
-                    <p className="mt-4 text-lg text-muted-foreground" dangerouslySetInnerHTML={{ __html: course.description }}></p>
-                </>
-             )}
+             <div
+                id="course-title-editor"
+                ref={titleRef}
+                contentEditable={isEditMode}
+                suppressContentEditableWarning
+                onFocus={() => setActiveEditor('course-title-editor')}
+                onBlur={() => setActiveEditor(null)}
+                className={cn(
+                    "text-4xl md:text-6xl font-bold tracking-tight text-white",
+                    isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2 prose prose-invert max-w-none"
+                )}
+                dangerouslySetInnerHTML={{ __html: isEditMode ? tempTitle : course.title }}
+              />
+              {isEditMode && activeEditor === 'course-title-editor' && (
+                <ActionToolbar
+                    className="absolute -top-14"
+                    buttons={[
+                        { label: "Negrito", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
+                        { label: "Itálico", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
+                        { label: "Sublinhado", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
+                    ]}
+                />
+              )}
+
+             <div
+                id="course-description-editor"
+                ref={descriptionRef}
+                contentEditable={isEditMode}
+                suppressContentEditableWarning
+                onFocus={() => setActiveEditor('course-description-editor')}
+                onBlur={() => setActiveEditor(null)}
+                className={cn(
+                    "mt-4 text-lg text-muted-foreground",
+                    isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2 prose prose-invert max-w-none"
+                )}
+                dangerouslySetInnerHTML={{ __html: isEditMode ? tempDescription : course.description }}
+             />
+              {isEditMode && activeEditor === 'course-description-editor' && (
+                  <ActionToolbar
+                      className="absolute -bottom-14"
+                      buttons={[
+                          { label: "Negrito", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
+                          { label: "Itálico", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
+                          { label: "Sublinhado", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
+                      ]}
+                  />
+              )}
         </div>
         
         {isAdmin && !isEditMode && (
@@ -508,7 +573,7 @@ export default function CoursePlayerPage() {
               align: "start",
               loop: false,
             }}
-            className="w-full"
+            className="w-full group"
           >
             <CarouselContent>
               {course.modules.map((module, index) => {
@@ -561,3 +626,4 @@ export default function CoursePlayerPage() {
     </div>
   );
 }
+
