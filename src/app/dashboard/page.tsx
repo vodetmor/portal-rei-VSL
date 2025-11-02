@@ -433,14 +433,14 @@ function DashboardClientPage() {
             </div>
           </div>
           {isAdmin && !isEditMode && (
-            <div className="absolute top-24 right-8 z-30">
+            <div className="absolute top-8 right-8 z-30">
               <Button onClick={enterEditMode} variant="outline">
                 <Pencil className="mr-2 h-4 w-4" /> Editar Página
               </Button>
             </div>
           )}
           {isAdmin && isEditMode && (
-             <div className="absolute top-24 right-8 z-30 flex flex-col items-end gap-4">
+             <div className="absolute top-8 right-8 z-30 flex flex-col items-end gap-4">
                  <div className="flex gap-2">
                     <Button onClick={handleSaveChanges} disabled={isSaving}>
                         <Save className="mr-2 h-4 w-4" /> {isSaving ? 'Salvando...' : 'Salvar'}
