@@ -45,16 +45,13 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Courses can be read if:
-    // 1. They are published.
-    // 2. The user is an admin.
-    // 3. The user has a specific access record for this course.
+    // Courses can be read if the user is an admin or has a specific access record.
+    // Write access is restricted to admins.
     match /courses/{courseId} {
-      allow read: if resource.data.status == 'published' || isAdmin() || hasCourseAccess(courseId);
+      allow read: if isAdmin() || hasCourseAccess(courseId);
       allow write: if isAdmin();
     }
     
-    // --- Lesson Engagement Features ---
     // This rule allows any authenticated user to read and write to comments and their subcollections.
     // This is separated from the /courses/{courseId} rule to bypass its read restriction.
     match /courses/{courseId}/lessons/{lessonId}/comments/{commentId} {
