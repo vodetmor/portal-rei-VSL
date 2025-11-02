@@ -46,6 +46,7 @@ interface Module {
 interface Course {
   id: string;
   title: string;
+  subtitle: string;
   description: string;
   modules: Module[];
 }
@@ -65,6 +66,7 @@ function EditCoursePageContent() {
   
   // Temp state for editing course details
   const [tempTitle, setTempTitle] = useState('');
+  const [tempSubtitle, setTempSubtitle] = useState('');
   const [tempDescription, setTempDescription] = useState('');
   const [modules, setModules] = useState<Module[]>([]);
 
@@ -79,6 +81,7 @@ function EditCoursePageContent() {
         const courseData = { id: courseSnap.id, ...courseSnap.data() } as Course;
         setCourse(courseData);
         setTempTitle(courseData.title || '');
+        setTempSubtitle(courseData.subtitle || '');
         setTempDescription(courseData.description || '');
         setModules((courseData.modules || []).map(m => ({
           ...m,
@@ -166,6 +169,7 @@ function EditCoursePageContent() {
       
       const courseDataToSave = {
         title: tempTitle,
+        subtitle: tempSubtitle,
         description: tempDescription,
         modules: modulesToSave,
       };
@@ -219,6 +223,16 @@ function EditCoursePageContent() {
                     placeholder="Ex: VSL do Zero ao Lançamento" 
                     value={tempTitle}
                     onChange={(e) => setTempTitle(e.target.value)}
+                    className="mt-1"
+                />
+            </div>
+            <div>
+                <label htmlFor="course-subtitle" className="text-sm font-medium text-white">Subtítulo</label>
+                <Input 
+                    id="course-subtitle"
+                    placeholder="Ex: Rei da VSL®" 
+                    value={tempSubtitle}
+                    onChange={(e) => setTempSubtitle(e.target.value)}
                     className="mt-1"
                 />
             </div>
@@ -569,3 +583,5 @@ export default function EditCoursePage() {
         </AdminGuard>
     )
 }
+
+    

@@ -36,6 +36,7 @@ interface Module {
 interface Course extends DocumentData {
   id: string;
   title: string;
+  subtitle: string;
   description: string;
   modules: Module[];
   heroImageUrlDesktop?: string;
@@ -80,6 +81,7 @@ export default function CoursePlayerPage() {
   const [imageInputMode, setImageInputMode] = useState<'desktop' | 'mobile'>('desktop');
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [tempTitle, setTempTitle] = useState('');
+  const [tempSubtitle, setTempSubtitle] = useState('');
   const [tempDescription, setTempDescription] = useState('');
 
 
@@ -93,6 +95,7 @@ export default function CoursePlayerPage() {
     document.execCommand(command, false, undefined);
   
     if (editorId === 'course-title-editor') setTempTitle(editorElement.innerHTML);
+    else if (editorId === 'course-subtitle-editor') setTempSubtitle(editorElement.innerHTML);
     else if (editorId === 'course-description-editor') setTempDescription(editorElement.innerHTML);
   };
 
@@ -141,6 +144,7 @@ export default function CoursePlayerPage() {
         setCourse(courseData);
         // Initialize editing states
         setTempTitle(courseData.title);
+        setTempSubtitle(courseData.subtitle || 'Rei da VSL®');
         setTempDescription(courseData.description);
         setTempHeroImageDesktop(courseData.heroImageUrlDesktop || DEFAULT_HERO_IMAGE_DESKTOP);
         setTempHeroImageMobile(courseData.heroImageUrlMobile || DEFAULT_HERO_IMAGE_MOBILE);
@@ -186,6 +190,7 @@ export default function CoursePlayerPage() {
     setIsEditMode(false);
     if (course) {
       setTempTitle(course.title);
+      setTempSubtitle(course.subtitle || 'Rei da VSL®');
       setTempDescription(course.description);
       setTempHeroImageDesktop(course.heroImageUrlDesktop || DEFAULT_HERO_IMAGE_DESKTOP);
       setTempHeroImageMobile(course.heroImageUrlMobile || DEFAULT_HERO_IMAGE_MOBILE);
@@ -262,6 +267,7 @@ export default function CoursePlayerPage() {
         const courseRef = doc(firestore, 'courses', courseId);
         const dataToSave = {
             title: tempTitle,
+            subtitle: tempSubtitle,
             description: tempDescription,
             heroImageUrlDesktop: finalHeroImageUrlDesktop,
             heroImageUrlMobile: finalHeroImageUrlMobile,
@@ -480,7 +486,19 @@ export default function CoursePlayerPage() {
                 <TrophyIcon className="h-8 w-8 text-primary" />
                 <div>
                     <h2 className="text-xl font-bold text-white">{course.title}</h2>
-                    <p className="text-sm text-muted-foreground">Monster Copy ®</p>
+                    <div
+                      id="course-subtitle-editor"
+                      contentEditable={isEditMode}
+                      suppressContentEditableWarning={true}
+                      onFocus={() => setActiveEditor('course-subtitle-editor')}
+                      onBlur={() => setActiveEditor(null)}
+                      onInput={(e) => setTempSubtitle(e.currentTarget.innerHTML)}
+                      className={cn(
+                          "text-sm text-muted-foreground",
+                          isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-1 -m-1"
+                      )}
+                      dangerouslySetInnerHTML={{ __html: isEditMode ? tempSubtitle : (course.subtitle || 'Rei da VSL®') }}
+                  />
                 </div>
             </div>
              {isAdmin && (
@@ -573,3 +591,5 @@ function TrophyIcon(props: React.SVGProps<SVGSVGElement>) {
     </svg>
   )
 }
+
+    
