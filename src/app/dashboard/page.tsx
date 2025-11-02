@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { CourseCard } from '@/components/course-card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { doc, getDoc, collection, getDocs, setDoc, deleteDoc, type DocumentData, updateDoc, addDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, setDoc, deleteDoc, type DocumentData, updateDoc, addDoc, query, where } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { useLayout } from '@/context/layout-context';
 import { ActionToolbar } from '@/components/ui/action-toolbar';
@@ -39,6 +39,11 @@ interface UserProgress {
     }
 }
 
+interface CourseAccess {
+    [courseId: string]: boolean;
+}
+
+
 const iconMap: { [key: string]: LucideIcon } = {
   Trophy,
   Gem,
@@ -56,6 +61,7 @@ function DashboardClientPage() {
 
 
   const [courses, setCourses] = useState<Course[]>([]);
+  const [courseAccess, setCourseAccess] = useState<CourseAccess>({});
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [userProgress, setUserProgress] = useState<UserProgress>({});
@@ -87,16 +93,17 @@ function DashboardClientPage() {
   const ctaRef = useRef<HTMLDivElement>(null);
   const coursesSectionRef = useRef<HTMLDivElement>(null);
 
-  const calculateProgress = (course: Course, progressData: UserProgress) => {
-    const courseProgress = progressData[course.id];
-    if (!courseProgress) return 0;
-
-    const totalLessons = course.modules.reduce((acc, module) => acc + (module.lessons?.length || 0), 0);
-    if (totalLessons === 0) return 0;
+  const calculateProgress = (courseId: string) => {
+    const course = courses.find(c => c.id === courseId);
+    const progress = userProgress[courseId];
+    if (!course || !progress) return 0;
     
-    const completedCount = Object.keys(courseProgress.completedLessons).length;
+    const totalLessons = course.modules?.reduce((acc, mod) => acc + (mod.lessons?.length || 0), 0) || 0;
+    if (totalLessons === 0) return 0;
+
+    const completedCount = Object.keys(progress.completedLessons).length;
     return (completedCount / totalLessons) * 100;
-  };
+};
 
 
   const applyFormat = (command: string) => {
@@ -306,31 +313,44 @@ function DashboardClientPage() {
   const fetchCoursesAndProgress = useCallback(async () => {
     if (!firestore || !user) return;
     setLoading(true);
+
     try {
-        // Fetch courses user has access to
-        const accessDocs = await getDocs(collection(firestore, `users/${user.uid}/courseAccess`));
-        const courseIds = accessDocs.docs.map(doc => doc.id);
+        // Step 1: Fetch all published courses (or all courses if admin)
+        let coursesQuery;
+        if (isAdmin) {
+            coursesQuery = query(collection(firestore, 'courses'));
+        } else {
+            coursesQuery = query(collection(firestore, 'courses'), where('status', '==', 'published'));
+        }
+        
+        const coursesSnapshot = await getDocs(coursesQuery);
+        const coursesData = coursesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
+        setCourses(coursesData);
+        
+        const courseIds = coursesData.map(c => c.id);
 
         if (courseIds.length === 0) {
-            setCourses([]);
             setLoading(false);
             return;
         }
 
-        const coursePromises = courseIds.map(id => getDoc(doc(firestore, 'courses', id)));
-        const courseSnaps = await Promise.all(coursePromises);
-        const coursesData = courseSnaps
-            .filter(snap => snap.exists())
-            .map(snap => ({ id: snap.id, ...snap.data() } as Course));
-        
-        setCourses(coursesData);
-        
-        // Fetch progress for these courses
+        // Step 2: Fetch user's access records for these courses
+        const accessPromises = courseIds.map(id => getDoc(doc(firestore, `users/${user.uid}/courseAccess`, id)));
+        const accessSnaps = await Promise.all(accessPromises);
+        const accessData: CourseAccess = {};
+        accessSnaps.forEach(snap => {
+            if (snap.exists()) {
+                accessData[snap.id] = true;
+            }
+        });
+        setCourseAccess(accessData);
+
+        // Step 3: Fetch user's progress for these courses
         const progressPromises = courseIds.map(id => getDoc(doc(firestore, `users/${user.uid}/progress`, id)));
         const progressSnaps = await Promise.all(progressPromises);
         const progressData: UserProgress = {};
         progressSnaps.forEach(snap => {
-            if(snap.exists()) {
+            if (snap.exists()) {
                 progressData[snap.id] = snap.data() as UserProgress[string];
             }
         });
@@ -338,11 +358,12 @@ function DashboardClientPage() {
 
     } catch (error) {
         console.error("Error fetching courses and progress: ", error);
+        toast({ variant: "destructive", title: "Erro ao Carregar", description: "Não foi possível carregar os cursos."});
         setCourses([]);
     } finally {
         setLoading(false);
     }
-  }, [firestore, user]);
+  }, [firestore, user, isAdmin, toast]);
   
   const handleConfirmDelete = (courseId: string) => {
     if (!firestore) return;
@@ -435,9 +456,8 @@ function DashboardClientPage() {
                 setIsAdmin(false);
             }
         }
-        
-        await fetchCoursesAndProgress();
-
+        // Fetch data after admin status is confirmed
+        // This is now done in a separate effect that depends on isAdmin
       } else {
         setIsAdmin(false);
         setLoading(false);
@@ -447,7 +467,14 @@ function DashboardClientPage() {
     if (user && firestore) {
       checkAdminAndFetchData();
     }
-  }, [user, firestore, fetchCoursesAndProgress]);
+  }, [user, firestore]);
+
+   useEffect(() => {
+    // This effect runs once isAdmin state is settled
+    if (user && firestore) {
+      fetchCoursesAndProgress();
+    }
+  }, [user, firestore, isAdmin, fetchCoursesAndProgress]);
   
   // Effect to set initial content of contentEditable divs & sync state
   useEffect(() => {
@@ -693,7 +720,8 @@ useEffect(() => {
                     <CourseCard
                         key={course.id}
                         course={course}
-                        progress={calculateProgress(course, userProgress)}
+                        progress={courseAccess[course.id] ? calculateProgress(course.id) : null}
+                        isLocked={!courseAccess[course.id] && !isAdmin}
                         priority={index < 4}
                         isAdmin={isAdmin}
                         isEditing={isEditMode}
@@ -774,5 +802,3 @@ export default function DashboardPage() {
     <DashboardClientPage />
   )
 }
-
-    

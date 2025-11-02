@@ -3,7 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from './ui/button';
-import { Pencil, Play, Trash2, Link2, Upload, Save } from 'lucide-react';
+import { Pencil, Play, Trash2, Link2, Upload, Save, Lock } from 'lucide-react';
 import { motion } from 'framer-motion';
 import {
   AlertDialog,
@@ -115,6 +115,7 @@ export function CourseCard({ course, progress = null, priority = false, isAdmin 
           priority={priority}
           className={cn(
               "object-cover transition-transform duration-300 ease-in-out h-full w-full",
+              !isLocked && "group-hover:scale-105",
               isLocked && "grayscale"
             )}
         />
@@ -140,27 +141,34 @@ export function CourseCard({ course, progress = null, priority = false, isAdmin 
             ) : (
                 <h3 className="font-semibold text-white transition-all duration-300 group-hover:text-primary">{course.title}</h3>
             )}
-             {progress !== null && progress > 0 && !isEditing && (
+             {progress !== null && progress >= 0 && !isEditing && !isLocked &&(
                 <div className="mt-2">
                     <Progress value={progress} className="h-1.5" />
                     <p className="text-xs text-white/80 mt-1">{Math.round(progress)}% concluído</p>
                 </div>
             )}
         </div>
+
+        {isLocked && (
+             <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-center p-4">
+                <Lock className="h-10 w-10 text-primary mb-3" />
+                <p className="text-white font-semibold">Acesso Bloqueado</p>
+            </div>
+        )}
     </>
   );
   
-  const WrapperComponent = isLocked ? 'div' : Link;
-  const wrapperProps = isLocked ? {} : { href: `/courses/${course.id}` };
+  const WrapperComponent = isLocked || isEditing ? 'div' : Link;
+  const wrapperProps = isLocked || isEditing ? {} : { href: `/courses/${course.id}` };
 
   return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={{ scale: isLocked ? 1 : 1.05, zIndex: 10 }}
+      whileHover={{ scale: isLocked ? 1.02 : 1.05, zIndex: 10 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
       className={cn(
-          "group relative block aspect-[2/3] w-full overflow-hidden rounded-lg bg-card shadow-lg transition-transform",
+          "group relative block aspect-[2/3] w-full overflow-hidden rounded-lg bg-card shadow-lg transition-all",
           isEditing && "ring-2 ring-primary/50 ring-offset-2 ring-offset-background",
           isLocked ? "cursor-not-allowed" : "cursor-pointer"
         )}
@@ -237,5 +245,3 @@ export function CourseCard({ course, progress = null, priority = false, isAdmin 
     </motion.div>
   );
 }
-
-    
