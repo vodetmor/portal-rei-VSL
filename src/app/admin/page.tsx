@@ -214,96 +214,101 @@ function AdminDashboard() {
           </Button>
       </div>
 
-       {/* Premium Links Section */}
-      <div className="bg-secondary/30 p-6 rounded-lg shadow-lg">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-white">Links de Acesso Premium</h2>
-            <Dialog open={isLinkDialogOpen} onOpenChange={setIsLinkDialogOpen}>
-              <DialogTrigger asChild>
-                <Button size="sm"><Plus className="mr-2 h-4 w-4" /> Criar Link</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Criar Novo Link de Acesso</DialogTitle>
-                  <DialogDescription>Dê um nome ao link e selecione os cursos que ele irá liberar.</DialogDescription>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                    <div>
-                        <Label htmlFor="link-name">Nome do Link</Label>
-                        <Input id="link-name" value={newLinkName} onChange={e => setNewLinkName(e.target.value)} placeholder="Ex: Pacote VSL Completo" />
-                    </div>
-                    <div>
-                        <Label>Cursos Inclusos</Label>
-                        <div className="max-h-60 overflow-y-auto space-y-2 rounded-md border p-4 mt-2">
-                            {courses.map(course => (
-                                <div key={course.id} className="flex items-center gap-3">
-                                    <Checkbox id={`course-${course.id}`} checked={selectedCourses[course.id] || false} onCheckedChange={checked => setSelectedCourses(prev => ({ ...prev, [course.id]: !!checked }))} />
-                                    <Label htmlFor={`course-${course.id}`} className="font-normal">{course.title}</Label>
-                                </div>
-                            ))}
+       {/* Premium Links & Courses Section */}
+       <AlertDialog>
+        <div className="space-y-8">
+          {/* Premium Links Section */}
+          <div className="bg-secondary/30 p-6 rounded-lg shadow-lg">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-white">Links de Acesso Premium</h2>
+                <Dialog open={isLinkDialogOpen} onOpenChange={setIsLinkDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button size="sm"><Plus className="mr-2 h-4 w-4" /> Criar Link</Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Criar Novo Link de Acesso</DialogTitle>
+                      <DialogDescription>Dê um nome ao link e selecione os cursos que ele irá liberar.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4 py-4">
+                        <div>
+                            <Label htmlFor="link-name">Nome do Link</Label>
+                            <Input id="link-name" value={newLinkName} onChange={e => setNewLinkName(e.target.value)} placeholder="Ex: Pacote VSL Completo" />
+                        </div>
+                        <div>
+                            <Label>Cursos Inclusos</Label>
+                            <div className="max-h-60 overflow-y-auto space-y-2 rounded-md border p-4 mt-2">
+                                {courses.map(course => (
+                                    <div key={course.id} className="flex items-center gap-3">
+                                        <Checkbox id={`course-${course.id}`} checked={selectedCourses[course.id] || false} onCheckedChange={checked => setSelectedCourses(prev => ({ ...prev, [course.id]: !!checked }))} />
+                                        <Label htmlFor={`course-${course.id}`} className="font-normal">{course.title}</Label>
+                                    </div>
+                                ))}
+                            </div>
                         </div>
                     </div>
-                </div>
-                <DialogFooter>
-                  <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
-                  <Button onClick={handleCreatePremiumLink}>Criar Link</Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
-          <div className="space-y-2">
-            {premiumLinks.map(link => (
-              <div key={link.id} className="group relative flex items-center justify-between p-3 rounded-md bg-background/50 hover:bg-secondary/50 transition-colors">
-                <div className="flex items-center gap-3">
-                  <LinkIcon className="h-5 w-5 text-primary" />
-                  <span className="font-medium text-white">{link.name}</span>
-                </div>
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button variant="outline" size="icon" onClick={() => copyLinkToClipboard(link.id)}><Copy className="h-4 w-4" /></Button>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="icon" onClick={() => setItemToDelete({ id: link.id, type: 'link' })}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </AlertDialogTrigger>
-                </div>
+                    <DialogFooter>
+                      <DialogClose asChild><Button variant="outline">Cancelar</Button></DialogClose>
+                      <Button onClick={handleCreatePremiumLink}>Criar Link</Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </div>
-            ))}
-            {premiumLinks.length === 0 && <p className="text-muted-foreground text-center py-4">Nenhum link premium criado.</p>}
-          </div>
-        </div>
+              <div className="space-y-2">
+                {premiumLinks.map(link => (
+                  <div key={link.id} className="group relative flex items-center justify-between p-3 rounded-md bg-background/50 hover:bg-secondary/50 transition-colors">
+                    <div className="flex items-center gap-3">
+                      <LinkIcon className="h-5 w-5 text-primary" />
+                      <span className="font-medium text-white">{link.name}</span>
+                    </div>
+                    <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button variant="outline" size="icon" onClick={() => copyLinkToClipboard(link.id)}><Copy className="h-4 w-4" /></Button>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="icon" onClick={() => setItemToDelete({ id: link.id, type: 'link' })}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                    </div>
+                  </div>
+                ))}
+                {premiumLinks.length === 0 && <p className="text-muted-foreground text-center py-4">Nenhum link premium criado.</p>}
+              </div>
+            </div>
 
-      <AlertDialog>
-        <div className="bg-secondary/50 p-6 rounded-lg shadow-lg">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold text-white">Gerenciar Cursos</h2>
-             <Button onClick={handleAddCourse}>
-                <Plus className="mr-2 h-4 w-4" /> Adicionar Curso
-             </Button>
-          </div>
-          <div className="space-y-4">
-            {courses.map(course => (
-              <div key={course.id} className="group relative flex items-center justify-between p-4 rounded-md bg-background/50 hover:bg-secondary/50 transition-colors">
-                <div className="flex items-center gap-4">
-                  <Image src={course.thumbnailUrl} alt={course.title} width={80} height={45} className="rounded-md object-cover aspect-video" />
-                  <span className="font-medium text-white">{course.title}</span>
-                </div>
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                  <Button asChild variant="outline" size="icon">
-                    <Link href={`/admin/edit-course/${course.id}`}>
-                      <Pencil className="h-4 w-4" />
-                    </Link>
-                  </Button>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive" size="icon" onClick={() => setItemToDelete({ id: course.id, type: 'course'})}>
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </AlertDialogTrigger>
-                </div>
+            {/* Courses Section */}
+            <div className="bg-secondary/50 p-6 rounded-lg shadow-lg">
+              <div className="flex justify-between items-center mb-4">
+                <h2 className="text-xl font-semibold text-white">Gerenciar Cursos</h2>
+                 <Button onClick={handleAddCourse}>
+                    <Plus className="mr-2 h-4 w-4" /> Adicionar Curso
+                 </Button>
               </div>
-            ))}
-            {courses.length === 0 && <p className="text-muted-foreground text-center py-4">Nenhum curso encontrado.</p>}
+              <div className="space-y-4">
+                {courses.map(course => (
+                  <div key={course.id} className="group relative flex items-center justify-between p-4 rounded-md bg-background/50 hover:bg-secondary/50 transition-colors">
+                    <div className="flex items-center gap-4">
+                      <Image src={course.thumbnailUrl} alt={course.title} width={80} height={45} className="rounded-md object-cover aspect-video" />
+                      <span className="font-medium text-white">{course.title}</span>
+                    </div>
+                    <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <Button asChild variant="outline" size="icon">
+                        <Link href={`/admin/edit-course/${course.id}`}>
+                          <Pencil className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" size="icon" onClick={() => setItemToDelete({ id: course.id, type: 'course'})}>
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </AlertDialogTrigger>
+                    </div>
+                  </div>
+                ))}
+                {courses.length === 0 && <p className="text-muted-foreground text-center py-4">Nenhum curso encontrado.</p>}
+              </div>
+            </div>
           </div>
-        </div>
+          
          <AlertDialogContent>
             <AlertDialogHeader>
             <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
