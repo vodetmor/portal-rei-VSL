@@ -13,7 +13,7 @@ import { PageEditActions } from '@/components/admin/page-edit-actions';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Plus, Pencil, Save, X, Trophy, Gem, Crown, Star, type LucideIcon, Upload, Link2, Trash2, ChevronDown, AlignCenter, AlignLeft, AlignRight, Bold, Italic, Underline, Palette, Smartphone, Monitor } from 'lucide-react';
+import { Plus, Pencil, Save, X, Trophy, Gem, Crown, Star, type LucideIcon, Upload, Link2, Trash2, ChevronDown, AlignCenter, AlignLeft, AlignRight, Bold, Italic, Underline, Palette, Smartphone, Monitor, Eye, EyeOff } from 'lucide-react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
@@ -23,6 +23,8 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { cn } from '@/lib/utils';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 
 interface Course extends DocumentData {
@@ -77,6 +79,7 @@ function DashboardClientPage() {
   const [tempHeroImageMobile, setTempHeroImageMobile] = useState(layoutData.heroImageMobile);
   const [tempCtaText, setTempCtaText] = useState(layoutData.ctaText);
   const [heroAlignment, setHeroAlignment] = useState(layoutData.heroAlignment);
+  const [tempHeroTextVisible, setTempHeroTextVisible] = useState(layoutData.heroTextVisible);
   
   const [heroImageDesktopFile, setHeroImageDesktopFile] = useState<File | null>(null);
   const [heroImageMobileFile, setHeroImageMobileFile] = useState<File | null>(null);
@@ -143,6 +146,7 @@ function DashboardClientPage() {
     setTempHeroImageMobile(layoutData.heroImageMobile);
     setTempCtaText(layoutData.ctaText);
     setHeroAlignment(layoutData.heroAlignment);
+    setTempHeroTextVisible(layoutData.heroTextVisible);
     setTempHeroImageUrlInputDesktop(layoutData.heroImageDesktop);
     setTempHeroImageUrlInputMobile(layoutData.heroImageMobile);
     setHeroImageDesktopFile(null);
@@ -203,6 +207,7 @@ function DashboardClientPage() {
             imageUrlMobile: finalHeroImageUrlMobile,
             ctaText: ctaContent,
             heroAlignment: heroAlignment,
+            heroTextVisible: tempHeroTextVisible,
         };
         
         const layoutRef = doc(firestore, 'layout', 'dashboard-hero');
@@ -224,6 +229,7 @@ function DashboardClientPage() {
             heroImageMobile: dataToSave.imageUrlMobile,
             ctaText: dataToSave.ctaText,
             heroAlignment: dataToSave.heroAlignment,
+            heroTextVisible: dataToSave.heroTextVisible,
         }));
 
         toast({
@@ -537,7 +543,8 @@ useEffect(() => {
     if (isEditMode) return;
     coursesSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
-
+  
+  const heroContentVisible = isEditMode || layoutData.heroTextVisible;
 
   return (
       <div className="w-full">
@@ -564,85 +571,88 @@ useEffect(() => {
               </div>
           )}
 
-          <div className={heroContainerClasses}>
-              <div className={cn("relative w-full", textContainerClasses)}>
-                 <div
-                    id="hero-title-editor"
-                    ref={titleRef}
-                    contentEditable={isEditMode}
-                    suppressContentEditableWarning={true}
-                    onFocus={() => setActiveEditor('hero-title-editor')}
-                    onBlur={(e) => {
-                      setActiveEditor(null);
-                      setTempHeroTitle(e.currentTarget.innerHTML);
-                    }}
-                    className={cn(
-                        "text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl",
-                        isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
-                    )}
-                 />
-                {isEditMode && activeEditor === 'hero-title-editor' && (
-                  <ActionToolbar
-                    className="absolute -top-14"
-                    buttons={[
-                      { label: "Esquerda", icon: <AlignLeft className="size-4" />, onClick: () => setHeroAlignment('left') },
-                      { label: "Centro", icon: <AlignCenter className="size-4" />, onClick: () => setHeroAlignment('center') },
-                      { label: "Direita", icon: <AlignRight className="size-4" />, onClick: () => setHeroAlignment('end') },
-                      { label: "Bold", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
-                      { label: "Italic", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
-                      { label: "Underline", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
-                      { label: "Cor", icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor') },
-                    ]}
+          {heroContentVisible && (
+            <div className={heroContainerClasses}>
+                <div className={cn("relative w-full", textContainerClasses)}>
+                  <div
+                      id="hero-title-editor"
+                      ref={titleRef}
+                      contentEditable={isEditMode}
+                      suppressContentEditableWarning={true}
+                      onFocus={() => setActiveEditor('hero-title-editor')}
+                      onBlur={(e) => {
+                        setActiveEditor(null);
+                        setTempHeroTitle(e.currentTarget.innerHTML);
+                      }}
+                      className={cn(
+                          "text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl",
+                          isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
+                      )}
                   />
-                )}
-              </div>
-
-              <div className={cn("relative mt-4 w-full", textContainerClasses)}>
-                <div
-                    id="hero-subtitle-editor"
-                    ref={subtitleRef}
-                    contentEditable={isEditMode}
-                    suppressContentEditableWarning={true}
-                    onFocus={() => setActiveEditor('hero-subtitle-editor')}
-                    onBlur={(e) => {
-                      setActiveEditor(null);
-                      setTempHeroSubtitle(e.currentTarget.innerHTML);
-                    }}
-                    className={cn(
-                        "max-w-2xl text-lg text-muted-foreground md:text-xl",
-                        isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
-                    )}
-                />
-                 {isEditMode && activeEditor === 'hero-subtitle-editor' && (
+                  {isEditMode && activeEditor === 'hero-title-editor' && (
                     <ActionToolbar
-                        className="absolute -top-14"
-                        buttons={[
-                            { label: "Bold", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
-                            { label: "Italic", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
-                            { label: "Underline", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
-                            { label: "Cor", icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor') },
-                        ]}
+                      className="absolute -top-14"
+                      buttons={[
+                        { label: "Esquerda", icon: <AlignLeft className="size-4" />, onClick: () => setHeroAlignment('left') },
+                        { label: "Centro", icon: <AlignCenter className="size-4" />, onClick: () => setHeroAlignment('center') },
+                        { label: "Direita", icon: <AlignRight className="size-4" />, onClick: () => setHeroAlignment('end') },
+                        { label: "Bold", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
+                        { label: "Italic", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
+                        { label: "Underline", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
+                        { label: "Cor", icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor') },
+                      ]}
                     />
+                  )}
+                </div>
+
+                <div className={cn("relative mt-4 w-full", textContainerClasses)}>
+                  <div
+                      id="hero-subtitle-editor"
+                      ref={subtitleRef}
+                      contentEditable={isEditMode}
+                      suppressContentEditableWarning={true}
+                      onFocus={() => setActiveEditor('hero-subtitle-editor')}
+                      onBlur={(e) => {
+                        setActiveEditor(null);
+                        setTempHeroSubtitle(e.currentTarget.innerHTML);
+                      }}
+                      className={cn(
+                          "max-w-2xl text-lg text-muted-foreground md:text-xl",
+                          isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
+                      )}
+                  />
+                  {isEditMode && activeEditor === 'hero-subtitle-editor' && (
+                      <ActionToolbar
+                          className="absolute -top-14"
+                          buttons={[
+                              { label: "Bold", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
+                              { label: "Italic", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
+                              { label: "Underline", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
+                              { label: "Cor", icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor') },
+                          ]}
+                      />
+                  )}
+                </div>
+
+              <div className={cn("mt-8", textContainerClasses)}>
+                {isEditMode ? (
+                  <div
+                      ref={ctaRef}
+                      contentEditable={true}
+                      suppressContentEditableWarning={true}
+                      onBlur={(e) => setTempCtaText(e.currentTarget.innerHTML)}
+                      className="inline-block px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-md text-lg font-semibold outline-none focus:ring-2 focus:ring-ring"
+                  >
+                  </div>
+                ) : (
+                  <Button onClick={handleCtaClick} size="lg" variant="default" className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                      <span dangerouslySetInnerHTML={{ __html: layoutData.ctaText }} />
+                  </Button>
                 )}
               </div>
-
-            <div className={cn("mt-8", textContainerClasses)}>
-              {isEditMode ? (
-                 <div
-                    ref={ctaRef}
-                    contentEditable={true}
-                    suppressContentEditableWarning={true}
-                    onBlur={(e) => setTempCtaText(e.currentTarget.innerHTML)}
-                    className="inline-block px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-md text-lg font-semibold outline-none focus:ring-2 focus:ring-ring"
-                 >
-                 </div>
-              ) : (
-                <Button onClick={handleCtaClick} size="lg" variant="default" className="bg-primary hover:bg-primary/90 text-primary-foreground">
-                    <span dangerouslySetInnerHTML={{ __html: layoutData.ctaText }} />
-                </Button>
-              )}
             </div>
-          </div>
+          )}
+          
           {isAdmin && !isEditMode && (
             <div className="absolute top-24 right-8 z-20">
               <Button onClick={enterEditMode} variant="outline">
@@ -656,7 +666,22 @@ useEffect(() => {
                     <CollapsibleTrigger asChild>
                         <Button variant="outline"><Pencil className="mr-2 h-4 w-4" /> Editar Banner</Button>
                     </CollapsibleTrigger>
-                    <CollapsibleContent className="mt-2 w-full space-y-2 p-4 rounded-lg bg-background/80 border border-border backdrop-blur-sm">
+                    <CollapsibleContent className="mt-2 w-full space-y-4 p-4 rounded-lg bg-background/80 border border-border backdrop-blur-sm">
+                        <div className="flex items-center justify-between space-x-2 rounded-lg border p-3 shadow-sm">
+                            <div className="space-y-0.5">
+                                <Label htmlFor="text-visibility" className="text-sm font-medium text-white">
+                                  Exibir Textos e Botão
+                                </Label>
+                                <p className="text-xs text-muted-foreground">
+                                    Desative para exibir apenas a imagem de fundo.
+                                </p>
+                            </div>
+                            <Switch
+                                id="text-visibility"
+                                checked={tempHeroTextVisible}
+                                onCheckedChange={setTempHeroTextVisible}
+                            />
+                        </div>
                         <Tabs value={imageInputMode} onValueChange={(value) => setImageInputMode(value as 'desktop' | 'mobile')} className="w-full">
                             <TabsList className="grid w-full grid-cols-2">
                                 <TabsTrigger value="desktop"><Monitor className="mr-2 h-4 w-4" /> Computador</TabsTrigger>

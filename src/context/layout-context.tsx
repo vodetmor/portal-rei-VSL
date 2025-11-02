@@ -11,6 +11,7 @@ const DEFAULT_DEFAULTS = {
     heroImageMobile: "https://i.imgur.com/PFv07gS.png",
     ctaText: "Assistir Agora",
     heroAlignment: "left" as "left" | "center" | "end",
+    heroTextVisible: true,
 }
 
 interface LayoutData {
@@ -20,6 +21,7 @@ interface LayoutData {
   heroImageMobile: string;
   ctaText: string;
   heroAlignment: "left" | "center" | "end";
+  heroTextVisible: boolean;
   isLoading: boolean;
   defaults: typeof DEFAULT_DEFAULTS;
 }
@@ -59,6 +61,7 @@ export const LayoutProvider = ({ children }: { children: ReactNode }) => {
             heroImageMobile: data.imageUrlMobile || prev.defaults.heroImageMobile,
             ctaText: data.ctaText || prev.defaults.ctaText,
             heroAlignment: data.heroAlignment || prev.defaults.heroAlignment,
+            heroTextVisible: data.heroTextVisible !== undefined ? data.heroTextVisible : prev.defaults.heroTextVisible,
         }));
       }
     } catch (error) {
