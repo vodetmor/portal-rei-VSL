@@ -331,7 +331,7 @@ export default function LessonPage() {
           </div>
         </header>
 
-        <div className="p-4 md:p-8">
+        <div className="p-4 md:p-8 overflow-y-auto flex-grow">
             <div className="aspect-video w-full max-w-4xl mx-auto bg-black rounded-lg overflow-hidden">
             <ReactPlayer
                 url={currentLesson.videoUrl}
@@ -379,4 +379,3 @@ export default function LessonPage() {
     </div>
   );
 }
-

@@ -1,5 +1,6 @@
 'use client';
 import React from 'react';
+import { usePathname } from 'next/navigation';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { MenuToggleIcon } from '@/components/ui/menu-toggle-icon';
@@ -25,6 +26,7 @@ export function Header() {
 	const { user, loading } = useUser();
 	const auth = useAuth();
 	const firestore = useFirestore();
+	const pathname = usePathname();
 	const { layoutData, isEditMode } = useLayout();
 	const [isAdmin, setIsAdmin] = React.useState(false);
 	const [open, setOpen] = React.useState(false);
@@ -87,6 +89,12 @@ export function Header() {
 		  auth.signOut();
 		}
 	};
+	
+	// Do not render the header on lesson pages for an immersive experience
+	const isLessonPage = /^\/courses\/[^/]+\/[^/]+/.test(pathname);
+	if (isLessonPage) {
+		return null;
+	}
 
 	return (
 		<header
