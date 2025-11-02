@@ -8,6 +8,7 @@ import { doc, getDoc, collection, getDocs, setDoc, deleteDoc, type DocumentData,
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { useLayout } from '@/context/layout-context';
 import { ActionToolbar } from '@/components/ui/action-toolbar';
+import { PageEditActions } from '@/components/admin/page-edit-actions';
 
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -444,19 +445,12 @@ function DashboardClientPage() {
             </div>
           )}
           {isAdmin && isEditMode && (
-             <div className="absolute bottom-8 right-8 z-[60] flex flex-col items-end gap-4">
-                <div className="flex gap-2">
-                    <Button onClick={handleSaveChanges} disabled={isSaving}><Save className="mr-2 h-4 w-4" /> {isSaving ? 'Salvando...' : 'Salvar'}</Button>
-                    <Button onClick={cancelEditMode} variant="secondary"><X className="mr-2 h-4 w-4" /> Cancelar</Button>
-                </div>
+             <div className="absolute top-24 right-8 z-[60] flex flex-col items-end gap-4">
                  <Collapsible open={openCollapsible === 'banner'} onOpenChange={(isOpen) => setOpenCollapsible(isOpen ? 'banner' : null)} className="w-full max-w-xs">
-                    <CollapsibleTrigger className="w-full bg-background/50 border border-border rounded-lg backdrop-blur-sm">
-                        <div className="flex justify-between items-center w-full p-2 rounded-lg hover:bg-secondary/50">
-                            <p className="text-sm font-medium">Editar Banner</p>
-                            <ChevronDown className={cn("h-5 w-5 transition-transform", openCollapsible === 'banner' && 'rotate-180')} />
-                        </div>
+                    <CollapsibleTrigger asChild>
+                        <Button variant="outline"><Pencil className="mr-2 h-4 w-4" /> Editar Banner</Button>
                     </CollapsibleTrigger>
-                    <CollapsibleContent className="mt-2 w-full space-y-2 p-4 rounded-lg bg-background/50 border border-border backdrop-blur-sm">
+                    <CollapsibleContent className="mt-2 w-full space-y-2 p-4 rounded-lg bg-background/80 border border-border backdrop-blur-sm">
                         <Tabs value={imageInputMode} onValueChange={(value) => setImageInputMode(value as 'upload' | 'url')} className="w-full">
                             <TabsList className="grid w-full grid-cols-2">
                             <TabsTrigger value="upload">Enviar Arquivo</TabsTrigger>
@@ -542,6 +536,13 @@ function DashboardClientPage() {
           </div>
         </section>
 
+        {isEditMode && (
+          <PageEditActions
+            onSave={handleSaveChanges}
+            onCancel={cancelEditMode}
+            isSaving={isSaving}
+          />
+        )}
       </div>
   );
 }
