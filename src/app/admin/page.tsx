@@ -100,24 +100,36 @@ function AdminDashboard() {
       const newCourseData = {
         title: "Novo Curso (Rascunho)",
         description: "Adicione uma descrição incrível para o seu novo curso.",
+        subtitle: 'Rei da VSL®',
         thumbnailUrl: "https://i.imgur.com/1X3ta7W.png",
         imageHint: 'placeholder',
         createdAt: serverTimestamp(),
         modules: [],
       };
+      // Step 1: Create the course
       const docRef = await addDoc(collection(firestore, 'courses'), newCourseData);
       
+      // Step 2: Log the admin action
       await logAdminAction(firestore, user, 'course_created', {
         type: 'Course',
         id: docRef.id,
         title: newCourseData.title,
       });
 
+      // Step 3: Grant access to the admin who created it
+      const accessRef = doc(firestore, `users/${user.uid}/courseAccess`, docRef.id);
+      await setDoc(accessRef, {
+        grantedAt: serverTimestamp(),
+        courseId: docRef.id,
+      });
+
       toast({
         title: "Rascunho Criado!",
-        description: "Seu novo curso foi iniciado. Agora edite os detalhes.",
+        description: "Seu novo curso foi iniciado e adicionado ao seu painel.",
       });
+      // Step 4: Redirect to the edit page
       router.push(`/admin/edit-course/${docRef.id}`);
+
     } catch (error) {
        console.error("Error creating new course draft: ", error);
        toast({
@@ -363,3 +375,5 @@ export default function AdminPage() {
         </AdminGuard>
     )
 }
+
+    
