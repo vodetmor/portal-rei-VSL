@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirestore, useUser, useAuth } from '@/firebase';
 import { doc, getDoc, updateDoc, type DocumentData } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 
@@ -59,6 +59,7 @@ const DEFAULT_HERO_IMAGE_MOBILE = "https://i.imgur.com/PFv07gS.png";
 export default function CoursePlayerPage() {
   const { user, loading: userLoading } = useUser();
   const firestore = useFirestore();
+  const auth = useAuth();
   const params = useParams();
   const router = useRouter();
   const { toast } = useToast();
@@ -98,12 +99,47 @@ export default function CoursePlayerPage() {
     const editorElement = document.getElementById(editorId);
     if (!editorElement || !editorElement.isContentEditable) return;
     
+    // For applying color, we'll wrap the selection in a span
+    if (command === 'foreColor') {
+        const selection = window.getSelection();
+        if (!selection || selection.rangeCount === 0) return;
+        
+        const range = selection.getRangeAt(0);
+        const selectedText = range.toString();
+
+        if (selectedText) {
+            const span = document.createElement('span');
+            span.className = 'text-primary';
+            span.textContent = selectedText;
+            
+            range.deleteContents();
+            range.insertNode(span);
+        }
+        return;
+    }
+
     document.execCommand(command, false, undefined);
   
     if (editorId === 'course-title-editor') setTempTitle(editorElement.innerHTML);
     else if (editorId === 'course-subtitle-editor') setTempSubtitle(editorElement.innerHTML);
     else if (editorId === 'course-description-editor') setTempDescription(editorElement.innerHTML);
   };
+
+  const checkAdminStatus = useCallback(async () => {
+    if (!user || !auth) return false;
+    if (user.email === 'admin@reidavsl.com') return true;
+
+    try {
+        const idTokenResult = await auth.currentUser?.getIdTokenResult();
+        return idTokenResult?.claims.admin === true;
+    } catch (error) {
+        console.error("Error checking admin status from token:", error);
+        // Fallback for environments where token inspection might fail, though less secure.
+        // This should ideally rely on a backend-verified role.
+        return false;
+    }
+  }, [user, auth]);
+
 
   useEffect(() => {
     // This effect runs when user status changes or firestore is available
@@ -124,17 +160,7 @@ export default function CoursePlayerPage() {
       setLoading(true);
 
       try {
-        // Step 1: Check if the user is an admin
-        let userIsAdmin = false;
-        if (user.email === 'admin@reidavsl.com') {
-          userIsAdmin = true;
-        } else {
-          const userDocRef = doc(firestore, 'users', user.uid);
-          const userDoc = await getDoc(userDocRef);
-          if (userDoc.exists() && userDoc.data().role === 'admin') {
-            userIsAdmin = true;
-          }
-        }
+        const userIsAdmin = await checkAdminStatus();
         setIsAdmin(userIsAdmin);
 
         // Step 2: Fetch course data
@@ -166,25 +192,28 @@ export default function CoursePlayerPage() {
         setHeroImageUrlInputMobile(courseData.heroImageUrlMobile || '');
 
         // Step 4: Verify access record & Fetch progress
+        let hasAccess = false;
         if (userIsAdmin) {
-          // Admins always have access
+          hasAccess = true;
           setCourseAccessInfo({ grantedAt: new Date().toISOString() });
         } else {
           // Check for specific course access for regular users
           const accessRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId);
           const accessSnap = await getDoc(accessRef);
           if (accessSnap.exists()) {
+            hasAccess = true;
             const accessData = accessSnap.data();
             const grantedAtDate = accessData.grantedAt.toDate();
             setCourseAccessInfo({ grantedAt: grantedAtDate.toISOString() });
-          } else {
-            // If not an admin and no access record, deny access
-            toast({ variant: "destructive", title: "Acesso Negado", description: "Você não tem acesso a este curso."});
-            router.push('/dashboard');
-            return; // Stop further execution
           }
         }
         
+        if (!hasAccess) {
+            toast({ variant: "destructive", title: "Acesso Negado", description: "Você não tem acesso a este curso."});
+            router.push('/dashboard');
+            return;
+        }
+
         // Step 5: Fetch progress for the user if they have access
         const progressRef = doc(firestore, `users/${user.uid}/progress`, courseId);
         const progressSnap = await getDoc(progressRef);
@@ -200,10 +229,10 @@ export default function CoursePlayerPage() {
       }
     };
     
-    if (firestore && courseId) {
+    if (firestore && courseId && auth) {
       checkAccessAndFetchData();
     }
-  }, [user, userLoading, firestore, courseId, router, toast]);
+  }, [user, userLoading, firestore, courseId, router, toast, auth, checkAdminStatus]);
 
   // Edit Mode Handlers
   const enterEditMode = () => setIsEditMode(true);
@@ -415,6 +444,7 @@ export default function CoursePlayerPage() {
                             { label: "Bold", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
                             { label: "Italic", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
                             { label: "Underline", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
+                            { label: "Cor", icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor') },
                         ]}
                     />
                 )}
@@ -437,9 +467,10 @@ export default function CoursePlayerPage() {
                     <ActionToolbar
                         className="absolute -top-14 left-1/2 -translate-x-1/2"
                         buttons={[
-                            { label: "Bold", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
-                            { label: "Italic", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
-                            { label: "Underline", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
+                           { label: "Bold", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
+                           { label: "Italic", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
+                           { label: "Underline", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
+                           { label: "Cor", icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor') },
                         ]}
                     />
                 )}

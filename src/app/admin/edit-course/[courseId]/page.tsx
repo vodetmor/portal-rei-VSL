@@ -647,9 +647,10 @@ interface LessonEditorProps {
 function LessonEditor({ lesson, moduleId, onUpdate, onRemove }: LessonEditorProps) {
   const [videoFile, setVideoFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
-  const [videoInputMode, setVideoInputMode] = useState<'upload' | 'url'>('upload');
   const { toast } = useToast();
   const dragControls = useDragControls();
+
+  const isDriveLink = lesson.videoUrl && lesson.videoUrl.includes('drive.google.com');
 
   const handleVideoFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -727,34 +728,44 @@ function LessonEditor({ lesson, moduleId, onUpdate, onRemove }: LessonEditorProp
         rows={2}
       />
       
-      {lesson.videoUrl && (
+      {lesson.videoUrl && !isDriveLink && (
         <div className="aspect-video w-full rounded-md overflow-hidden bg-muted my-2">
           <ReactPlayer
             url={lesson.videoUrl}
             width="100%"
             height="100%"
             controls={true}
-            light={false} // Set to false to show player directly
+            light={false} 
             playing={false}
           />
         </div>
       )}
 
-      <Tabs value={videoInputMode} onValueChange={(v) => setVideoInputMode(v as 'upload' | 'url')} className="w-full">
+      {isDriveLink && (
+          <div className="my-2 p-3 rounded-md bg-secondary/50 border border-blue-500/50 flex items-center gap-3">
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-blue-400 flex-shrink-0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="m10.4 17.6 1.6-1.6"></path><path d="m12 16 3-3"></path><path d="m11.2 14.8 3.2-3.2"></path></svg>
+              <div>
+                  <p className="text-sm font-medium text-white">Link do Google Drive Anexado</p>
+                  <p className="text-xs text-muted-foreground truncate">{lesson.videoUrl}</p>
+              </div>
+          </div>
+      )}
+
+      <Tabs defaultValue="url" className="w-full">
         <TabsList className="grid w-full grid-cols-2 h-8">
-            <TabsTrigger value="upload" className="text-xs">Enviar Vídeo</TabsTrigger>
+            <TabsTrigger value="upload" className="text-xs">Enviar Mídia</TabsTrigger>
             <TabsTrigger value="url" className="text-xs">Usar URL</TabsTrigger>
         </TabsList>
         <TabsContent value="upload" className="mt-2">
             <label htmlFor={`lesson-video-upload-${lesson.id}`} className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground hover:text-white border border-dashed rounded-md p-2 justify-center bg-background/50">
-                <Upload className="h-3 w-3" /><span>{videoFile ? videoFile.name : 'Selecionar vídeo'}</span>
+                <Upload className="h-3 w-3" /><span>{videoFile ? videoFile.name : 'Selecionar arquivo (vídeo, pdf...)'}</span>
             </label>
-            <Input id={`lesson-video-upload-${lesson.id}`} type="file" accept="video/*" onChange={handleVideoFileChange} className="hidden" />
+            <Input id={`lesson-video-upload-${lesson.id}`} type="file" accept="video/*,application/pdf,image/*" onChange={handleVideoFileChange} className="hidden" />
             {uploadProgress !== null && (<Progress value={uploadProgress} className="w-full h-1 mt-2" />)}
         </TabsContent>
         <TabsContent value="url" className="mt-2">
             <Input
-              placeholder="URL do Vídeo (Ex: YouTube, Vimeo)"
+              placeholder="URL do Vídeo (YouTube, Vimeo) ou Link (Google Drive)"
               value={lesson.videoUrl}
               onChange={(e) => onUpdate(moduleId, lesson.id, 'videoUrl', e.target.value)}
               className="h-8 text-xs"
