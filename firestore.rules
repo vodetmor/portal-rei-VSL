@@ -55,29 +55,25 @@ service cloud.firestore {
     match /courses/{courseId} {
       allow read: if resource.data.status == 'published' || isAdmin() || hasCourseAccess(courseId);
       allow write: if isAdmin();
-
-      // Engagement features: Comments and Reactions
-      match /lessons/{lessonId} {
-        // Anyone with course access can read comments and reactions.
-        allow get: if hasCourseAccess(courseId) || isAdmin();
-
-        match /comments/{commentId} {
-          allow list, read: if hasCourseAccess(courseId) || isAdmin();
-          // Users can create comments
-          allow create: if request.auth != null && hasCourseAccess(courseId);
-          // Users can only update/delete their own comments. Admins can delete any.
-          allow update: if request.auth.uid == resource.data.userId && hasCourseAccess(courseId);
-          allow delete: if (request.auth.uid == resource.data.userId && hasCourseAccess(courseId)) || isAdmin();
-        }
-
-        match /reactions/{reactionId} {
-          allow read: if hasCourseAccess(courseId) || isAdmin();
-          // A user's reactionId is their UID. They can only write to their own reaction document.
-          allow write: if request.auth.uid == reactionId && hasCourseAccess(courseId);
-          allow list: if hasCourseAccess(courseId) || isAdmin();
-        }
-      }
     }
+    
+    // Engagement features: Comments and Reactions
+    // These collections are nested under a path that includes the course and lesson.
+    match /courses/{courseId}/lessons/{lessonId}/comments/{commentId} {
+      allow list, read: if hasCourseAccess(courseId) || isAdmin();
+      // Users with access can create comments.
+      allow create: if request.auth != null && hasCourseAccess(courseId);
+      // Users can only update/delete their own comments. Admins can delete any.
+      allow update: if request.auth.uid == resource.data.userId && hasCourseAccess(courseId);
+      allow delete: if (request.auth.uid == resource.data.userId && hasCourseAccess(courseId)) || isAdmin();
+    }
+
+    match /courses/{courseId}/lessons/{lessonId}/reactions/{reactionId} {
+      allow read, list: if hasCourseAccess(courseId) || isAdmin();
+      // A user's reactionId is their UID. They can only write to their own reaction document.
+      allow write: if request.auth.uid == reactionId && hasCourseAccess(courseId);
+    }
+
 
     // Videos can be read by any authenticated user, but only written by admins
     match /videos/{videoId} {
