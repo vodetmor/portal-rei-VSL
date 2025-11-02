@@ -80,14 +80,11 @@ function EditCoursePageContent() {
   const [loading, setLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   
-  // Temp state for editing course details
   const [tempTitle, setTempTitle] = useState('');
   const [tempSubtitle, setTempSubtitle] = useState('');
   const [tempDescription, setTempDescription] = useState('');
   const [modules, setModules] = useState<Module[]>([]);
   
-  const [activeEditor, setActiveEditor] = useState<string | null>(null);
-
   const applyFormat = (command: string) => {
     document.execCommand(command, false);
   };
@@ -107,7 +104,7 @@ function EditCoursePageContent() {
         setTempDescription(courseData.description || '');
         setModules((courseData.modules || []).map(m => ({
           ...m,
-          id: m.id || uuidv4(), // Use existing ID or generate new client-side ID
+          id: m.id || uuidv4(),
           releaseDelayDays: m.releaseDelayDays || 0,
           lessons: (m.lessons || []).map(l => ({ ...l, id: l.id || uuidv4(), description: l.description || '', videoUrl: l.videoUrl || '', releaseDelayDays: l.releaseDelayDays || 0, complementaryMaterials: (l.complementaryMaterials || []).map(cm => ({...cm, id: cm.id || uuidv4()})) }))
         })));
@@ -241,13 +238,13 @@ function EditCoursePageContent() {
       });
 
       toast({ title: toastTitle, description: toastDescription });
-      fetchCourse(); // Re-fetch to update status indicator
+      fetchCourse(); 
     } catch (error) {
       console.error('Error updating course:', error);
       const permissionError = new FirestorePermissionError({
           path: `courses/${courseId}`,
           operation: 'update',
-          requestResourceData: { title: tempTitle, status } // Example data
+          requestResourceData: { title: tempTitle, status } 
       });
       errorEmitter.emit('permission-error', permissionError);
       toast({ variant: "destructive", title: "Erro ao salvar", description: "Ocorreu um erro ao salvar o curso." });
@@ -620,7 +617,7 @@ function ModuleEditor({ module, onUpdate, onRemove, onAddLesson, onUpdateLesson,
                      <div className="border-t pt-4 mt-4 space-y-3">
                         <h4 className="text-sm font-semibold text-muted-foreground mb-2">Aulas do Módulo</h4>
                         <Reorder.Group axis="y" values={module.lessons} onReorder={(reordered) => onReorderLessons(module.id, reordered)} className="space-y-3">
-                            {module.lessons.map((lesson, lessonIndex) => (
+                            {module.lessons.map((lesson) => (
                                <LessonEditor 
                                   key={lesson.id}
                                   lesson={lesson}
@@ -652,224 +649,272 @@ interface LessonEditorProps {
 }
 
 function LessonEditor({ lesson, moduleId, onUpdate, onRemove, applyFormat }: LessonEditorProps) {
-  const [videoFile, setVideoFile] = useState<File | null>(null);
-  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
-  const { toast } = useToast();
-  const dragControls = useDragControls();
+    const [videoFile, setVideoFile] = useState<File | null>(null);
+    const [videoUploadProgress, setVideoUploadProgress] = useState<number | null>(null);
+    const { toast } = useToast();
+    const dragControls = useDragControls();
 
-  const isDriveLink = lesson.videoUrl && lesson.videoUrl.includes('drive.google.com');
+    const isDriveLink = lesson.videoUrl && lesson.videoUrl.includes('drive.google.com');
 
-  const [activeEditor, setActiveEditor] = useState<string | null>(null);
-  const lessonDescriptionRef = useRef<HTMLDivElement>(null);
+    const [activeEditor, setActiveEditor] = useState<string | null>(null);
+    const lessonDescriptionRef = useRef<HTMLDivElement>(null);
 
-  const handleDescriptionChange = () => {
-    if (lessonDescriptionRef.current) {
-        onUpdate(moduleId, lesson.id, 'description', lessonDescriptionRef.current.innerHTML);
-    }
-  };
-
-  useEffect(() => {
-    if (lessonDescriptionRef.current) {
-        lessonDescriptionRef.current.innerHTML = lesson.description || '';
-    }
-  }, [lesson.description]);
-
-
-  const handleVideoFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file) {
-      setVideoFile(file);
-      setUploadProgress(0);
-      
-      const storage = getStorage();
-      const storageRef = ref(storage, `courses/lessons/${moduleId}/${lesson.id}/${Date.now()}-${file.name}`);
-      const uploadTask = uploadBytesResumable(storageRef, file);
-
-      uploadTask.on('state_changed',
-        (snapshot) => setUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
-        (error) => {
-          console.error(error);
-          toast({ variant: "destructive", title: "Erro de Upload", description: "Não foi possível enviar o vídeo." });
-          setUploadProgress(null);
-        },
-        () => {
-          getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-            onUpdate(moduleId, lesson.id, 'videoUrl', downloadURL);
-            setUploadProgress(null);
-            setVideoFile(null);
-            toast({ title: "Sucesso!", description: "Vídeo da aula enviado." });
-          });
+    const handleDescriptionChange = () => {
+        if (lessonDescriptionRef.current) {
+            onUpdate(moduleId, lesson.id, 'description', lessonDescriptionRef.current.innerHTML);
         }
-      );
-    }
-  };
+    };
 
-  const handleAddMaterial = () => {
-    const newMaterial: ComplementaryMaterial = { id: uuidv4(), title: '', url: '' };
-    const updatedMaterials = [...(lesson.complementaryMaterials || []), newMaterial];
-    onUpdate(moduleId, lesson.id, 'complementaryMaterials', updatedMaterials);
-  };
-  
-  const handleUpdateMaterial = (materialId: string, field: keyof Omit<ComplementaryMaterial, 'id'>, value: string) => {
-    const updatedMaterials = (lesson.complementaryMaterials || []).map(m =>
-      m.id === materialId ? { ...m, [field]: value } : m
-    );
-    onUpdate(moduleId, lesson.id, 'complementaryMaterials', updatedMaterials);
-  };
-  
-  const handleRemoveMaterial = (materialId: string) => {
-    const updatedMaterials = (lesson.complementaryMaterials || []).filter(m => m.id !== materialId);
-    onUpdate(moduleId, lesson.id, 'complementaryMaterials', updatedMaterials);
-  };
-  
+    useEffect(() => {
+        if (lessonDescriptionRef.current) {
+            lessonDescriptionRef.current.innerHTML = lesson.description || '';
+        }
+    }, [lesson.description]);
 
-  return (
-    <Reorder.Item
-        value={lesson}
-        dragListener={false}
-        dragControls={dragControls}
-        className="p-3 space-y-3 rounded-md border bg-background/50 transition-shadow"
-        whileDrag={{ boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)' }}
-    >
-      <div className="flex items-center gap-2">
-        <GripVertical
-          className="h-5 w-5 text-muted-foreground cursor-grab"
-          onPointerDown={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            dragControls.start(e);
-          }}
-        />
-        <Input
-          placeholder="Título da Aula"
-          value={lesson.title}
-          onChange={(e) => onUpdate(moduleId, lesson.id, 'title', e.target.value)}
-          className="h-9 flex-grow"
-        />
-        <div className="relative w-36">
-            <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-                type="number"
-                placeholder="Dias"
-                value={lesson.releaseDelayDays || ''}
-                onChange={(e) => onUpdate(moduleId, lesson.id, 'releaseDelayDays', Number(e.target.value))}
-                className="h-9 pl-8"
-                min={0}
-            />
-        </div>
-        <Button type="button" variant="ghost" size="icon" onClick={() => onRemove(moduleId, lesson.id, lesson.title)}>
-          <Trash2 className="h-4 w-4 text-destructive/70" />
-        </Button>
-      </div>
-      
-       <div className="relative space-y-2">
-          <div
-              ref={lessonDescriptionRef}
-              id={`lesson-desc-${lesson.id}`}
-              contentEditable={true}
-              suppressContentEditableWarning
-              onFocus={() => setActiveEditor(`lesson-desc-${lesson.id}`)}
-              onBlur={() => {
-                  setActiveEditor(null);
-                  handleDescriptionChange();
-              }}
-              className={cn(
-                  "min-h-[80px] w-full rounded-md border border-input bg-inherit px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2",
-                  "prose prose-sm prose-invert max-w-none"
-              )}
-          />
-          {activeEditor === `lesson-desc-${lesson.id}` && (
-              <ActionToolbar
-                  buttons={[
-                        { label: "Negrito", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
-                        { label: "Itálico", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
-                        { label: "Sublinhado", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
-                  ]}
-              />
-          )}
-      </div>
-      
-       {/* Main Video Section */}
-       <div className="space-y-2 pt-2">
-        <h5 className="text-sm font-semibold text-white flex items-center gap-2"><FileVideo className="h-4 w-4 text-primary" />Vídeo Principal</h5>
-        {lesson.videoUrl && !isDriveLink && (
-            <div className="aspect-video w-full rounded-md overflow-hidden bg-muted my-2">
-            <ReactPlayer
-                url={lesson.videoUrl}
-                width="100%"
-                height="100%"
-                controls={true}
-                light={false} 
-                playing={false}
-            />
-            </div>
-        )}
 
-        {isDriveLink && (
-            <div className="my-2 p-3 rounded-md bg-secondary/50 border border-blue-500/50 flex items-center gap-3">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-blue-400 flex-shrink-0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="m10.4 17.6 1.6-1.6"></path><path d="m12 16 3-3"></path><path d="m11.2 14.8 3.2-3.2"></path></svg>
-                <div>
-                    <p className="text-sm font-medium text-white">Link do Google Drive Anexado</p>
-                    <p className="text-xs text-muted-foreground truncate">{lesson.videoUrl}</p>
-                </div>
-            </div>
-        )}
+    const handleVideoFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (file) {
+            setVideoFile(file);
+            setVideoUploadProgress(0);
 
-        <Tabs defaultValue="url" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 h-8">
-                <TabsTrigger value="upload" className="text-xs">Enviar Mídia</TabsTrigger>
-                <TabsTrigger value="url" className="text-xs">Usar URL</TabsTrigger>
-            </TabsList>
-            <TabsContent value="upload" className="mt-2">
-                <label htmlFor={`lesson-video-upload-${lesson.id}`} className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground hover:text-white border border-dashed rounded-md p-2 justify-center bg-background/50">
-                    <Upload className="h-3 w-3" /><span>{videoFile ? videoFile.name : 'Selecionar arquivo (vídeo, pdf...)'}</span>
-                </label>
-                <Input id={`lesson-video-upload-${lesson.id}`} type="file" accept="video/*,application/pdf,image/*" onChange={handleVideoFileChange} className="hidden" />
-                {uploadProgress !== null && (<Progress value={uploadProgress} className="w-full h-1 mt-2" />)}
-            </TabsContent>
-            <TabsContent value="url" className="mt-2">
-                <Input
-                placeholder="URL do Vídeo (YouTube, Vimeo) ou Link (Google Drive)"
-                value={lesson.videoUrl}
-                onChange={(e) => onUpdate(moduleId, lesson.id, 'videoUrl', e.target.value)}
-                className="h-8 text-xs"
+            const storage = getStorage();
+            const storageRef = ref(storage, `courses/lessons/${moduleId}/${lesson.id}/${Date.now()}-${file.name}`);
+            const uploadTask = uploadBytesResumable(storageRef, file);
+
+            uploadTask.on('state_changed',
+                (snapshot) => setVideoUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
+                (error) => {
+                    console.error(error);
+                    toast({ variant: "destructive", title: "Erro de Upload", description: "Não foi possível enviar o vídeo." });
+                    setVideoUploadProgress(null);
+                },
+                () => {
+                    getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+                        onUpdate(moduleId, lesson.id, 'videoUrl', downloadURL);
+                        setVideoUploadProgress(null);
+                        setVideoFile(null);
+                        toast({ title: "Sucesso!", description: "Vídeo da aula enviado." });
+                    });
+                }
+            );
+        }
+    };
+
+    const handleAddMaterial = () => {
+        const newMaterial: ComplementaryMaterial = { id: uuidv4(), title: '', url: '' };
+        const updatedMaterials = [...(lesson.complementaryMaterials || []), newMaterial];
+        onUpdate(moduleId, lesson.id, 'complementaryMaterials', updatedMaterials);
+    };
+
+    const handleUpdateMaterial = (materialId: string, field: keyof Omit<ComplementaryMaterial, 'id'>, value: string) => {
+        const updatedMaterials = (lesson.complementaryMaterials || []).map(m =>
+            m.id === materialId ? { ...m, [field]: value } : m
+        );
+        onUpdate(moduleId, lesson.id, 'complementaryMaterials', updatedMaterials);
+    };
+
+    const handleRemoveMaterial = (materialId: string) => {
+        const updatedMaterials = (lesson.complementaryMaterials || []).filter(m => m.id !== materialId);
+        onUpdate(moduleId, lesson.id, 'complementaryMaterials', updatedMaterials);
+    };
+
+    return (
+        <Reorder.Item
+            value={lesson}
+            dragListener={false}
+            dragControls={dragControls}
+            className="p-3 space-y-3 rounded-md border bg-background/50 transition-shadow"
+            whileDrag={{ boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1), 0 2px 4px -1px rgba(0,0,0,0.06)' }}
+        >
+            <div className="flex items-center gap-2">
+                <GripVertical
+                    className="h-5 w-5 text-muted-foreground cursor-grab"
+                    onPointerDown={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        dragControls.start(e);
+                    }}
                 />
-            </TabsContent>
-        </Tabs>
-      </div>
-
-       {/* Complementary Content Section */}
-       <div className="space-y-3 pt-4 mt-4 border-t border-border/50">
-        <h5 className="text-sm font-semibold text-white flex items-center gap-2"><Book className="h-4 w-4 text-primary" />Conteúdo Complementar</h5>
-        {(lesson.complementaryMaterials || []).map((material) => (
-            <div key={material.id} className="flex items-center gap-2 p-2 rounded-md bg-secondary/40 border border-border/50">
-                <div className="flex-grow space-y-2">
-                     <Input
-                        placeholder="Título do material"
-                        value={material.title}
-                        onChange={(e) => handleUpdateMaterial(material.id, 'title', e.target.value)}
-                        className="h-8 text-xs"
-                    />
-                     <Input
-                        placeholder="URL do material"
-                        value={material.url}
-                        onChange={(e) => handleUpdateMaterial(material.id, 'url', e.target.value)}
-                        className="h-8 text-xs"
+                <Input
+                    placeholder="Título da Aula"
+                    value={lesson.title}
+                    onChange={(e) => onUpdate(moduleId, lesson.id, 'title', e.target.value)}
+                    className="h-9 flex-grow"
+                />
+                <div className="relative w-36">
+                    <CalendarDays className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                        type="number"
+                        placeholder="Dias"
+                        value={lesson.releaseDelayDays || ''}
+                        onChange={(e) => onUpdate(moduleId, lesson.id, 'releaseDelayDays', Number(e.target.value))}
+                        className="h-9 pl-8"
+                        min={0}
                     />
                 </div>
-                <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoveMaterial(material.id)}>
+                <Button type="button" variant="ghost" size="icon" onClick={() => onRemove(moduleId, lesson.id, lesson.title)}>
                     <Trash2 className="h-4 w-4 text-destructive/70" />
                 </Button>
             </div>
-        ))}
-         <Button type="button" variant="link" size="sm" className="w-full" onClick={handleAddMaterial}>
-            <Plus className="mr-2 h-4 w-4" /> Adicionar Material
-        </Button>
-      </div>
-    </Reorder.Item>
-  );
+
+            <Textarea
+                placeholder="Adicione uma descrição para a aula..."
+                value={lesson.description}
+                onChange={(e) => onUpdate(moduleId, lesson.id, 'description', e.target.value)}
+                className="min-h-[80px]"
+            />
+
+            {/* Main Video Section */}
+            <div className="space-y-2 pt-2">
+                <h5 className="text-sm font-semibold text-white flex items-center gap-2"><FileVideo className="h-4 w-4 text-primary" />Vídeo Principal</h5>
+                {lesson.videoUrl && !isDriveLink && (
+                    <div className="aspect-video w-full rounded-md overflow-hidden bg-muted my-2">
+                        <ReactPlayer
+                            url={lesson.videoUrl}
+                            width="100%"
+                            height="100%"
+                            controls={true}
+                            light={false}
+                            playing={false}
+                        />
+                    </div>
+                )}
+
+                {isDriveLink && (
+                    <div className="my-2 p-3 rounded-md bg-secondary/50 border border-blue-500/50 flex items-center gap-3">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-blue-400 flex-shrink-0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="m10.4 17.6 1.6-1.6"></path><path d="m12 16 3-3"></path><path d="m11.2 14.8 3.2-3.2"></path></svg>
+                        <div>
+                            <p className="text-sm font-medium text-white">Link do Google Drive Anexado</p>
+                            <p className="text-xs text-muted-foreground truncate">{lesson.videoUrl}</p>
+                        </div>
+                    </div>
+                )}
+
+                <Tabs defaultValue="url" className="w-full">
+                    <TabsList className="grid w-full grid-cols-2 h-8">
+                        <TabsTrigger value="upload" className="text-xs">Enviar Mídia</TabsTrigger>
+                        <TabsTrigger value="url" className="text-xs">Usar URL</TabsTrigger>
+                    </TabsList>
+                    <TabsContent value="upload" className="mt-2">
+                        <label htmlFor={`lesson-video-upload-${lesson.id}`} className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground hover:text-white border border-dashed rounded-md p-2 justify-center bg-background/50">
+                            <Upload className="h-3 w-3" /><span>{videoFile ? videoFile.name : 'Selecionar arquivo (vídeo, pdf...)'}</span>
+                        </label>
+                        <Input id={`lesson-video-upload-${lesson.id}`} type="file" accept="video/*,application/pdf,image/*" onChange={handleVideoFileChange} className="hidden" />
+                        {videoUploadProgress !== null && (<Progress value={videoUploadProgress} className="w-full h-1 mt-2" />)}
+                    </TabsContent>
+                    <TabsContent value="url" className="mt-2">
+                        <Input
+                            placeholder="URL do Vídeo (YouTube, Vimeo) ou Link (Google Drive)"
+                            value={lesson.videoUrl}
+                            onChange={(e) => onUpdate(moduleId, lesson.id, 'videoUrl', e.target.value)}
+                            className="h-8 text-xs"
+                        />
+                    </TabsContent>
+                </Tabs>
+            </div>
+
+            {/* Complementary Content Section */}
+            <div className="space-y-3 pt-4 mt-4 border-t border-border/50">
+                <h5 className="text-sm font-semibold text-white flex items-center gap-2"><Book className="h-4 w-4 text-primary" />Conteúdo Complementar</h5>
+                {(lesson.complementaryMaterials || []).map((material) => (
+                   <ComplementaryMaterialEditor 
+                        key={material.id}
+                        material={material}
+                        moduleId={moduleId}
+                        lessonId={lesson.id}
+                        onUpdate={handleUpdateMaterial}
+                        onRemove={handleRemoveMaterial}
+                   />
+                ))}
+                <Button type="button" variant="link" size="sm" className="w-full" onClick={handleAddMaterial}>
+                    <Plus className="mr-2 h-4 w-4" /> Adicionar Material
+                </Button>
+            </div>
+        </Reorder.Item>
+    );
 }
 
+interface ComplementaryMaterialEditorProps {
+    material: ComplementaryMaterial;
+    moduleId: string;
+    lessonId: string;
+    onUpdate: (materialId: string, field: keyof Omit<ComplementaryMaterial, 'id'>, value: string) => void;
+    onRemove: (materialId: string) => void;
+}
+
+function ComplementaryMaterialEditor({ material, moduleId, lessonId, onUpdate, onRemove }: ComplementaryMaterialEditorProps) {
+    const { toast } = useToast();
+    const [file, setFile] = useState<File | null>(null);
+    const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+
+    const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        const selectedFile = event.target.files?.[0];
+        if (selectedFile) {
+            setFile(selectedFile);
+            setUploadProgress(0);
+
+            const storage = getStorage();
+            const storageRef = ref(storage, `courses/lessons/${moduleId}/${lessonId}/complementary/${Date.now()}-${selectedFile.name}`);
+            const uploadTask = uploadBytesResumable(storageRef, selectedFile);
+
+            uploadTask.on('state_changed',
+                (snapshot) => setUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
+                (error) => {
+                    console.error("Upload failed: ", error);
+                    toast({ variant: "destructive", title: "Erro de Upload", description: "Não foi possível enviar o material." });
+                    setUploadProgress(null);
+                },
+                () => {
+                    getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+                        onUpdate(material.id, 'url', downloadURL);
+                        toast({ title: "Sucesso!", description: "Material complementar enviado." });
+                        setUploadProgress(null);
+                        setFile(null);
+                    });
+                }
+            );
+        }
+    };
+    
+    return (
+        <div className="flex flex-col gap-2 p-3 rounded-md bg-secondary/40 border border-border/50">
+             <div className="flex justify-between items-start">
+                <Input
+                    placeholder="Título do material"
+                    value={material.title}
+                    onChange={(e) => onUpdate(material.id, 'title', e.target.value)}
+                    className="h-8 text-xs flex-grow"
+                />
+                <Button type="button" variant="ghost" size="icon" onClick={() => onRemove(material.id)}>
+                    <Trash2 className="h-4 w-4 text-destructive/70" />
+                </Button>
+            </div>
+
+            <Tabs defaultValue="url" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 h-8">
+                    <TabsTrigger value="upload" className="text-xs">Enviar Arquivo</TabsTrigger>
+                    <TabsTrigger value="url" className="text-xs">Usar URL</TabsTrigger>
+                </TabsList>
+                <TabsContent value="upload" className="mt-2">
+                    <label htmlFor={`material-upload-${material.id}`} className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground hover:text-white border border-dashed rounded-md p-2 justify-center bg-background/50">
+                        <Upload className="h-3 w-3" /><span>{file ? file.name : 'Selecionar arquivo'}</span>
+                    </label>
+                    <Input id={`material-upload-${material.id}`} type="file" onChange={handleFileChange} className="hidden" />
+                    {uploadProgress !== null && (<Progress value={uploadProgress} className="w-full h-1 mt-2" />)}
+                </TabsContent>
+                <TabsContent value="url" className="mt-2">
+                     <Input
+                        placeholder="URL do material"
+                        value={material.url}
+                        onChange={(e) => onUpdate(material.id, 'url', e.target.value)}
+                        className="h-8 text-xs"
+                    />
+                </TabsContent>
+            </Tabs>
+        </div>
+    );
+}
 
 export default function EditCoursePage() {
     return (
@@ -878,3 +923,5 @@ export default function EditCoursePage() {
         </AdminGuard>
     )
 }
+
+    
