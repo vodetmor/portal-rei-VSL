@@ -1,11 +1,11 @@
 'use client';
-import { useUser } from '@/firebase';
+import { useUser, useFirestore } from '@/firebase';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { CourseCard } from '@/components/course-card';
 import { Skeleton } from '@/components/ui/skeleton';
 import placeholderData from '@/lib/placeholder-images.json';
-import type { DocumentData } from 'firebase/firestore';
+import { doc, getDoc, type DocumentData } from 'firebase/firestore';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -22,9 +22,11 @@ interface Course extends DocumentData {
 
 export default function DashboardPage() {
   const { user, loading: userLoading } = useUser();
+  const firestore = useFirestore();
   const router = useRouter();
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     if (!userLoading && !user) {
@@ -33,7 +35,38 @@ export default function DashboardPage() {
   }, [user, userLoading, router]);
 
   useEffect(() => {
+    const checkAdminRole = async () => {
+      if (user && firestore) {
+        if (user.email === 'admin@reidavsl.com') {
+          setIsAdmin(true);
+          return;
+        }
+        const userDocRef = doc(firestore, 'users', user.uid);
+        const userDoc = await getDoc(userDocRef);
+        if (userDoc.exists() && userDoc.data().role === 'admin') {
+          setIsAdmin(true);
+        } else {
+          setIsAdmin(false);
+        }
+      } else {
+        setIsAdmin(false);
+      }
+    };
+
+    if (user) {
+      checkAdminRole();
+    }
+  }, [user, firestore]);
+
+  useEffect(() => {
     setLoading(true);
+    // In a real app, you'd fetch courses from Firestore here
+    // For now, we use placeholder data
+    const featuredCourses = placeholderData.placeholderCourses.filter(c => c.isFeatured);
+    const regularCourses = placeholderData.placeholderCourses.filter(c => !c.isFeatured);
+    
+    // In a real app with Firestore data, you would fetch and sort.
+    // For this placeholder version, we just use the data as is.
     setCourses(placeholderData.placeholderCourses as Course[]);
     setLoading(false);
   }, []);
@@ -87,8 +120,7 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
             {Array.from({ length: 5 }).map((_, index) => (
                 <div key={index} className="space-y-2">
-                    <Skeleton className="h-[125px] w-full rounded-xl" />
-                    <Skeleton className="h-4 w-[200px]" />
+                    <Skeleton className="h-[333px] w-full rounded-xl" />
                 </div>
             ))}
           </div>
@@ -96,7 +128,7 @@ export default function DashboardPage() {
           <Carousel
             opts={{
               align: "start",
-              loop: true,
+              loop: courses.length > 5, // Only loop if there are more courses than can be shown
             }}
             className="w-full"
           >
@@ -109,6 +141,7 @@ export default function DashboardPage() {
                     imageUrl={course.thumbnailUrl}
                     imageHint={course.imageHint}
                     priority={index < 5}
+                    isAdmin={isAdmin}
                   />
                 </CarouselItem>
               ))}
