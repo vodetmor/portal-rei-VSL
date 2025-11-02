@@ -361,7 +361,7 @@ export default function DashboardPage() {
     <AlertDialog onOpenChange={(open) => !open && setCourseToDelete(null)}>
       <div className="w-full">
         {/* Hero Section */}
-        <section className="relative flex h-[60vh] min-h-[500px] w-full flex-col items-center justify-center py-12">
+        <section className="relative flex h-[60vh] min-h-[450px] w-full flex-col items-center justify-center py-12">
           {contentLoading ? <Skeleton className="absolute inset-0 z-0" /> : (
               <div className="absolute inset-0 z-0">
                 <Image
@@ -467,7 +467,7 @@ export default function DashboardPage() {
         </section>
 
         {/* Members Area Section */}
-        <section className="container mx-auto px-4 py-16 md:px-8 -mt-24 space-y-12">
+        <section className="container mx-auto px-4 py-16 md:px-8 -mt-20 space-y-12">
           
           {/* Featured Carousel */}
           <div>
