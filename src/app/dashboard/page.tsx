@@ -87,13 +87,21 @@ function DashboardClientPage() {
   
   const SelectedIcon = iconMap[isEditMode ? tempMembersIcon : layoutData.membersIcon] || Trophy;
 
-  const cleanHtml = (html: string) => html.replace(/<[^>]*>?/gm, '');
+  // Converts saved HTML (with span) to editable markdown (with *)
+  const htmlToMarkdown = (html: string) => {
+    return html.replace(/<span class='text-primary'>(.*?)<\/span>/, '*$1*');
+  };
+
+  // Converts editable markdown (with *) to saveable HTML (with span)
+  const markdownToHtml = (markdown: string) => {
+    return markdown.replace(/\*(.*?)\*/, "<span class='text-primary'>$1</span>");
+  };
 
   const enterEditMode = () => {
-    setTempHeroTitle(cleanHtml(layoutData.heroTitle));
+    setTempHeroTitle(htmlToMarkdown(layoutData.heroTitle));
     setTempHeroSubtitle(layoutData.heroSubtitle);
     setTempHeroImage(layoutData.heroImage);
-    setTempMembersTitle(cleanHtml(layoutData.membersTitle));
+    setTempMembersTitle(htmlToMarkdown(layoutData.membersTitle));
     setTempMembersSubtitle(layoutData.membersSubtitle);
     setTempMembersIcon(layoutData.membersIcon);
     
@@ -156,15 +164,6 @@ function DashboardClientPage() {
     });
   };
 
-  const highlightLastWord = (text: string) => {
-    const words = text.trim().split(' ');
-    if (words.length > 1) {
-      const lastWord = words.pop();
-      return `${words.join(' ')} <span class='text-primary'>${lastWord}</span>`;
-    }
-    return text;
-  };
-
   const handleSaveChanges = async () => {
     if (!firestore) return;
     setIsSaving(true);
@@ -186,10 +185,10 @@ function DashboardClientPage() {
     const layoutRef = doc(firestore, 'layout', 'dashboard-hero');
     try {
       const dataToSave = {
-        title: highlightLastWord(tempHeroTitle),
+        title: markdownToHtml(tempHeroTitle),
         subtitle: tempHeroSubtitle,
         imageUrl: finalHeroImageUrl,
-        membersTitle: highlightLastWord(tempMembersTitle),
+        membersTitle: markdownToHtml(tempMembersTitle),
         membersSubtitle: tempMembersSubtitle,
         membersIcon: tempMembersIcon,
       };
@@ -214,13 +213,11 @@ function DashboardClientPage() {
       setIsEditMode(false);
     } catch (error) {
       console.error("Error saving layout:", error);
-      // NOTE: This part requires the dataToSave object to be defined.
-      // This is a placeholder for the actual data.
       const dataForError = {
-        title: highlightLastWord(tempHeroTitle),
+        title: markdownToHtml(tempHeroTitle),
         subtitle: tempHeroSubtitle,
         imageUrl: finalHeroImageUrl,
-        membersTitle: highlightLastWord(tempMembersTitle),
+        membersTitle: markdownToHtml(tempMembersTitle),
         membersSubtitle: tempMembersSubtitle,
         membersIcon: tempMembersIcon,
       };
