@@ -503,13 +503,13 @@ export default function DashboardPage() {
                     </div>
                   </div>
                 ) : (
-                    <>
-                    <SelectedIcon className="h-10 w-10 text-primary" />
-                    <div>
-                        <h2 className="text-2xl font-bold text-white" dangerouslySetInnerHTML={{ __html: membersTitle }} />
-                        <p className="text-sm text-muted-foreground">{membersSubtitle}</p>
+                    <div className="flex items-center gap-4">
+                        <SelectedIcon className="h-10 w-10 text-primary" />
+                        <div>
+                            <h2 className="text-2xl font-bold text-white" dangerouslySetInnerHTML={{ __html: membersTitle }} />
+                            <p className="text-sm text-muted-foreground">{membersSubtitle}</p>
+                        </div>
                     </div>
-                    </>
                 )}
             </div>
             
