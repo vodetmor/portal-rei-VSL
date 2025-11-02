@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { CourseCard } from '@/components/course-card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { doc, getDoc, collection, getDocs, setDoc, type DocumentData } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, setDoc, deleteDoc, type DocumentData } from 'firebase/firestore';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
@@ -17,7 +17,17 @@ import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 
 interface Course extends DocumentData {
   id: string;
@@ -60,7 +70,7 @@ export default function DashboardPage() {
   const [membersTitle, setMembersTitle] = useState(DEFAULT_MEMBERS_TITLE);
   const [membersSubtitle, setMembersSubtitle] = useState(DEFAULT_MEMBERS_SUBTITLE);
   const [membersIcon, setMembersIcon] = useState(DEFAULT_MEMBERS_ICON);
-
+  const [courseToDelete, setCourseToDelete] = useState<string | null>(null);
 
   const [isUploading, setIsUploading] = useState(false);
   const [contentLoading, setContentLoading] = useState(true);
@@ -88,6 +98,26 @@ export default function DashboardPage() {
     }
   }, [firestore]);
   
+  const handleConfirmDelete = async () => {
+    if (!firestore || !courseToDelete) return;
+    try {
+      await deleteDoc(doc(firestore, 'courses', courseToDelete));
+      toast({
+        title: "Curso Excluído",
+        description: "O curso foi removido com sucesso.",
+      })
+      fetchCourses(); // Re-fetch courses to update the UI
+    } catch (error) {
+      console.error("Error deleting course: ", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao Excluir",
+        description: "Não foi possível excluir o curso. Verifique as permissões."
+      });
+    } finally {
+      setCourseToDelete(null); // Close the dialog
+    }
+  };
 
 
   const handleSaveChanges = useCallback(async () => {
@@ -272,191 +302,208 @@ export default function DashboardPage() {
   }
   
   return (
-    <div className="w-full" data-edit-mode={isEditMode}>
-      {/* Hero Section */}
-      <section className="relative flex h-[60vh] min-h-[500px] w-full flex-col items-center justify-center bg-black py-12 md:h-screen">
-        {contentLoading ? <Skeleton className="absolute inset-0 z-0" /> : (
-            <>
-              {/* Background Image and Overlay Container */}
-              <div className="absolute inset-0 z-0">
-                  <Image
-                    src={heroImage}
-                    alt="Hero background"
-                    fill
-                    className="object-cover"
-                    data-ai-hint="digital art collage"
-                    priority
-                  />
-                  <div className="absolute inset-0 bg-black/70" />
-              </div>
-              
-              {/* Interactive container for editing */}
-              <div 
-                  data-editable={isEditMode}
-                  className={cn(
-                    "absolute inset-0 z-10 flex items-center justify-center",
-                    isEditMode && "cursor-pointer"
-                  )}
-                  onClick={handleImageContainerClick}
-              >
-                  {isUploading && (
-                      <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-20">
-                          <div className="h-10 w-10 animate-spin rounded-full border-4 border-white border-t-transparent" />
-                      </div>
-                  )}
-                   {isEditMode && !isUploading && (
-                      <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300 bg-black/30">
-                          <div className="flex flex-col items-center text-white">
-                              <UploadCloud className="h-12 w-12" />
-                              <p className="font-semibold mt-2">Trocar Imagem de Fundo</p>
-                          </div>
-                      </div>
-                  )}
-              </div>
-              
-              <input
-                type="file"
-                ref={fileInputRef}
-                onChange={handleImageUpload}
-                className="hidden"
-                accept="image/png, image/jpeg, image/webp"
-              />
-            </>
-        )}
-
-        <div className="relative z-20 mx-auto flex max-w-4xl flex-col items-start px-4 text-left">
-          {isEditMode ? (
-            <div data-editable="true" className="w-full">
-              <Input
-                type="text"
-                value={heroTitle.replace(/<[^>]+>/g, '')} // Remove HTML for editing
-                onChange={(e) => setHeroTitle(e.target.value.replace(/<[^>]+>/g, '') + " <span class='text-primary'>começa aqui</span>.")}
-                className="w-full text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl bg-transparent border-dashed"
-              />
-            </div>
-          ) : (
-            <h1 className="text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl"
-                dangerouslySetInnerHTML={{ __html: heroTitle }}
-            />
-          )}
-
-          {isEditMode ? (
-             <div data-editable="true" className="w-full mt-4">
-              <Textarea
-                  value={heroSubtitle}
-                  onChange={(e) => setHeroSubtitle(e.target.value)}
-                  className="max-w-2xl text-lg text-muted-foreground md:text-xl bg-transparent border-dashed"
-                />
-             </div>
-          ) : (
-            <p className="mt-4 max-w-2xl text-lg text-muted-foreground md:text-xl">
-              {heroSubtitle}
-            </p>
-          )}
-
-          <div data-editable={isEditMode} className="mt-8">
-            <Button asChild size="lg">
-              <Link href="#">Começar Agora</Link>
-            </Button>
-          </div>
-        </div>
-      </section>
-
-      {/* Members Area Section */}
-      <section className="container mx-auto px-4 py-16 md:px-8">
-        <div className="mb-8 flex justify-between items-center">
-          <div>
-            <div className="flex items-center gap-3 text-2xl font-bold text-white">
-                 {isEditMode ? (
-                    <div data-editable="true">
-                        <Select value={membersIcon} onValueChange={setMembersIcon}>
-                            <SelectTrigger className="w-[180px] bg-transparent border-dashed">
-                                <SelectValue placeholder="Selecione um ícone" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="Trophy"><Trophy className="inline-block mr-2 h-4 w-4" /> Troféu</SelectItem>
-                                <SelectItem value="Gem"><Gem className="inline-block mr-2 h-4 w-4" /> Joia</SelectItem>
-                                <SelectItem value="Crown"><Crown className="inline-block mr-2 h-4 w-4" /> Coroa</SelectItem>
-                                <SelectItem value="Star"><Star className="inline-block mr-2 h-4 w-4" /> Estrela</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                ) : (
-                    <MembersIconComponent className="h-7 w-7 text-primary" />
-                )}
-
-                {isEditMode ? (
-                    <div data-editable="true" className="flex-grow">
-                        <Input 
-                            value={membersTitle}
-                            onChange={(e) => setMembersTitle(e.target.value)}
-                            className="text-2xl font-bold text-white bg-transparent border-dashed p-0 h-auto"
-                        />
-                    </div>
-                ) : (
-                    <h2>{membersTitle}</h2>
-                )}
-            </div>
-             <div className="text-muted-foreground" data-editable={isEditMode}>
-                {isEditMode ? (
-                    <div data-editable="true" className="pl-10">
-                         <Input 
-                            value={membersSubtitle}
-                            onChange={(e) => setMembersSubtitle(e.target.value)}
-                            className="text-base text-muted-foreground bg-transparent border-dashed p-0 h-auto"
-                        />
-                    </div>
-                ) : (
-                    <p className="pl-10">{membersSubtitle}</p>
-                )}
-             </div>
-          </div>
-          {isAdmin && (
-            <Button asChild>
-              <Link href="/admin/add-course">
-                <Plus className="mr-2 h-4 w-4" /> Adicionar Curso
-              </Link>
-            </Button>
-          )}
-        </div>
-        
-        {loading ? (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
-            {Array.from({ length: 5 }).map((_, index) => (
-                <div key={index} className="space-y-2">
-                    <Skeleton className="h-[333px] w-full rounded-xl" />
+    <AlertDialog onOpenChange={(open) => !open && setCourseToDelete(null)}>
+      <div className="w-full" data-edit-mode={isEditMode}>
+        {/* Hero Section */}
+        <section className="relative flex h-[60vh] min-h-[500px] w-full flex-col items-center justify-center bg-black py-12 md:h-screen">
+          {contentLoading ? <Skeleton className="absolute inset-0 z-0" /> : (
+              <>
+                {/* Background Image and Overlay Container */}
+                <div className="absolute inset-0 z-0">
+                    <Image
+                      src={heroImage}
+                      alt="Hero background"
+                      fill
+                      className="object-cover"
+                      data-ai-hint="digital art collage"
+                      priority
+                    />
+                    <div className="absolute inset-0 bg-black/70" />
                 </div>
-            ))}
+                
+                {/* Interactive container for editing */}
+                <div 
+                    data-editable={isEditMode}
+                    className={cn(
+                      "absolute inset-0 z-10 flex items-center justify-center",
+                      isEditMode && "cursor-pointer"
+                    )}
+                    onClick={handleImageContainerClick}
+                >
+                    {isUploading && (
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-20">
+                            <div className="h-10 w-10 animate-spin rounded-full border-4 border-white border-t-transparent" />
+                        </div>
+                    )}
+                    {isEditMode && !isUploading && (
+                        <div className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity duration-300 bg-black/30">
+                            <div className="flex flex-col items-center text-white">
+                                <UploadCloud className="h-12 w-12" />
+                                <p className="font-semibold mt-2">Trocar Imagem de Fundo</p>
+                            </div>
+                        </div>
+                    )}
+                </div>
+                
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleImageUpload}
+                  className="hidden"
+                  accept="image/png, image/jpeg, image/webp"
+                />
+              </>
+          )}
+
+          <div className="relative z-20 mx-auto flex max-w-4xl flex-col items-start px-4 text-left">
+            {isEditMode ? (
+              <div data-editable="true" className="w-full">
+                <Input
+                  type="text"
+                  value={heroTitle.replace(/<[^>]+>/g, '')} // Remove HTML for editing
+                  onChange={(e) => setHeroTitle(e.target.value.replace(/<[^>]+>/g, '') + " <span class='text-primary'>começa aqui</span>.")}
+                  className="w-full text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl bg-transparent border-dashed"
+                />
+              </div>
+            ) : (
+              <h1 className="text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl"
+                  dangerouslySetInnerHTML={{ __html: heroTitle }}
+              />
+            )}
+
+            {isEditMode ? (
+              <div data-editable="true" className="w-full mt-4">
+                <Textarea
+                    value={heroSubtitle}
+                    onChange={(e) => setHeroSubtitle(e.target.value)}
+                    className="max-w-2xl text-lg text-muted-foreground md:text-xl bg-transparent border-dashed"
+                  />
+              </div>
+            ) : (
+              <p className="mt-4 max-w-2xl text-lg text-muted-foreground md:text-xl">
+                {heroSubtitle}
+              </p>
+            )}
+
+            <div data-editable={isEditMode} className="mt-8">
+              <Button asChild size="lg">
+                <Link href="#">Começar Agora</Link>
+              </Button>
+            </div>
           </div>
-        ) : (
-          <Carousel
-            opts={{
-              align: "start",
-              loop: courses.length > 5, // Only loop if there are more courses than can be shown
-            }}
-            className="w-full"
-          >
-            <CarouselContent>
-              {courses.map((course, index) => (
-                <CarouselItem key={course.id} className="md:basis-1/2 lg:basis-1/3 xl:basis-1/4 2xl:basis-1/5">
-                   <div data-editable={isEditMode} className="h-full">
-                      <CourseCard
-                        id={course.id}
-                        title={course.title}
-                        imageUrl={course.thumbnailUrl}
-                        imageHint={course.imageHint || 'abstract'}
-                        priority={index < 5}
-                        isAdmin={isAdmin}
-                      />
-                   </div>
-                </CarouselItem>
+        </section>
+
+        {/* Members Area Section */}
+        <section className="container mx-auto px-4 py-16 md:px-8">
+          <div className="mb-8 flex justify-between items-center">
+            <div>
+              <div className="flex items-center gap-3 text-2xl font-bold text-white">
+                  {isEditMode ? (
+                      <div data-editable="true">
+                          <Select value={membersIcon} onValueChange={setMembersIcon}>
+                              <SelectTrigger className="w-[180px] bg-transparent border-dashed">
+                                  <SelectValue placeholder="Selecione um ícone" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                  <SelectItem value="Trophy"><Trophy className="inline-block mr-2 h-4 w-4" /> Troféu</SelectItem>
+                                  <SelectItem value="Gem"><Gem className="inline-block mr-2 h-4 w-4" /> Joia</SelectItem>
+                                  <SelectItem value="Crown"><Crown className="inline-block mr-2 h-4 w-4" /> Coroa</SelectItem>
+                                  <SelectItem value="Star"><Star className="inline-block mr-2 h-4 w-4" /> Estrela</SelectItem>
+                              </SelectContent>
+                          </Select>
+                      </div>
+                  ) : (
+                      <MembersIconComponent className="h-7 w-7 text-primary" />
+                  )}
+
+                  {isEditMode ? (
+                      <div data-editable="true" className="flex-grow">
+                          <Input 
+                              value={membersTitle}
+                              onChange={(e) => setMembersTitle(e.target.value)}
+                              className="text-2xl font-bold text-white bg-transparent border-dashed p-0 h-auto"
+                          />
+                      </div>
+                  ) : (
+                      <h2>{membersTitle}</h2>
+                  )}
+              </div>
+              <div className="text-muted-foreground" data-editable={isEditMode}>
+                  {isEditMode ? (
+                      <div data-editable="true" className="pl-10">
+                          <Input 
+                              value={membersSubtitle}
+                              onChange={(e) => setMembersSubtitle(e.target.value)}
+                              className="text-base text-muted-foreground bg-transparent border-dashed p-0 h-auto"
+                          />
+                      </div>
+                  ) : (
+                      <p className="pl-10">{membersSubtitle}</p>
+                  )}
+              </div>
+            </div>
+            {isAdmin && (
+              <Button asChild>
+                <Link href="/admin/add-course">
+                  <Plus className="mr-2 h-4 w-4" /> Adicionar Curso
+                </Link>
+              </Button>
+            )}
+          </div>
+          
+          {loading ? (
+            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+              {Array.from({ length: 5 }).map((_, index) => (
+                  <div key={index} className="space-y-2">
+                      <Skeleton className="h-[333px] w-full rounded-xl" />
+                  </div>
               ))}
-            </CarouselContent>
-            <CarouselPrevious className="hidden md:flex" />
-            <CarouselNext className="hidden md:flex" />
-          </Carousel>
-        )}
-      </section>
-    </div>
+            </div>
+          ) : (
+            <Carousel
+              opts={{
+                align: "start",
+                loop: courses.length > 5, // Only loop if there are more courses than can be shown
+              }}
+              className="w-full"
+            >
+              <CarouselContent>
+                {courses.map((course, index) => (
+                  <CarouselItem key={course.id} className="md:basis-1/2 lg:basis-1/3 xl:basis-1/4 2xl:basis-1/5">
+                    <div data-editable={isEditMode} className="h-full">
+                        <AlertDialogTrigger asChild>
+                          <CourseCard
+                            id={course.id}
+                            title={course.title}
+                            imageUrl={course.thumbnailUrl}
+                            imageHint={course.imageHint || 'abstract'}
+                            priority={index < 5}
+                            isAdmin={isAdmin}
+                            onDelete={setCourseToDelete}
+                          />
+                        </AlertDialogTrigger>
+                    </div>
+                  </CarouselItem>
+                ))}
+              </CarouselContent>
+              <CarouselPrevious className="hidden md:flex" />
+              <CarouselNext className="hidden md:flex" />
+            </Carousel>
+          )}
+        </section>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+            <AlertDialogDescription>
+                Esta ação não pode ser desfeita. Isso irá excluir permanentemente o curso.
+            </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction onClick={handleConfirmDelete}>Excluir</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </div>
+    </AlertDialog>
   );
 }
