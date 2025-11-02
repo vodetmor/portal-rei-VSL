@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useFirestore, useUser, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useUser, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { doc, getDoc, updateDoc, serverTimestamp, setDoc, addDoc, collection, query, orderBy, deleteDoc, writeBatch } from 'firebase/firestore';
 import ReactPlayer from 'react-player/lazy';
 import { formatDistanceToNow } from 'date-fns';
@@ -280,53 +280,80 @@ export default function LessonPage() {
     return { likes, dislikes, userReaction };
   }, [reactions, user]);
 
-  const handleReaction = async (type: 'like' | 'dislike') => {
+  const handleReaction = (type: 'like' | 'dislike') => {
     if (!user || !firestore || !courseId || !lessonId) return;
 
     const reactionRef = doc(firestore, `courses/${courseId}/lessons/${lessonId}/reactions`, user.uid);
+    const reactionData = { userId: user.uid, type };
     
     if (userReaction === type) {
       // User is toggling off their reaction
-      await deleteDoc(reactionRef);
+      deleteDoc(reactionRef).catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: reactionRef.path,
+            operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
     } else {
       // User is setting or changing their reaction
-      await setDoc(reactionRef, { userId: user.uid, type });
+      setDoc(reactionRef, reactionData).catch(async (serverError) => {
+        const permissionError = new FirestorePermissionError({
+            path: reactionRef.path,
+            operation: 'write',
+            requestResourceData: reactionData,
+        });
+        errorEmitter.emit('permission-error', permissionError);
+      });
     }
   };
 
-  const handleCommentSubmit = async (e: React.FormEvent) => {
+  const handleCommentSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || !firestore || !newComment.trim() || !courseId || !lessonId) return;
     
     setIsSubmittingComment(true);
-    try {
-      const commentsCollectionRef = collection(firestore, `courses/${courseId}/lessons/${lessonId}/comments`);
-      await addDoc(commentsCollectionRef, {
+    const commentsCollectionRef = collection(firestore, `courses/${courseId}/lessons/${lessonId}/comments`);
+    const commentData = {
         userId: user.uid,
         userDisplayName: user.displayName,
         userPhotoURL: user.photoURL,
         text: newComment,
         timestamp: serverTimestamp(),
-      });
-      setNewComment('');
-    } catch (error) {
-      console.error("Error posting comment:", error);
-      toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível postar o comentário.' });
-    } finally {
-      setIsSubmittingComment(false);
-    }
+    };
+
+    addDoc(commentsCollectionRef, commentData)
+        .then(() => {
+            setNewComment('');
+        })
+        .catch(async (serverError) => {
+            const permissionError = new FirestorePermissionError({
+                path: commentsCollectionRef.path,
+                operation: 'create',
+                requestResourceData: commentData,
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        })
+        .finally(() => {
+            setIsSubmittingComment(false);
+        });
   };
 
-  const handleDeleteComment = async (commentId: string) => {
+  const handleDeleteComment = (commentId: string) => {
     if (!firestore || !courseId || !lessonId) return;
     const commentRef = doc(firestore, `courses/${courseId}/lessons/${lessonId}/comments`, commentId);
-    try {
-      await deleteDoc(commentRef);
-      toast({ title: 'Comentário excluído.' });
-    } catch (error) {
-       console.error("Error deleting comment:", error);
-      toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível excluir o comentário.' });
-    }
+    
+    deleteDoc(commentRef)
+        .then(() => {
+            toast({ title: 'Comentário excluído.' });
+        })
+        .catch(async (serverError) => {
+            const permissionError = new FirestorePermissionError({
+                path: commentRef.path,
+                operation: 'delete',
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        });
   };
 
 
