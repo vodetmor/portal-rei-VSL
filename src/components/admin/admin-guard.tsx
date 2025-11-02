@@ -14,7 +14,10 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
 
   useEffect(() => {
     const checkRole = async () => {
-      if (loading) return;
+      if (loading) {
+        setIsChecking(true);
+        return;
+      }
 
       if (!user) {
         router.replace('/login');
@@ -35,24 +38,29 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
             if (userDoc.exists() && userDoc.data().role === 'admin') {
               setIsAdmin(true);
             } else {
-              // Non-admins shouldn't access admin pages, redirect them.
-              // Allow access for this check to complete on non-admin pages.
-              // The page using the guard will handle the final redirection if needed.
               setIsAdmin(false);
+              router.replace('/dashboard');
             }
         } catch (error) {
             console.error("Error checking admin role:", error);
-            // If we can't check the role, assume not admin and redirect.
+            setIsAdmin(false);
             router.replace('/dashboard');
+        } finally {
+             setIsChecking(false);
         }
+      } else {
+         // If firestore is not available, we can't verify role.
+         // Default to non-admin and redirect for safety.
+         setIsAdmin(false);
+         setIsChecking(false);
+         router.replace('/dashboard');
       }
-      setIsChecking(false);
     };
 
     checkRole();
   }, [user, loading, firestore, router]);
 
-  if (isChecking) {
+  if (isChecking || !isAdmin) {
      return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
@@ -60,20 +68,5 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
     );
   }
 
-  if (isAdmin) {
-    return <>{children}</>;
-  }
-
-  // If not checking and not admin, redirect.
-  // This might cause a flash of content if the check is slow.
-  // A better approach is often to handle this at the page level.
-  // For a simple guard, this is a reasonable default.
-  useEffect(() => {
-    if (!isChecking && !isAdmin) {
-      router.replace('/dashboard');
-    }
-  }, [isChecking, isAdmin, router]);
-
-  // Render nothing while redirecting
-  return null;
+  return <>{children}</>;
 }
