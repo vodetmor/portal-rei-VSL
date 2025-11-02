@@ -5,7 +5,6 @@ import { FirebaseClientProvider } from "@/firebase/client-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { Header } from "@/components/ui/header-2";
 import { LayoutProvider } from "@/context/layout-context";
-import { GlassFilter } from "@/components/ui/glass-filter";
 
 
 const poppins = Poppins({
@@ -32,7 +31,6 @@ export default function RootLayout({
       <body className={poppins.className}>
         <FirebaseClientProvider>
           <LayoutProvider>
-            <GlassFilter />
             <Header />
             <main>{children}</main>
             <Toaster />

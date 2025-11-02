@@ -95,8 +95,7 @@ export function Header() {
                 !isEditMode && 'sticky top-0',
 				{
 					'bg-transparent': !scrolled && !open,
-					'bg-background/80': scrolled || open,
-					'glass-effect': scrolled || open,
+					'bg-background/80 backdrop-blur-md': scrolled || open,
 				}
 			)}
 		>

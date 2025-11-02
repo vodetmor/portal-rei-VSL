@@ -46,10 +46,3 @@
     -moz-osx-font-smoothing: grayscale;
   }
 }
-
-@layer utilities {
-  .glass-effect {
-    -webkit-backdrop-filter: blur(16px);
-    backdrop-filter: blur(16px);
-  }
-}
