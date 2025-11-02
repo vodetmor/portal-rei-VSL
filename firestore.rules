@@ -70,8 +70,8 @@ service cloud.firestore {
 
     match /courses/{courseId}/lessons/{lessonId}/reactions/{reactionId} {
       allow read, list: if hasCourseAccess(courseId) || isAdmin();
-      // A user's reactionId is their UID. They can only write to their own reaction document.
-      allow write: if request.auth.uid == reactionId && hasCourseAccess(courseId);
+      // Admins can write, or users with access can write to their own reaction document.
+      allow write: if isAdmin() || (request.auth.uid == reactionId && hasCourseAccess(courseId));
     }
 
 
