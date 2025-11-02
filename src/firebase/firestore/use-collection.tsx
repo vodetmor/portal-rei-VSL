@@ -85,6 +85,9 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (serverError: FirestoreError) => {
+        // Log the original server error for more detailed debugging
+        console.error("Firestore onSnapshot error caught in useCollection:", serverError);
+
         // This logic extracts the path from either a ref or a query
         const path: string =
           memoizedTargetRefOrQuery.type === 'collection'
