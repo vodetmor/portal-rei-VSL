@@ -4,6 +4,8 @@ import "./globals.css";
 import { FirebaseClientProvider } from "@/firebase/client-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { Nav } from "@/components/nav";
+import { LayoutProvider } from "@/context/layout-context";
+
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -28,9 +30,11 @@ export default function RootLayout({
     <html lang="en" className="dark">
       <body className={poppins.className}>
         <FirebaseClientProvider>
+          <LayoutProvider>
             <Nav />
             <main>{children}</main>
             <Toaster />
+          </LayoutProvider>
         </FirebaseClientProvider>
       </body>
     </html>

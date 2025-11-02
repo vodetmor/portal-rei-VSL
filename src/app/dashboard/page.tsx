@@ -1,11 +1,12 @@
 'use client';
 import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useContext } from 'react';
 import { CourseCard } from '@/components/course-card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { doc, getDoc, collection, getDocs, setDoc, deleteDoc, type DocumentData } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import { LayoutContext, LayoutProvider, useLayout } from '@/context/layout-context';
 
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
@@ -30,7 +31,6 @@ import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { EditCourseModal } from '@/components/admin/edit-course-modal';
 
-
 interface Course extends DocumentData {
   id: string;
   title: string;
@@ -39,13 +39,6 @@ interface Course extends DocumentData {
   isFeatured?: boolean;
 }
 
-const DEFAULT_HERO_TITLE = "Seu Reinado <span class='text-primary'>começa aqui</span>.";
-const DEFAULT_HERO_SUBTITLE = "No Rei da VSL, cada copy se torna uma conversão poderosa.";
-const DEFAULT_HERO_IMAGE = "https://picsum.photos/seed/hero-bg/1920/1080";
-const DEFAULT_MEMBERS_TITLE = "Área de Membros <span class='text-primary'>Premium</span>";
-const DEFAULT_MEMBERS_SUBTITLE = "Acesso exclusivo aos melhores conteúdos sobre VSL.";
-const DEFAULT_MEMBERS_ICON = 'Trophy';
-
 const iconMap: { [key: string]: LucideIcon } = {
   Trophy,
   Gem,
@@ -53,96 +46,69 @@ const iconMap: { [key: string]: LucideIcon } = {
   Star,
 };
 
-export default function DashboardPage() {
+
+function DashboardClientPage() {
   const { user, loading: userLoading } = useUser();
   const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
+  const { layoutData, setLayoutData } = useLayout();
+
 
   const [courses, setCourses] = useState<Course[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   
-  const [heroTitle, setHeroTitle] = useState(DEFAULT_HERO_TITLE);
-  const [heroSubtitle, setHeroSubtitle] = useState(DEFAULT_HERO_SUBTITLE);
-  const [heroImage, setHeroImage] = useState(DEFAULT_HERO_IMAGE);
-  const [membersTitle, setMembersTitle] = useState(DEFAULT_MEMBERS_TITLE);
-  const [membersSubtitle, setMembersSubtitle] = useState(DEFAULT_MEMBERS_SUBTITLE);
-  const [membersIcon, setMembersIcon] = useState(DEFAULT_MEMBERS_ICON);
-
   const [courseToDelete, setCourseToDelete] = useState<string | null>(null);
   const [courseToEdit, setCourseToEdit] = useState<Course | null>(null);
 
-
-  const [contentLoading, setContentLoading] = useState(true);
   const [isEditMode, setIsEditMode] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
 
   // States for temporary edits
-  const [tempHeroTitle, setTempHeroTitle] = useState(heroTitle);
-  const [tempHeroSubtitle, setTempHeroSubtitle] = useState(heroSubtitle);
-  const [tempHeroImage, setTempHeroImage] = useState(heroImage);
-  const [tempMembersTitle, setTempMembersTitle] = useState(membersTitle);
-  const [tempMembersSubtitle, setTempMembersSubtitle] = useState(membersSubtitle);
-  const [tempMembersIcon, setTempMembersIcon] = useState(membersIcon);
+  const [tempHeroTitle, setTempHeroTitle] = useState(layoutData.heroTitle);
+  const [tempHeroSubtitle, setTempHeroSubtitle] = useState(layoutData.heroSubtitle);
+  const [tempHeroImage, setTempHeroImage] = useState(layoutData.heroImage);
+  const [tempMembersTitle, setTempMembersTitle] = useState(layoutData.membersTitle);
+  const [tempMembersSubtitle, setTempMembersSubtitle] = useState(layoutData.membersSubtitle);
+  const [tempMembersIcon, setTempMembersIcon] = useState(layoutData.membersIcon);
+  const [tempLogoUrl, setTempLogoUrl] = useState(layoutData.logoUrl);
+
   
   const [heroImageFile, setHeroImageFile] = useState<File | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [imageInputMode, setImageInputMode] = useState<'upload' | 'url'>('upload');
   const [tempHeroImageUrlInput, setTempHeroImageUrlInput] = useState('');
+  
+  const [logoFile, setLogoFile] = useState<File | null>(null);
+  const [logoUploadProgress, setLogoUploadProgress] = useState<number | null>(null);
+  const [logoInputMode, setLogoInputMode] = useState<'upload' | 'url'>('upload');
+  const [tempLogoUrlInput, setTempLogoUrlInput] = useState('');
 
   
-  const SelectedIcon = iconMap[isEditMode ? tempMembersIcon : membersIcon] || Trophy;
+  const SelectedIcon = iconMap[isEditMode ? tempMembersIcon : layoutData.membersIcon] || Trophy;
 
-
-  const fetchPageContent = useCallback(async () => {
-    if (!firestore) return;
-    setContentLoading(true);
-    const layoutRef = doc(firestore, 'layout', 'dashboard-hero');
-    try {
-      const docSnap = await getDoc(layoutRef);
-      if (docSnap.exists()) {
-        const data = docSnap.data();
-        setHeroTitle(data.title || DEFAULT_HERO_TITLE);
-        setHeroSubtitle(data.subtitle || DEFAULT_HERO_SUBTITLE);
-        setHeroImage(data.imageUrl || DEFAULT_HERO_IMAGE);
-        setMembersTitle(data.membersTitle || DEFAULT_MEMBERS_TITLE);
-        setMembersSubtitle(data.membersSubtitle || DEFAULT_MEMBERS_SUBTITLE);
-        setMembersIcon(data.membersIcon || DEFAULT_MEMBERS_ICON);
-      } else {
-        // Set defaults if doc doesn't exist
-        setHeroTitle(DEFAULT_HERO_TITLE);
-        setHeroSubtitle(DEFAULT_HERO_SUBTITLE);
-        setHeroImage(DEFAULT_HERO_IMAGE);
-        setMembersTitle(DEFAULT_MEMBERS_TITLE);
-        setMembersSubtitle(DEFAULT_MEMBERS_SUBTITLE);
-        setMembersIcon(DEFAULT_MEMBERS_ICON);
-      }
-    } catch (error) {
-       console.error("Error fetching layout:", error);
-       // Set defaults on error
-       setHeroTitle(DEFAULT_HERO_TITLE);
-       setHeroSubtitle(DEFAULT_HERO_SUBTITLE);
-       setHeroImage(DEFAULT_HERO_IMAGE);
-       setMembersTitle(DEFAULT_MEMBERS_TITLE);
-       setMembersSubtitle(DEFAULT_MEMBERS_SUBTITLE);
-       setMembersIcon(DEFAULT_MEMBERS_ICON);
-    } finally {
-      setContentLoading(false);
-    }
-  }, [firestore]);
 
   const enterEditMode = () => {
-    setTempHeroTitle(heroTitle);
-    setTempHeroSubtitle(heroSubtitle);
-    setTempHeroImage(heroImage);
-    setTempMembersTitle(membersTitle);
-    setTempMembersSubtitle(membersSubtitle);
-    setTempMembersIcon(membersIcon);
-    setTempHeroImageUrlInput(heroImage === DEFAULT_HERO_IMAGE ? '' : heroImage);
+    setTempHeroTitle(layoutData.heroTitle);
+    setTempHeroSubtitle(layoutData.heroSubtitle);
+    setTempHeroImage(layoutData.heroImage);
+    setTempMembersTitle(layoutData.membersTitle);
+    setTempMembersSubtitle(layoutData.membersSubtitle);
+    setTempMembersIcon(layoutData.membersIcon);
+    setTempLogoUrl(layoutData.logoUrl);
+    
+    setTempHeroImageUrlInput(layoutData.heroImage);
+    setTempLogoUrlInput(layoutData.logoUrl);
+
     setImageInputMode('upload');
     setHeroImageFile(null);
     setUploadProgress(null);
+
+    setLogoInputMode('upload');
+    setLogoFile(null);
+    setLogoUploadProgress(null);
+
     setIsEditMode(true);
   };
 
@@ -150,7 +116,8 @@ export default function DashboardPage() {
     setIsEditMode(false);
   };
 
-  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  // Hero Image Handlers
+  const handleHeroFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
       setHeroImageFile(file);
@@ -162,19 +129,64 @@ export default function DashboardPage() {
     }
   };
 
-  const handleUrlInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleHeroUrlInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     const newUrl = event.target.value;
     setTempHeroImageUrlInput(newUrl);
-    // Basic validation to prevent broken image links during preview
     if (newUrl.startsWith('http://') || newUrl.startsWith('https://')) {
       setTempHeroImage(newUrl);
     }
   };
-
-  const handleRemoveImage = () => {
-    setTempHeroImage(DEFAULT_HERO_IMAGE);
+  
+  const handleRemoveHeroImage = () => {
+    setTempHeroImage(layoutData.defaults.heroImage);
     setTempHeroImageUrlInput('');
     setHeroImageFile(null);
+  };
+
+  // Logo Image Handlers
+  const handleLogoFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setLogoFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setTempLogoUrl(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+  
+  const handleLogoUrlInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const newUrl = event.target.value;
+    setTempLogoUrlInput(newUrl);
+    if (newUrl.startsWith('http://') || newUrl.startsWith('https://')) {
+      setTempLogoUrl(newUrl);
+    }
+  };
+  
+  const handleRemoveLogo = () => {
+    setTempLogoUrl(layoutData.defaults.logoUrl);
+    setTempLogoUrlInput('');
+    setLogoFile(null);
+  };
+
+
+  const uploadImage = async (file: File, path: string, progressSetter: (p: number) => void): Promise<string> => {
+    const storage = getStorage();
+    const storageRef = ref(storage, `${path}/${Date.now()}-${file.name}`);
+    const uploadTask = uploadBytesResumable(storageRef, file);
+
+    return new Promise((resolve, reject) => {
+        uploadTask.on('state_changed',
+            (snapshot) => progressSetter((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
+            (error) => {
+                console.error("Upload failed:", error);
+                toast({ variant: "destructive", title: "Erro de Upload", description: "Não foi possível enviar a imagem." });
+                reject(error);
+            },
+            () => getDownloadURL(uploadTask.snapshot.ref).then(resolve).catch(reject)
+        );
+    });
   };
 
 
@@ -182,62 +194,43 @@ export default function DashboardPage() {
     if (!firestore) return;
     setIsSaving(true);
     setUploadProgress(null);
+    setLogoUploadProgress(null);
 
-    let finalImageUrl = tempHeroImage;
-    
+    let finalHeroImageUrl = tempHeroImage;
     if (imageInputMode === 'upload' && heroImageFile) {
-        const storage = getStorage();
-        const storageRef = ref(storage, `layout/dashboard-hero/${Date.now()}-${heroImageFile.name}`);
-        const uploadTask = uploadBytesResumable(storageRef, heroImageFile);
-
-        finalImageUrl = await new Promise((resolve, reject) => {
-            uploadTask.on('state_changed',
-                (snapshot) => {
-                    const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
-                    setUploadProgress(progress);
-                },
-                (error) => {
-                    console.error("Upload failed:", error);
-                    toast({ variant: "destructive", title: "Erro de Upload", description: "Não foi possível enviar a imagem." });
-                    setIsSaving(false);
-                    reject(error);
-                },
-                () => {
-                    getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
-                        resolve(downloadURL);
-                    }).catch(reject);
-                }
-            );
-        });
+        finalHeroImageUrl = await uploadImage(heroImageFile, 'layout/dashboard-hero', setUploadProgress);
     } else if (imageInputMode === 'url') {
-        finalImageUrl = tempHeroImageUrlInput;
+        finalHeroImageUrl = tempHeroImageUrlInput;
+    }
+    
+    let finalLogoUrl = tempLogoUrl;
+    if (logoInputMode === 'upload' && logoFile) {
+        finalLogoUrl = await uploadImage(logoFile, 'layout/logo', setLogoUploadProgress);
+    } else if (logoInputMode === 'url') {
+        finalLogoUrl = tempLogoUrlInput;
     }
 
-    if (!finalImageUrl) {
-        toast({ variant: "destructive", title: "Erro", description: "Nenhuma imagem selecionada ou URL fornecida." });
+    if (!finalHeroImageUrl || !finalLogoUrl) {
+        toast({ variant: "destructive", title: "Erro", description: "Uma das imagens não foi fornecida." });
         setIsSaving(false);
         return;
     }
-
 
     const layoutRef = doc(firestore, 'layout', 'dashboard-hero');
     try {
       const dataToSave = {
         title: tempHeroTitle,
         subtitle: tempHeroSubtitle,
-        imageUrl: finalImageUrl,
+        imageUrl: finalHeroImageUrl,
         membersTitle: tempMembersTitle,
         membersSubtitle: tempMembersSubtitle,
         membersIcon: tempMembersIcon,
+        logoUrl: finalLogoUrl,
       };
+
       await setDoc(layoutRef, dataToSave, { merge: true });
       
-      setHeroTitle(tempHeroTitle);
-      setHeroSubtitle(tempHeroSubtitle);
-      setHeroImage(finalImageUrl);
-      setMembersTitle(tempMembersTitle);
-      setMembersSubtitle(tempMembersSubtitle);
-      setMembersIcon(tempMembersIcon);
+      setLayoutData(prev => ({ ...prev, ...dataToSave }));
 
       toast({
         title: "Sucesso!",
@@ -249,14 +242,7 @@ export default function DashboardPage() {
       const permissionError = new FirestorePermissionError({
         path: layoutRef.path,
         operation: 'write',
-        requestResourceData: {
-          title: tempHeroTitle,
-          subtitle: tempHeroSubtitle,
-          imageUrl: finalImageUrl,
-          membersTitle: tempMembersTitle,
-          membersSubtitle: tempMembersSubtitle,
-          membersIcon: tempMembersIcon,
-        },
+        requestResourceData: { /*...dataToSave*/ },
       });
       errorEmitter.emit('permission-error', permissionError);
 
@@ -268,7 +254,9 @@ export default function DashboardPage() {
     } finally {
       setIsSaving(false);
       setUploadProgress(null);
+      setLogoUploadProgress(null);
       setHeroImageFile(null);
+      setLogoFile(null);
     }
   };
 
@@ -347,22 +335,20 @@ export default function DashboardPage() {
             }
         }
         
-        await fetchPageContent();
         await fetchCourses();
 
       } else {
         setIsAdmin(false);
         setLoading(false);
-        setContentLoading(false);
       }
     };
 
     if (user && firestore) {
       checkAdminAndFetchData();
     }
-  }, [user, firestore, fetchCourses, fetchPageContent]);
+  }, [user, firestore, fetchCourses]);
 
-  if (userLoading || !user) {
+  if (userLoading || !user || layoutData.isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
@@ -375,10 +361,10 @@ export default function DashboardPage() {
       <div className="w-full">
         {/* Hero Section */}
         <section className="relative flex h-[60vh] min-h-[450px] w-full flex-col items-center justify-center py-12">
-          {contentLoading ? <Skeleton className="absolute inset-0 z-0" /> : (
+          {layoutData.isLoading ? <Skeleton className="absolute inset-0 z-0" /> : (
               <div className="absolute inset-0 z-0">
                 <Image
-                  src={isEditMode ? tempHeroImage : heroImage}
+                  src={isEditMode ? tempHeroImage : layoutData.heroImage}
                   alt="Hero background"
                   fill
                   className="object-cover"
@@ -405,6 +391,7 @@ export default function DashboardPage() {
                         className="mt-4 max-w-2xl text-lg md:text-xl bg-transparent border-dashed"
                       />
                      <div className="mt-2 w-full space-y-2">
+                      <p className="text-sm font-medium">Imagem do Banner</p>
                       <Tabs value={imageInputMode} onValueChange={(value) => setImageInputMode(value as 'upload' | 'url')} className="w-full">
                         <TabsList className="grid w-full grid-cols-2">
                           <TabsTrigger value="upload">Enviar Arquivo</TabsTrigger>
@@ -419,7 +406,7 @@ export default function DashboardPage() {
                               id="hero-image-upload"
                               type="file"
                               accept="image/*"
-                              onChange={handleFileChange}
+                              onChange={handleHeroFileChange}
                               className="hidden"
                           />
                            {uploadProgress !== null && imageInputMode === 'upload' && (
@@ -433,26 +420,68 @@ export default function DashboardPage() {
                               type="text"
                               placeholder="https://exemplo.com/imagem.png"
                               value={tempHeroImageUrlInput}
-                              onChange={handleUrlInputChange}
+                              onChange={handleHeroUrlInputChange}
                               className="w-full bg-background/50 pl-9"
                             />
                            </div>
                         </TabsContent>
                       </Tabs>
-                        <Button onClick={handleRemoveImage} variant="outline" size="sm" className="w-full gap-2 text-destructive border-destructive/50 hover:bg-destructive/10 hover:text-destructive">
+                        <Button onClick={handleRemoveHeroImage} variant="outline" size="sm" className="w-full gap-2 text-destructive border-destructive/50 hover:bg-destructive/10 hover:text-destructive">
                            <Trash2 className="h-4 w-4" />
-                            Remover Imagem
+                            Remover Imagem do Banner
+                        </Button>
+                    </div>
+
+                    <div className="mt-4 w-full space-y-2 pt-4 border-t border-border">
+                      <p className="text-sm font-medium">Logo</p>
+                      <Tabs value={logoInputMode} onValueChange={(value) => setLogoInputMode(value as 'upload' | 'url')} className="w-full">
+                        <TabsList className="grid w-full grid-cols-2">
+                          <TabsTrigger value="upload">Enviar Arquivo</TabsTrigger>
+                          <TabsTrigger value="url">Usar URL</TabsTrigger>
+                        </TabsList>
+                        <TabsContent value="upload" className="mt-4">
+                          <label htmlFor="logo-image-upload" className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-white border border-dashed rounded-md p-3 justify-center bg-background/50">
+                              <Upload className="h-4 w-4" />
+                              <span>{logoFile ? logoFile.name : 'Clique para selecionar o logo'}</span>
+                          </label>
+                          <Input
+                              id="logo-image-upload"
+                              type="file"
+                              accept="image/*"
+                              onChange={handleLogoFileChange}
+                              className="hidden"
+                          />
+                           {logoUploadProgress !== null && logoInputMode === 'upload' && (
+                              <Progress value={logoUploadProgress} className="w-full h-2 mt-2" />
+                          )}
+                        </TabsContent>
+                        <TabsContent value="url" className="mt-4">
+                           <div className="relative">
+                            <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              type="text"
+                              placeholder="https://exemplo.com/logo.png"
+                              value={tempLogoUrlInput}
+                              onChange={handleLogoUrlInputChange}
+                              className="w-full bg-background/50 pl-9"
+                            />
+                           </div>
+                        </TabsContent>
+                      </Tabs>
+                        <Button onClick={handleRemoveLogo} variant="outline" size="sm" className="w-full gap-2 text-destructive border-destructive/50 hover:bg-destructive/10 hover:text-destructive">
+                           <Trash2 className="h-4 w-4" />
+                            Remover Logo
                         </Button>
                     </div>
                   </div>
               ) : (
                 <>
                   <h1 className="text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl"
-                      dangerouslySetInnerHTML={{ __html: heroTitle }}
+                      dangerouslySetInnerHTML={{ __html: layoutData.heroTitle }}
                   />
 
                   <p className="mt-4 max-w-2xl text-lg text-muted-foreground md:text-xl">
-                    {heroSubtitle}
+                    {layoutData.heroSubtitle}
                   </p>
                 </>
               )}
@@ -523,8 +552,8 @@ export default function DashboardPage() {
                     <div className="flex items-center gap-4">
                         <SelectedIcon className="h-10 w-10 text-primary" />
                         <div>
-                            <h2 className="text-2xl font-bold text-white" dangerouslySetInnerHTML={{ __html: membersTitle }} />
-                            <p className="text-sm text-muted-foreground">{membersSubtitle}</p>
+                            <h2 className="text-2xl font-bold text-white" dangerouslySetInnerHTML={{ __html: layoutData.membersTitle }} />
+                            <p className="text-sm text-muted-foreground">{layoutData.membersSubtitle}</p>
                         </div>
                     </div>
                 )}
@@ -631,4 +660,12 @@ export default function DashboardPage() {
       </div>
     </AlertDialog>
   );
+}
+
+export default function DashboardPage() {
+  return (
+    <LayoutProvider>
+      <DashboardClientPage />
+    </LayoutProvider>
+  )
 }

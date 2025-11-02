@@ -11,16 +11,19 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { LayoutGrid, UserCircle, LogOut, ShieldCheck, Menu, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { doc, getDoc } from 'firebase/firestore';
+import { useLayout } from '@/context/layout-context';
 
 
 export function Nav() {
   const { user, loading } = useUser();
   const auth = useAuth();
   const firestore = useFirestore();
+  const { layoutData } = useLayout();
   const [isScrolled, setIsScrolled] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -91,8 +94,17 @@ export function Nav() {
         style={{ backdropFilter: isScrolled ? 'blur(10px)' : 'none' }}
       >
         <div className="flex items-center gap-8">
-            <Link href="/dashboard" className="text-2xl font-bold text-primary">
-                Portal Rei da VSL
+            <Link href="/dashboard" className="relative h-10 w-48">
+              {layoutData.logoUrl && (
+                  <Image 
+                    src={layoutData.logoUrl} 
+                    alt="Portal Rei da VSL Logo"
+                    fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    className="object-contain"
+                    priority
+                  />
+              )}
             </Link>
             <ul className="hidden md:flex space-x-6 text-gray-300 items-center">
                 <li><Link href="/dashboard" className="hover:text-white cursor-pointer transition-colors text-sm">Início</Link></li>
