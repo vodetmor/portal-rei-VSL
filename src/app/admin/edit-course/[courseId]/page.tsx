@@ -28,6 +28,7 @@ import { Separator } from '@/components/ui/separator';
 interface Lesson {
   id: string;
   title: string;
+  description?: string;
   videoUrl: string;
 }
 
@@ -79,7 +80,7 @@ function EditCoursePageContent() {
         setModules((courseData.modules || []).map(m => ({
           ...m,
           id: uuidv4(), // Client-side ID
-          lessons: (m.lessons || []).map(l => ({ ...l, id: uuidv4() }))
+          lessons: (m.lessons || []).map(l => ({ ...l, id: uuidv4(), description: l.description || '' }))
         })));
       } else {
         toast({ variant: "destructive", title: "Erro", description: "Curso não encontrado." });
@@ -120,7 +121,7 @@ function EditCoursePageContent() {
   const addLesson = (moduleId: string) => {
     setModules(modules.map(m => 
       m.id === moduleId 
-        ? { ...m, lessons: [...m.lessons, { id: uuidv4(), title: '', videoUrl: '' }] }
+        ? { ...m, lessons: [...m.lessons, { id: uuidv4(), title: '', description: '', videoUrl: '' }] }
         : m
     ));
   };
@@ -394,23 +395,14 @@ function ModuleEditor({ module, onUpdate, onRemove, onAddLesson, onUpdateLesson,
                  <div className="border-t pt-4 mt-4 space-y-3">
                     <h4 className="text-sm font-semibold text-muted-foreground mb-2">Aulas do Módulo</h4>
                     {module.lessons.map((lesson, lessonIndex) => (
-                        <div key={lesson.id} className="flex items-center gap-2 p-3 rounded-md border bg-background/50">
-                            <Input
-                                placeholder={`Título da Aula ${lessonIndex + 1}`}
-                                value={lesson.title}
-                                onChange={(e) => onUpdateLesson(module.id, lesson.id, 'title', e.target.value)}
-                                className="h-9"
-                            />
-                            <Input
-                                placeholder="URL do Vídeo"
-                                value={lesson.videoUrl}
-                                onChange={(e) => onUpdateLesson(module.id, lesson.id, 'videoUrl', e.target.value)}
-                                className="h-9"
-                            />
-                            <Button type="button" variant="ghost" size="icon" onClick={() => onRemoveLesson(module.id, lesson.id)}>
-                                <Trash2 className="h-4 w-4 text-destructive/70" />
-                            </Button>
-                        </div>
+                       <LessonEditor 
+                          key={lesson.id}
+                          lesson={lesson}
+                          moduleId={module.id}
+                          lessonIndex={lessonIndex}
+                          onUpdate={onUpdateLesson}
+                          onRemove={onRemoveLesson}
+                       />
                     ))}
                      <Button type="button" variant="link" size="sm" className="w-full" onClick={() => onAddLesson(module.id)}>
                         <Plus className="mr-2 h-4 w-4" /> Adicionar Aula
@@ -420,6 +412,100 @@ function ModuleEditor({ module, onUpdate, onRemove, onAddLesson, onUpdateLesson,
         </Collapsible>
     );
 }
+
+// --- LessonEditor Component ---
+
+interface LessonEditorProps {
+  lesson: Lesson;
+  moduleId: string;
+  lessonIndex: number;
+  onUpdate: (moduleId: string, lessonId: string, field: keyof Lesson, value: string) => void;
+  onRemove: (moduleId: string, lessonId: string) => void;
+}
+
+function LessonEditor({ lesson, moduleId, lessonIndex, onUpdate, onRemove }: LessonEditorProps) {
+  const [videoFile, setVideoFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [videoInputMode, setVideoInputMode] = useState<'upload' | 'url'>('upload');
+  const { toast } = useToast();
+
+  const handleVideoFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setVideoFile(file);
+      setUploadProgress(0);
+      
+      const storage = getStorage();
+      const storageRef = ref(storage, `courses/lessons/${moduleId}/${lesson.id}/${Date.now()}-${file.name}`);
+      const uploadTask = uploadBytesResumable(storageRef, file);
+
+      uploadTask.on('state_changed',
+        (snapshot) => setUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
+        (error) => {
+          console.error(error);
+          toast({ variant: "destructive", title: "Erro de Upload", description: "Não foi possível enviar o vídeo." });
+          setUploadProgress(null);
+        },
+        () => {
+          getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+            onUpdate(moduleId, lesson.id, 'videoUrl', downloadURL);
+            setUploadProgress(null);
+            setVideoFile(null);
+            toast({ title: "Sucesso!", description: "Vídeo da aula enviado." });
+          });
+        }
+      );
+    }
+  };
+
+  return (
+    <div className="p-3 space-y-3 rounded-md border bg-background/50">
+      <div className="flex items-center gap-2">
+        <span className="text-sm font-bold text-muted-foreground">{lessonIndex + 1}</span>
+        <Input
+          placeholder={`Título da Aula ${lessonIndex + 1}`}
+          value={lesson.title}
+          onChange={(e) => onUpdate(moduleId, lesson.id, 'title', e.target.value)}
+          className="h-9 flex-grow"
+        />
+        <Button type="button" variant="ghost" size="icon" onClick={() => onRemove(moduleId, lesson.id)}>
+          <Trash2 className="h-4 w-4 text-destructive/70" />
+        </Button>
+      </div>
+
+      <Textarea
+        placeholder="Descrição da aula (opcional)..."
+        value={lesson.description}
+        onChange={(e) => onUpdate(moduleId, lesson.id, 'description', e.target.value)}
+        className="text-sm"
+        rows={2}
+      />
+      
+      <Tabs value={videoInputMode} onValueChange={(v) => setVideoInputMode(v as 'upload' | 'url')} className="w-full">
+        <TabsList className="grid w-full grid-cols-2 h-8">
+            <TabsTrigger value="upload" className="text-xs">Enviar Vídeo</TabsTrigger>
+            <TabsTrigger value="url" className="text-xs">Usar URL</TabsTrigger>
+        </TabsList>
+        <TabsContent value="upload" className="mt-2">
+            <label htmlFor={`lesson-video-upload-${lesson.id}`} className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground hover:text-white border border-dashed rounded-md p-2 justify-center bg-background/50">
+                <Upload className="h-3 w-3" /><span>{videoFile ? videoFile.name : 'Selecionar vídeo'}</span>
+            </label>
+            <Input id={`lesson-video-upload-${lesson.id}`} type="file" accept="video/*" onChange={handleVideoFileChange} className="hidden" />
+            {uploadProgress !== null && (<Progress value={uploadProgress} className="w-full h-1 mt-2" />)}
+        </TabsContent>
+        <TabsContent value="url" className="mt-2">
+            <Input
+              placeholder="URL do Vídeo (Ex: YouTube, Vimeo)"
+              value={lesson.videoUrl}
+              onChange={(e) => onUpdate(moduleId, lesson.id, 'videoUrl', e.target.value)}
+              className="h-8 text-xs"
+            />
+        </TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
 
 export default function EditCoursePage() {
     return (
