@@ -410,7 +410,7 @@ export default function LessonPage() {
         "flex-1 flex flex-col transition-all duration-300 ease-in-out",
         isSidebarOpen ? "md:ml-80" : "md:ml-0"
       )}>
-        <header className="flex items-center justify-between p-4 bg-background/80 backdrop-blur-sm z-10 border-b border-border h-20 shrink-0 sticky top-20">
+        <header className={cn("flex items-center justify-between p-4 bg-background/80 backdrop-blur-sm z-10 border-b border-border h-20 shrink-0 sticky top-20")}>
            <div className="flex items-center gap-4">
                 <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="hidden md:flex">
                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -582,12 +582,22 @@ function CommentsSection({ courseId, lessonId, user, isAdmin }: CommentsSectionP
     const commentsQuery = useMemoFirebase(() => {
         if (!firestore) return null;
         return query(
-            collection(firestore, `courses/${courseId}/lessons/${lessonId}/comments`), 
+            collection(firestore, `courses/${courseId}/lessons/${lessonId}/comments`),
             orderBy('timestamp', 'desc')
         );
     }, [firestore, courseId, lessonId]);
 
     const { data: rawComments, isLoading: commentsLoading, error: commentsError } = useCollection<LessonComment>(commentsQuery);
+    
+    useEffect(() => {
+        if(commentsError) {
+            toast({
+                variant: 'destructive',
+                title: 'Erro ao carregar comentários.',
+                description: 'Verifique suas permissões de rede ou tente novamente mais tarde.'
+            })
+        }
+    }, [commentsError, toast])
 
     const comments = useMemo(() => {
         if (!rawComments) return [];
