@@ -62,8 +62,7 @@ service cloud.firestore {
         match /comments/{commentId} {
           allow list, read: if hasCourseAccess(courseId) || isAdmin();
           allow create: if (request.auth != null && hasCourseAccess(courseId)) || isAdmin();
-          allow update(pin): if isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isPinned']);
-          allow update(text): if request.auth.uid == resource.data.userId && hasCourseAccess(courseId);
+          allow update: if (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isPinned'])) || (request.auth.uid == resource.data.userId && hasCourseAccess(courseId));
           allow delete: if (request.auth.uid == resource.data.userId && hasCourseAccess(courseId)) || isAdmin();
 
             // Replies Sub-subcollection
