@@ -375,8 +375,7 @@ function ModuleEditor({ module, onUpdate, onRemove, onAddLesson, onUpdateLesson,
                         <GripVertical
                           className="h-5 w-5 text-muted-foreground cursor-grab"
                           onPointerDown={(e) => {
-                            // Stop event propagation to prevent it from being captured by other elements,
-                            // such as the collapsible trigger, which could interfere with the drag-and-drop.
+                            e.preventDefault();
                             e.stopPropagation(); 
                             dragControls.start(e);
                           }}
@@ -546,6 +545,7 @@ function LessonEditor({ lesson, moduleId, onUpdate, onRemove }: LessonEditorProp
         <GripVertical
           className="h-5 w-5 text-muted-foreground cursor-grab"
           onPointerDown={(e) => {
+            e.preventDefault();
             e.stopPropagation();
             dragControls.start(e);
           }}
@@ -626,3 +626,5 @@ export default function EditCoursePage() {
         </AdminGuard>
     )
 }
+
+    
