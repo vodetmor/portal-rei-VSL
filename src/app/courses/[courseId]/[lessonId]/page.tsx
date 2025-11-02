@@ -239,18 +239,18 @@ export default function LessonPage() {
   };
 
   return (
-    <div className="flex h-screen bg-black text-white">
+    <div className="flex min-h-screen bg-black text-white">
       {/* Sidebar */}
       <aside className={cn(
-        "bg-background h-full flex flex-col transition-all duration-300 ease-in-out",
+        "bg-background h-screen flex-col transition-all duration-300 ease-in-out fixed top-0 left-0 z-20 hidden md:flex",
         isSidebarOpen ? "w-80" : "w-0 overflow-hidden"
       )}>
-        <div className="flex items-center justify-between p-4 border-b border-border h-20">
+        <div className="flex items-center justify-between p-4 border-b border-r border-border h-20">
           <Link href={`/courses/${courseId}`} className="text-sm font-semibold hover:text-primary">
             <ArrowLeft className="inline-block mr-2 h-4 w-4" /> Voltar ao Curso
           </Link>
         </div>
-        <div className="flex-grow overflow-y-auto">
+        <div className="flex-grow overflow-y-auto border-r border-border">
           <Accordion type="single" collapsible defaultValue={currentModule.id} className="w-full">
             {course.modules.map(module => (
               <AccordionItem key={module.id} value={module.id} disabled={!isModuleUnlocked(module)}>
@@ -289,10 +289,13 @@ export default function LessonPage() {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col h-screen">
-        <header className="flex items-center justify-between p-4 bg-background/80 backdrop-blur-sm z-10 border-b border-border h-20 shrink-0">
+      <main className={cn(
+        "flex-1 flex flex-col transition-all duration-300 ease-in-out",
+        isSidebarOpen ? "md:ml-80" : "md:ml-0"
+      )}>
+        <header className="flex items-center justify-between p-4 bg-background/80 backdrop-blur-sm z-10 border-b border-border h-20 shrink-0 sticky top-0">
            <div className="flex items-center gap-4">
-                <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
+                <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="md:hidden">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                         <path d="M3 12H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                         <path d="M3 6H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -328,53 +331,52 @@ export default function LessonPage() {
           </div>
         </header>
 
-        <div className="flex-1 overflow-y-auto">
-            <div className="p-4 md:p-8">
-              <div className="aspect-video w-full max-w-4xl mx-auto bg-black rounded-lg overflow-hidden">
-                <ReactPlayer
-                  url={currentLesson.videoUrl}
-                  width="100%"
-                  height="100%"
-                  controls
-                  playing
-                  onProgress={(progress) => handleProgress(progress.played)}
-                  config={{
-                    youtube: { playerVars: { showinfo: 0, rel: 0 } },
-                    vimeo: { playerOptions: { byline: false, portrait: false } }
-                  }}
-                />
-              </div>
+        <div className="p-4 md:p-8">
+            <div className="aspect-video w-full max-w-4xl mx-auto bg-black rounded-lg overflow-hidden">
+            <ReactPlayer
+                url={currentLesson.videoUrl}
+                width="100%"
+                height="100%"
+                controls
+                playing
+                onProgress={(progress) => handleProgress(progress.played)}
+                config={{
+                youtube: { playerVars: { showinfo: 0, rel: 0 } },
+                vimeo: { playerOptions: { byline: false, portrait: false } }
+                }}
+            />
+            </div>
 
-              <div className="max-w-4xl mx-auto mt-8">
-                <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">{currentLesson.title}</h1>
-                {currentLesson.description && (
-                    <div className="prose prose-invert max-w-none text-muted-foreground" dangerouslySetInnerHTML={{ __html: currentLesson.description }}></div>
-                )}
-                
-                {currentLesson.complementaryMaterials && currentLesson.complementaryMaterials.length > 0 && (
-                    <div className="mt-8 pt-6 border-t border-border">
-                        <h2 className="text-xl font-semibold text-white mb-4">Materiais Complementares</h2>
-                        <div className="space-y-3">
-                            {currentLesson.complementaryMaterials.map(material => (
-                                <a 
-                                    key={material.id} 
-                                    href={material.url} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer"
-                                    className="flex items-center gap-3 p-3 rounded-md bg-secondary/50 hover:bg-secondary/80 transition-colors"
-                                >
-                                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-primary flex-shrink-0"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.72"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.72-1.72"></path></svg>
-                                    <span className="text-sm font-medium text-white">{material.title}</span>
-                                </a>
-                            ))}
-                        </div>
+            <div className="max-w-4xl mx-auto mt-8">
+            <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">{currentLesson.title}</h1>
+            {currentLesson.description && (
+                <div className="prose prose-invert max-w-none text-muted-foreground" dangerouslySetInnerHTML={{ __html: currentLesson.description }}></div>
+            )}
+            
+            {currentLesson.complementaryMaterials && currentLesson.complementaryMaterials.length > 0 && (
+                <div className="mt-8 pt-6 border-t border-border">
+                    <h2 className="text-xl font-semibold text-white mb-4">Materiais Complementares</h2>
+                    <div className="space-y-3">
+                        {currentLesson.complementaryMaterials.map(material => (
+                            <a 
+                                key={material.id} 
+                                href={material.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-3 p-3 rounded-md bg-secondary/50 hover:bg-secondary/80 transition-colors"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-5 w-5 text-primary flex-shrink-0"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.72"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.72-1.72"></path></svg>
+                                <span className="text-sm font-medium text-white">{material.title}</span>
+                            </a>
+                        ))}
                     </div>
-                )}
+                </div>
+            )}
 
-              </div>
-          </div>
+            </div>
         </div>
       </main>
     </div>
   );
 }
+
