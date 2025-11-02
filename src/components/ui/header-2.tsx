@@ -101,13 +101,13 @@ export function Header() {
 		>
 			<nav
 				className={cn(
-					'flex h-20 w-full items-center justify-between px-6 md:transition-all md:ease-out',
+					'flex h-16 w-full items-center justify-between px-4 md:transition-all md:ease-out',
 					{
 						'md:px-3': scrolled,
 					},
 				)}
 			>
-				<Link href="/dashboard" className="relative h-10 w-36">
+				<Link href="/dashboard" className="relative h-10 w-32">
 				{!layoutData.isLoading && (
 					<Image 
 						src={layoutData.defaults.logoUrl} 
@@ -177,7 +177,7 @@ export function Header() {
 
 			<div
 				className={cn(
-					'bg-background/90 fixed top-14 right-0 bottom-0 left-0 z-50 flex flex-col overflow-hidden border-y md:hidden',
+					'bg-background/90 fixed top-16 right-0 bottom-0 left-0 z-50 flex flex-col overflow-hidden border-y md:hidden',
 					open ? 'block' : 'hidden',
 				)}
 			>
@@ -194,6 +194,7 @@ export function Header() {
 								key={link.label}
 								className={buttonVariants({
 									variant: 'ghost',
+									size: 'lg',
 									className: 'justify-start',
 								})}
 								href={link.href}
@@ -202,22 +203,22 @@ export function Header() {
 							</a>
 						))}
 						{isAdmin && (
-							<Link href="/admin" className={buttonVariants({ variant: 'ghost', className: 'justify-start' })}>
+							<Link href="/admin" className={buttonVariants({ variant: 'ghost', size: 'lg', className: 'justify-start' })}>
 								Painel Admin
 							</Link>
 						)}
 					</div>
 					<div className="flex flex-col gap-2">
 					{user ? (
-						<Button onClick={handleSignOut} variant="destructive" className="w-full">
+						<Button onClick={handleSignOut} variant="destructive" className="w-full" size="lg">
 							Sair
 						</Button>
 					) : (
 						<>
-						<Button asChild variant="outline" className="w-full">
+						<Button asChild variant="outline" className="w-full" size="lg">
 							<Link href="/login">Sign In</Link>
 						</Button>
-						<Button asChild className="w-full">
+						<Button asChild className="w-full" size="lg">
 							<Link href="/register">Get Started</Link>
 						</Button>
 						</>
@@ -237,3 +238,4 @@ export const WordmarkIcon = (props: React.ComponentProps<"svg">) => (
 
 
     
+
