@@ -62,7 +62,6 @@ function DashboardClientPage() {
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   
-  const [courseToDelete, setCourseToDelete] = useState<string | null>(null);
   const [courseToEdit, setCourseToEdit] = useState<Course | null>(null);
 
   const [isEditMode, setIsEditMode] = useState(false);
@@ -89,12 +88,10 @@ function DashboardClientPage() {
   const SelectedIcon = iconMap[isEditMode ? tempMembersIcon : layoutData.membersIcon] || Trophy;
 
   const applyFormat = (command: string) => {
-    // We must get the selection first
-    const selection = window.getSelection();
-    if (!selection || selection.rangeCount === 0) return;
-  
     // For applying color, we'll wrap the selection in a span
     if (command === 'foreColor') {
+      const selection = window.getSelection();
+      if (!selection || selection.rangeCount === 0) return;
       const range = selection.getRangeAt(0);
       const selectedText = range.toString();
   
@@ -118,7 +115,7 @@ function DashboardClientPage() {
            }
         }
       }
-      return; // Exit after handling color
+      return;
     }
   
     // For other commands like bold, italic, just use execCommand
@@ -295,10 +292,10 @@ function DashboardClientPage() {
     }
   }, [firestore]);
   
-  const handleConfirmDelete = async () => {
-    if (!firestore || !courseToDelete) return;
+  const handleConfirmDelete = async (courseId: string) => {
+    if (!firestore) return;
     try {
-      await deleteDoc(doc(firestore, 'courses', courseToDelete));
+      await deleteDoc(doc(firestore, 'courses', courseId));
       toast({
         title: "Curso Excluído",
         description: "O curso foi removido com sucesso.",
@@ -311,8 +308,6 @@ function DashboardClientPage() {
         title: "Erro ao Excluir",
         description: "Não foi possível excluir o curso. Verifique as permissões."
       });
-    } finally {
-      setCourseToDelete(null);
     }
   };
 
@@ -513,7 +508,6 @@ function DashboardClientPage() {
         </section>
 
         {/* Members Area Section */}
-        <AlertDialog onOpenChange={(open) => !open && setCourseToDelete(null)}>
         <section className="container mx-auto px-4 py-16 md:px-8 space-y-12">
           
           {/* Featured Carousel */}
@@ -585,7 +579,7 @@ function DashboardClientPage() {
                           priority={index < 4}
                           isAdmin={isAdmin}
                           onEdit={() => handleEdit(course)}
-                          onDelete={() => setCourseToDelete(course.id)}
+                          onDelete={handleConfirmDelete}
                         />
                     </CarouselItem>
                   ))}
@@ -629,7 +623,7 @@ function DashboardClientPage() {
                           priority={index < 4}
                           isAdmin={isAdmin}
                           onEdit={() => handleEdit(course)}
-                          onDelete={() => setCourseToDelete(course.id)}
+                          onDelete={handleConfirmDelete}
                         />
                     </CarouselItem>
                   ))}
@@ -649,20 +643,6 @@ function DashboardClientPage() {
                 onCourseUpdate={fetchCourses}
             />
         )}
-        
-        <AlertDialogContent>
-            <AlertDialogHeader>
-            <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
-            <AlertDialogDescription>
-                Esta ação não pode ser desfeita. Isso irá excluir permanentemente o curso e todos os seus dados.
-            </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-            <AlertDialogCancel>Cancelar</AlertDialogCancel>
-            <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive hover:bg-destructive/90">Excluir</AlertDialogAction>
-            </AlertDialogFooter>
-        </AlertDialogContent>
-        </AlertDialog>
       </div>
   );
 }

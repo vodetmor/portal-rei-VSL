@@ -6,6 +6,14 @@ import { Button } from './ui/button';
 import { Pencil, Play, Trash2 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 
@@ -22,19 +30,19 @@ interface CourseCardProps {
 
 export function CourseCard({ id, title, imageUrl, imageHint, priority = false, isAdmin = false, onEdit, onDelete }: CourseCardProps) {
   
-  const handleDeleteClick = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if(onDelete) {
-      onDelete(id);
-    }
-  }
-
   const handleEditClick = (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     if (onEdit) {
       onEdit(id);
+    }
+  };
+
+  const handleDeleteConfirm = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (onDelete) {
+        onDelete(id);
     }
   };
 
@@ -71,7 +79,7 @@ export function CourseCard({ id, title, imageUrl, imageHint, priority = false, i
       </Link>
       
       {isAdmin && (
-        <div className="absolute top-3 right-3 z-20 flex flex-col items-center gap-2 transition-opacity duration-300">
+        <div className="absolute top-3 right-3 z-20 flex flex-col items-center gap-2">
           <Button 
             size="icon" 
             className="h-9 w-9 bg-black/60 hover:bg-primary border-white/20 text-white"
@@ -80,11 +88,25 @@ export function CourseCard({ id, title, imageUrl, imageHint, priority = false, i
               <Pencil className="h-4 w-4" />
           </Button>
           {onDelete && (
-            <AlertDialogTrigger asChild>
-                <Button variant="destructive" size="icon" className="h-9 w-9 bg-black/60 hover:bg-destructive/80 border-white/20" onClick={handleDeleteClick}>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="icon" className="h-9 w-9 bg-black/60 hover:bg-destructive/80 border-white/20">
                     <Trash2 className="h-4 w-4" />
                 </Button>
-            </AlertDialogTrigger>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                  <AlertDialogHeader>
+                  <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                      Esta ação não pode ser desfeita. Isso irá excluir permanentemente o curso e todos os seus dados.
+                  </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleDeleteConfirm} className="bg-destructive hover:bg-destructive/90">Excluir</AlertDialogAction>
+                  </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           )}
         </div>
       )}
