@@ -77,6 +77,7 @@ export default function ProfilePage() {
     if (user) {
       profileForm.reset({ displayName: user.displayName || '' });
       setAvatarPreview(user.photoURL || null);
+      setAvatarUrlInput(user.photoURL || '');
     }
   }, [user, userLoading, router, profileForm]);
   
