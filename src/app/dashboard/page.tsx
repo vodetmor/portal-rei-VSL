@@ -399,6 +399,10 @@ function DashboardClientPage() {
                       { label: "Center", icon: <AlignCenter className="size-4" />, onClick: () => handleAlignment('center') },
                       { label: "Right", icon: <AlignRight className="size-4" />, onClick: () => handleAlignment('right') },
                     ]}
+                    showSaveCancel={true}
+                    onSave={handleSaveChanges}
+                    onCancel={cancelEditMode}
+                    isSaving={isSaving}
                   />
                 )}
               </div>
@@ -426,6 +430,10 @@ function DashboardClientPage() {
                             { label: "Underline", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
                             { label: "Color", icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor') },
                         ]}
+                        showSaveCancel={true}
+                        onSave={handleSaveChanges}
+                        onCancel={cancelEditMode}
+                        isSaving={isSaving}
                     />
                 )}
               </div>
@@ -445,14 +453,6 @@ function DashboardClientPage() {
           )}
           {isAdmin && isEditMode && (
              <div className="absolute bottom-8 right-8 z-[60] flex flex-col items-end gap-4">
-                 <div className="flex gap-2">
-                    <Button onClick={handleSaveChanges} disabled={isSaving}>
-                        <Save className="mr-2 h-4 w-4" /> {isSaving ? 'Salvando...' : 'Salvar'}
-                    </Button>
-                    <Button onClick={cancelEditMode} variant="secondary">
-                        <X className="mr-2 h-4 w-4" /> Cancelar
-                    </Button>
-                </div>
                  <Collapsible open={openCollapsible === 'banner'} onOpenChange={(isOpen) => setOpenCollapsible(isOpen ? 'banner' : null)} className="w-full max-w-xs">
                     <CollapsibleTrigger className="w-full bg-background/50 border border-border rounded-lg backdrop-blur-sm">
                         <div className="flex justify-between items-center w-full p-2 rounded-lg hover:bg-secondary/50">
@@ -555,5 +555,3 @@ export default function DashboardPage() {
     <DashboardClientPage />
   )
 }
-
-    

@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown } from "lucide-react";
+import { ChevronDown, Save, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface ToolbarButton {
@@ -25,9 +25,21 @@ interface ActionToolbarProps {
   buttons: ToolbarButton[];
   compact?: boolean;
   className?: string;
+  showSaveCancel?: boolean;
+  onSave?: () => void;
+  onCancel?: () => void;
+  isSaving?: boolean;
 }
 
-export function ActionToolbar({ buttons, compact = false, className = "" }: ActionToolbarProps) {
+export function ActionToolbar({ 
+    buttons, 
+    compact = false, 
+    className = "",
+    showSaveCancel = false,
+    onSave,
+    onCancel,
+    isSaving,
+}: ActionToolbarProps) {
   const [activeStates, setActiveStates] = useState<boolean[]>(
     buttons.map((btn) => !!btn.active)
   );
@@ -119,6 +131,19 @@ export function ActionToolbar({ buttons, compact = false, className = "" }: Acti
           </Button>
         );
       })}
+
+      {showSaveCancel && (
+        <div className="flex items-center border-l border-muted ml-2 pl-2 gap-2">
+            <Button onClick={onSave} disabled={isSaving} size="sm">
+                <Save className="mr-2 h-4 w-4" />
+                {isSaving ? 'Salvando...' : 'Salvar'}
+            </Button>
+            <Button onClick={onCancel} variant="ghost" size="sm">
+                <X className="mr-2 h-4 w-4" />
+                Cancelar
+            </Button>
+        </div>
+      )}
     </div>
   );
 }
