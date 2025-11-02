@@ -7,6 +7,7 @@ import { useFirestore } from '@/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { v4 as uuidv4 } from 'uuid';
+import ReactPlayer from 'react-player/lazy';
 
 import AdminGuard from '@/components/admin/admin-guard';
 import { Button } from '@/components/ui/button';
@@ -186,8 +187,8 @@ function EditCoursePageContent() {
   if (!course) return null;
 
   return (
-    <div className="container mx-auto px-4 py-8 md:px-8">
-      <div className="flex flex-wrap justify-between items-center gap-4 mb-8 pt-24">
+    <div className="container mx-auto px-4 py-8 md:px-8 pt-24">
+      <div className="flex flex-wrap justify-between items-center gap-4 mb-8">
         <div>
           <Button asChild variant="outline" size="sm" className="mb-2">
             <Link href="/admin"><ArrowLeft className="mr-2 h-4 w-4" />Voltar para o Painel</Link>
@@ -475,12 +476,25 @@ function LessonEditor({ lesson, moduleId, lessonIndex, onUpdate, onRemove }: Les
 
       <Textarea
         placeholder="Descrição da aula (opcional)..."
-        value={lesson.description}
+        value={lesson.description || ''}
         onChange={(e) => onUpdate(moduleId, lesson.id, 'description', e.target.value)}
         className="text-sm"
         rows={2}
       />
       
+      {lesson.videoUrl && (
+        <div className="aspect-video w-full rounded-md overflow-hidden bg-muted my-2">
+          <ReactPlayer
+            url={lesson.videoUrl}
+            width="100%"
+            height="100%"
+            controls={true}
+            light={false} // Set to false to show player directly
+            playing={false}
+          />
+        </div>
+      )}
+
       <Tabs value={videoInputMode} onValueChange={(v) => setVideoInputMode(v as 'upload' | 'url')} className="w-full">
         <TabsList className="grid w-full grid-cols-2 h-8">
             <TabsTrigger value="upload" className="text-xs">Enviar Vídeo</TabsTrigger>
