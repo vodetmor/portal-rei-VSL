@@ -42,7 +42,7 @@ export function ActionToolbar({ buttons, compact = false, className = "" }: Acti
   return (
     <div
       className={cn(
-        "relative z-0 flex flex-wrap items-center rounded-2xl border border-muted bg-gradient-to-b from-background to-muted/30 p-1 shadow-sm",
+        "relative z-0 flex flex-nowrap items-center rounded-2xl border border-muted bg-gradient-to-b from-background to-muted/30 p-1 shadow-sm",
         className
       )}
     >
