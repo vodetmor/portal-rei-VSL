@@ -12,7 +12,7 @@ import { ActionToolbar } from '@/components/ui/action-toolbar';
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Plus, Pencil, Save, X, Trophy, Gem, Crown, Star, type LucideIcon, Upload, Link2, Trash2, ChevronDown, AlignCenter, AlignLeft, AlignRight, Edit3, Bold, Italic, Underline, Palette } from 'lucide-react';
+import { Plus, Pencil, Save, X, Trophy, Gem, Crown, Star, type LucideIcon, Upload, Link2, Trash2, ChevronDown, AlignCenter, AlignLeft, AlignRight, Bold, Italic, Underline, Palette } from 'lucide-react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -24,7 +24,6 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -90,21 +89,25 @@ function DashboardClientPage() {
   const SelectedIcon = iconMap[isEditMode ? tempMembersIcon : layoutData.membersIcon] || Trophy;
 
   const applyFormat = (command: string) => {
-    if (command === 'foreColor') {
-      const selection = window.getSelection();
-      if (!selection || selection.rangeCount === 0) return;
+    // We must get the selection first
+    const selection = window.getSelection();
+    if (!selection || selection.rangeCount === 0) return;
   
+    // For applying color, we'll wrap the selection in a span
+    if (command === 'foreColor') {
       const range = selection.getRangeAt(0);
       const selectedText = range.toString();
   
       if (selectedText) {
+        // Create a new span element with the primary color class
         const span = document.createElement('span');
         span.className = 'text-primary';
         span.textContent = selectedText;
   
+        // Replace the selected text with the new span
         range.deleteContents();
         range.insertNode(span);
-
+  
         // This is a workaround to update the state after DOM manipulation
         const parentElement = range.commonAncestorContainer.parentElement;
         if (parentElement?.isContentEditable) {
@@ -115,27 +118,32 @@ function DashboardClientPage() {
            }
         }
       }
-      return;
+      return; // Exit after handling color
     }
   
+    // For other commands like bold, italic, just use execCommand
     document.execCommand(command, false, undefined);
-     // Trigger state update after execCommand
+  
+    // This part is crucial to make React aware of the DOM changes from execCommand
     const heroTitleEl = document.getElementById('hero-title-editor');
     if (heroTitleEl) setTempHeroTitle(heroTitleEl.innerHTML);
+  
     const heroSubtitleEl = document.getElementById('hero-subtitle-editor');
     if (heroSubtitleEl) setTempHeroSubtitle(heroSubtitleEl.innerHTML);
+  
     const membersTitleEl = document.getElementById('members-title-editor');
     if (membersTitleEl) setTempMembersTitle(membersTitleEl.innerHTML);
+  
     const membersSubtitleEl = document.getElementById('members-subtitle-editor');
     if (membersSubtitleEl) setTempMembersSubtitle(membersSubtitleEl.innerHTML);
   };
+  
   
   const handleAlignment = (alignment: 'left' | 'center' | 'right') => {
     setHeroAlignment(alignment);
   };
 
   const enterEditMode = () => {
-    // No more asterisks logic here
     setTempHeroTitle(layoutData.heroTitle);
     setTempHeroSubtitle(layoutData.heroSubtitle);
     setTempHeroImage(layoutData.heroImage);
@@ -374,7 +382,6 @@ function DashboardClientPage() {
   );
 
   return (
-    <AlertDialog onOpenChange={(open) => !open && setCourseToDelete(null)}>
       <div className="w-full">
         {/* Hero Section */}
         <section className={cn(
@@ -396,7 +403,7 @@ function DashboardClientPage() {
           )}
 
           <div className={heroContainerClasses}>
-              <h1 
+              <div 
                   id="hero-title-editor"
                   contentEditable={isEditMode}
                   suppressContentEditableWarning={true}
@@ -408,7 +415,7 @@ function DashboardClientPage() {
                   dangerouslySetInnerHTML={{ __html: isEditMode ? tempHeroTitle : layoutData.heroTitle }}
                 />
 
-              <p 
+              <div 
                 id="hero-subtitle-editor"
                 contentEditable={isEditMode}
                 suppressContentEditableWarning={true}
@@ -434,7 +441,7 @@ function DashboardClientPage() {
             </div>
           )}
           {isAdmin && isEditMode && (
-             <div className="absolute top-20 right-8 z-[60] flex flex-col items-end gap-4">
+             <div className="absolute top-24 right-8 z-30 flex flex-col items-end gap-4">
                  <div className="flex gap-2">
                     <Button onClick={handleSaveChanges} disabled={isSaving}>
                         <Save className="mr-2 h-4 w-4" /> {isSaving ? 'Salvando...' : 'Salvar'}
@@ -506,6 +513,7 @@ function DashboardClientPage() {
         </section>
 
         {/* Members Area Section */}
+        <AlertDialog onOpenChange={(open) => !open && setCourseToDelete(null)}>
         <section className="container mx-auto px-4 py-16 md:px-8 space-y-12">
           
           {/* Featured Carousel */}
@@ -654,8 +662,8 @@ function DashboardClientPage() {
             <AlertDialogAction onClick={handleConfirmDelete} className="bg-destructive hover:bg-destructive/90">Excluir</AlertDialogAction>
             </AlertDialogFooter>
         </AlertDialogContent>
+        </AlertDialog>
       </div>
-    </AlertDialog>
   );
 }
 
