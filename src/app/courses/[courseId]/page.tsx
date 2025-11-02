@@ -517,7 +517,7 @@ export default function CoursePlayerPage() {
       <section className="container mx-auto px-4 py-12 md:px-8">
         <div className="flex justify-between items-center mb-6">
             <div className="flex items-center gap-3">
-                <TrophyIcon className="h-8 w-8 text-primary" />
+                <Trophy className="h-8 w-8 text-primary" />
                 <div>
                     <h2 className="text-xl font-bold text-white">{course.title}</h2>
                     <div
