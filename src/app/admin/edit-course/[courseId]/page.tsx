@@ -7,6 +7,8 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useFirestore } from '@/firebase';
 import { doc, getDoc, updateDoc, DocumentData } from 'firebase/firestore';
+import { v4 as uuidv4 } from 'uuid';
+
 
 import AdminGuard from '@/components/admin/admin-guard';
 import { Button } from '@/components/ui/button';
@@ -17,7 +19,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import { Separator } from '@/components/ui/separator';
 
 const editCourseSchema = z.object({
   title: z.string().min(5, 'O título deve ter pelo menos 5 caracteres.'),
@@ -26,10 +29,22 @@ const editCourseSchema = z.object({
 
 type EditCourseFormValues = z.infer<typeof editCourseSchema>;
 
+interface Lesson {
+    id: string;
+    title: string;
+}
+  
+interface Module {
+    id: string;
+    title: string;
+    lessons: Lesson[];
+}
+
 interface Course extends DocumentData {
   id: string;
   title: string;
   description: string;
+  modules: Module[];
 }
 
 function EditCourseForm() {
@@ -42,6 +57,7 @@ function EditCourseForm() {
   const [course, setCourse] = useState<Course | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [modules, setModules] = useState<Module[]>([]);
 
   const form = useForm<EditCourseFormValues>({
     resolver: zodResolver(editCourseSchema),
@@ -59,6 +75,13 @@ function EditCourseForm() {
         if (courseSnap.exists()) {
           const courseData = { id: courseSnap.id, ...courseSnap.data() } as Course;
           setCourse(courseData);
+          // Add temporary UUIDs for client-side key management
+          const initialModules = (courseData.modules || []).map(m => ({
+            ...m,
+            id: uuidv4(),
+            lessons: m.lessons.map(l => ({ ...l, id: uuidv4() }))
+          }));
+          setModules(initialModules);
           form.reset({
             title: courseData.title,
             description: courseData.description,
@@ -86,13 +109,56 @@ function EditCourseForm() {
     fetchCourse();
   }, [firestore, courseId, router, form, toast]);
 
+    // Module and Lesson handlers
+    const addModule = () => {
+        setModules([...modules, { id: uuidv4(), title: '', lessons: [] }]);
+    };
+    
+    const removeModule = (moduleId: string) => {
+        setModules(modules.filter(m => m.id !== moduleId));
+    };
+
+    const updateModuleTitle = (moduleId: string, title: string) => {
+        setModules(modules.map(m => m.id === moduleId ? { ...m, title } : m));
+    };
+    
+    const addLesson = (moduleId: string) => {
+        setModules(modules.map(m => 
+        m.id === moduleId 
+            ? { ...m, lessons: [...m.lessons, { id: uuidv4(), title: '' }] }
+            : m
+        ));
+    };
+
+    const removeLesson = (moduleId: string, lessonId: string) => {
+        setModules(modules.map(m => 
+            m.id === moduleId 
+            ? { ...m, lessons: m.lessons.filter(l => l.id !== lessonId) }
+            : m
+        ));
+    };
+
+    const updateLessonTitle = (moduleId: string, lessonId: string, title: string) => {
+        setModules(modules.map(m => 
+        m.id === moduleId 
+            ? { ...m, lessons: m.lessons.map(l => l.id === lessonId ? { ...l, title } : l) }
+            : m
+        ));
+    };
+
   const onSubmit = async (data: EditCourseFormValues) => {
     if (!firestore || !courseId) return;
     setIsSubmitting(true);
 
     try {
       const courseRef = doc(firestore, 'courses', courseId);
-      await updateDoc(courseRef, data);
+      await updateDoc(courseRef, {
+        ...data,
+        modules: modules.map(({ id, ...restModule }) => ({
+            ...restModule,
+            lessons: restModule.lessons.map(({ id, ...restLesson }) => restLesson)
+        })), // Strip temporary IDs before saving
+      });
       toast({
         title: "Sucesso!",
         description: "O curso foi atualizado.",
@@ -156,7 +222,7 @@ function EditCourseForm() {
          <CardHeader>
           <CardTitle>Editar Curso: {course.title}</CardTitle>
           <CardDescription>
-            Faça alterações nos detalhes do curso abaixo.
+            Faça alterações nos detalhes, módulos e aulas do curso abaixo.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -188,7 +254,62 @@ function EditCourseForm() {
                             </FormItem>
                         )}
                     />
-                    <div className="flex justify-end">
+
+                    <Separator />
+
+                    {/* Modules and Lessons Section */}
+                    <div className="space-y-6">
+                        <div className="flex justify-between items-center">
+                            <h2 className="text-xl font-bold text-white">Módulos e Aulas</h2>
+                            <Button type="button" variant="outline" size="sm" onClick={addModule}>
+                                <Plus className="mr-2 h-4 w-4" />
+                                Adicionar Módulo
+                            </Button>
+                        </div>
+                        
+                        <div className="space-y-4">
+                        {modules.map((module, moduleIndex) => (
+                            <div key={module.id} className="bg-secondary/50 p-4 rounded-lg space-y-4 border border-border">
+                                <div className="flex items-center gap-2">
+                                    <Input 
+                                        placeholder={`Título do Módulo ${moduleIndex + 1}`}
+                                        value={module.title}
+                                        onChange={(e) => updateModuleTitle(module.id, e.target.value)}
+                                        className="font-semibold"
+                                    />
+                                    <Button type="button" variant="ghost" size="icon" onClick={() => removeModule(module.id)}>
+                                        <Trash2 className="h-4 w-4 text-destructive" />
+                                    </Button>
+                                </div>
+                                <div className="pl-4 space-y-2">
+                                    {module.lessons.map((lesson, lessonIndex) => (
+                                        <div key={lesson.id} className="flex items-center gap-2">
+                                            <Input
+                                                placeholder={`Título da Aula ${lessonIndex + 1}`}
+                                                value={lesson.title}
+                                                onChange={(e) => updateLessonTitle(module.id, lesson.id, e.target.value)}
+                                            />
+                                            <Button type="button" variant="ghost" size="icon" onClick={() => removeLesson(module.id, lesson.id)}>
+                                                <Trash2 className="h-4 w-4 text-destructive/70" />
+                                            </Button>
+                                        </div>
+                                    ))}
+                                </div>
+                                <Button type="button" variant="link" size="sm" onClick={() => addLesson(module.id)}>
+                                    <Plus className="mr-2 h-4 w-4" /> Adicionar Aula
+                                </Button>
+                            </div>
+                        ))}
+                        {modules.length === 0 && (
+                            <div className="p-8 rounded-lg bg-secondary text-center text-muted-foreground">
+                                <p>Nenhum módulo adicionado ainda. Clique em "Adicionar Módulo" para começar.</p>
+                            </div>
+                        )}
+                        </div>
+                    </div>
+
+
+                    <div className="flex justify-end mt-8">
                         <Button type="submit" disabled={isSubmitting}>
                             {isSubmitting ? 'Salvando...' : 'Salvar Alterações'}
                         </Button>
