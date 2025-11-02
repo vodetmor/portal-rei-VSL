@@ -45,7 +45,7 @@ export function Nav() {
       <div className="container mx-auto flex h-16 items-center px-4 md:px-8">
         <div className="mr-8 flex items-center">
           <Link href="/" className="mr-6 flex items-center space-x-2">
-            <span className="text-2xl font-bold brand-red tracking-wider">REI DA VSL</span>
+            <span className="text-2xl font-bold text-primary tracking-wider">REI DA VSL</span>
           </Link>
           {user && (
              <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
@@ -95,7 +95,7 @@ export function Nav() {
               </DropdownMenu>
             </>
           ) : (
-            <Button asChild size="sm" className="bg-brand-red text-white hover:bg-brand-red-dark">
+            <Button asChild size="sm">
                 <Link href="/login">Entrar</Link>
             </Button>
           )}

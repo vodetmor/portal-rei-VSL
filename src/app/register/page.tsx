@@ -108,14 +108,14 @@ export default function RegisterPage() {
               )}
             />
             {authError && <p className="text-sm font-medium text-destructive">{authError}</p>}
-            <Button type="submit" className="w-full bg-brand-red text-white hover:bg-brand-red-dark" disabled={form.formState.isSubmitting}>
+            <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" disabled={form.formState.isSubmitting}>
               {form.formState.isSubmitting ? 'Criando conta...' : 'Criar Conta'}
             </Button>
           </form>
         </Form>
         <div className="mt-4 text-center text-sm text-muted-foreground">
           Já tem uma conta?{' '}
-          <Link href="/login" className="font-medium text-white hover:underline">
+          <Link href="/login" className="font-medium text-primary hover:underline">
             Faça login
           </Link>
         </div>

@@ -109,14 +109,14 @@ export default function LoginPage() {
               )}
             />
             {authError && <p className="text-sm font-medium text-destructive">{authError}</p>}
-            <Button type="submit" className="w-full bg-brand-red text-white hover:bg-brand-red-dark" disabled={form.formState.isSubmitting}>
+            <Button type="submit" className="w-full bg-primary text-primary-foreground hover:bg-primary/90" disabled={form.formState.isSubmitting}>
               {form.formState.isSubmitting ? 'Entrando...' : 'Entrar'}
             </Button>
           </form>
         </Form>
         <div className="mt-4 text-center text-sm text-muted-foreground">
           Não tem uma conta?{' '}
-          <Link href="/register" className="font-medium text-white hover:underline">
+          <Link href="/register" className="font-medium text-primary hover:underline">
             Cadastre-se
           </Link>
         </div>
