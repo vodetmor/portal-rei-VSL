@@ -47,12 +47,15 @@ export default function RegisterPage() {
       const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
       const newUser = userCredential.user;
 
+      // Assign role based on email
+      const userRole = data.email === 'admin@reidavsl.com' ? 'admin' : 'user';
+
       // Create a user profile in Firestore
       await setDoc(doc(firestore, 'users', newUser.uid), {
         email: newUser.email,
         displayName: newUser.email?.split('@')[0] || 'Novo Usuário',
         photoURL: '',
-        role: 'user', // Default role
+        role: userRole,
       });
 
       router.push('/dashboard');
