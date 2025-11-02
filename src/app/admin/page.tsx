@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useFirestore, useUser } from '@/firebase';
 import AdminGuard from '@/components/admin/admin-guard';
-import { collection, getDocs, deleteDoc, doc, addDoc, setDoc, DocumentData, serverTimestamp } from 'firestore';
+import { collection, getDocs, deleteDoc, doc, addDoc, setDoc, DocumentData, serverTimestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Plus, Trash2, Users, Pencil, BookOpen, Link as LinkIcon, Copy, History } from 'lucide-react';
 import Image from 'next/image';
