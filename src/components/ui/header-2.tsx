@@ -132,6 +132,15 @@ export function Header() {
 								{link.label}
 							</Link>
 						))}
+
+						{isAdmin && (
+							<Button asChild variant="outline" size="sm">
+								<Link href="/admin">
+									<ShieldCheck className="mr-2 h-4 w-4" />
+									Painel Admin
+								</Link>
+							</Button>
+						)}
 						
 						<DropdownMenu>
 							<DropdownMenuTrigger asChild>
