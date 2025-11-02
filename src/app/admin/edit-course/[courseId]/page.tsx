@@ -87,8 +87,6 @@ function EditCoursePageContent() {
   const [modules, setModules] = useState<Module[]>([]);
   const [activeEditor, setActiveEditor] = useState<string | null>(null);
 
-  const descriptionEditorRef = useRef<HTMLDivElement>(null);
-
   const applyFormat = (command: string) => {
     const editorId = activeEditor;
     if (!editorId) return;
@@ -96,6 +94,7 @@ function EditCoursePageContent() {
     const editorElement = document.getElementById(editorId);
     if (!editorElement || !editorElement.isContentEditable) return;
     
+    // Use a more robust method for applying color
     if (command === 'foreColor') {
         const selection = window.getSelection();
         if (!selection || selection.rangeCount === 0) return;
@@ -132,9 +131,6 @@ function EditCoursePageContent() {
         setTempTitle(courseData.title || '');
         setTempSubtitle(courseData.subtitle || '');
         setTempDescription(courseData.description || '');
-        if (descriptionEditorRef.current) {
-            descriptionEditorRef.current.innerHTML = courseData.description || '';
-        }
         setModules((courseData.modules || []).map(m => ({
           ...m,
           id: m.id || uuidv4(), // Use existing ID or generate new client-side ID
@@ -390,7 +386,6 @@ function EditCoursePageContent() {
                             <label htmlFor="course-description-editor" className="text-sm font-medium text-white">Descrição</label>
                             <div
                                 id="course-description-editor"
-                                ref={descriptionEditorRef}
                                 contentEditable={true}
                                 suppressContentEditableWarning={true}
                                 onFocus={() => setActiveEditor('course-description-editor')}
@@ -937,3 +932,5 @@ export default function EditCoursePage() {
         </AdminGuard>
     )
 }
+
+    
