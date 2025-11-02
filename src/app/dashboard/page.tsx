@@ -51,39 +51,6 @@ export default function DashboardPage() {
   }, [user, userLoading, router]);
 
   useEffect(() => {
-    const checkAdminRole = async () => {
-      if (user && firestore) {
-        if (user.email === 'admin@reidavsl.com') {
-          setIsAdmin(true);
-          return;
-        }
-        const userDocRef = doc(firestore, 'users', user.uid);
-        try {
-          const userDoc = await getDoc(userDocRef);
-          if (userDoc.exists() && userDoc.data().role === 'admin') {
-            setIsAdmin(true);
-          } else {
-            setIsAdmin(false);
-          }
-        } catch (error) {
-            const permissionError = new FirestorePermissionError({
-                path: userDocRef.path,
-                operation: 'get',
-            });
-            errorEmitter.emit('permission-error', permissionError);
-            setIsAdmin(false);
-        }
-      } else {
-        setIsAdmin(false);
-      }
-    };
-
-    if (user) {
-      checkAdminRole();
-    }
-  }, [user, firestore]);
-
-  useEffect(() => {
     const fetchCourses = async () => {
       if (!firestore) return;
       setLoading(true);
@@ -105,9 +72,41 @@ export default function DashboardPage() {
         setLoading(false);
       }
     };
+    
+    const checkAdminAndFetchCourses = async () => {
+      if (user && firestore) {
+        if (user.email === 'admin@reidavsl.com') {
+          setIsAdmin(true);
+        } else {
+            const userDocRef = doc(firestore, 'users', user.uid);
+            try {
+              const userDoc = await getDoc(userDocRef);
+              if (userDoc.exists() && userDoc.data().role === 'admin') {
+                setIsAdmin(true);
+              } else {
+                setIsAdmin(false);
+              }
+            } catch (error) {
+                const permissionError = new FirestorePermissionError({
+                    path: userDocRef.path,
+                    operation: 'get',
+                });
+                errorEmitter.emit('permission-error', permissionError);
+                setIsAdmin(false);
+            }
+        }
+        await fetchCourses();
+      } else {
+        setIsAdmin(false);
+        setLoading(false);
+      }
+    };
 
-    fetchCourses();
-  }, [firestore]);
+    if (user && firestore) {
+      checkAdminAndFetchCourses();
+    }
+  }, [user, firestore]);
+
 
   const handleImageContainerClick = () => {
     if (isEditMode) {
