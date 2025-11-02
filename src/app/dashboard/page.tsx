@@ -343,15 +343,15 @@ function DashboardClientPage() {
     const ctaEl = ctaRef.current;
 
     if (isEditMode) {
-      if (titleEl) titleEl.innerHTML = tempHeroTitle;
-      if (subtitleEl) subtitleEl.innerHTML = tempHeroSubtitle;
-      if (ctaEl) ctaEl.innerHTML = tempCtaText;
+      if (titleEl && titleEl.innerHTML !== tempHeroTitle) titleEl.innerHTML = tempHeroTitle;
+      if (subtitleEl && subtitleEl.innerHTML !== tempHeroSubtitle) subtitleEl.innerHTML = tempHeroSubtitle;
+      if (ctaEl && ctaEl.innerHTML !== tempCtaText) ctaEl.innerHTML = tempCtaText;
     } else {
-      if (titleEl) titleEl.innerHTML = layoutData.heroTitle;
-      if (subtitleEl) subtitleEl.innerHTML = layoutData.heroSubtitle;
-      if (ctaEl) ctaEl.innerHTML = layoutData.ctaText;
+      if (titleEl && titleEl.innerHTML !== layoutData.heroTitle) titleEl.innerHTML = layoutData.heroTitle;
+      if (subtitleEl && subtitleEl.innerHTML !== layoutData.heroSubtitle) subtitleEl.innerHTML = layoutData.heroSubtitle;
+      if (ctaEl && ctaEl.innerHTML !== layoutData.ctaText) ctaEl.innerHTML = layoutData.ctaText;
     }
-}, [isEditMode, layoutData, tempHeroTitle, tempHeroSubtitle, tempCtaText]);
+}, [isEditMode, layoutData.heroTitle, layoutData.heroSubtitle, layoutData.ctaText, tempHeroTitle, tempHeroSubtitle, tempCtaText]);
 
 
   if (userLoading || !user || layoutData.isLoading) {
@@ -363,12 +363,7 @@ function DashboardClientPage() {
   }
   
   const heroContainerClasses = cn(
-    "relative z-10 mx-auto flex w-full max-w-4xl flex-col px-4",
-     {
-      'items-start': heroAlignment === 'left',
-      'items-center': heroAlignment === 'center',
-      'items-end': heroAlignment === 'end'
-    }
+    "relative z-10 mx-auto flex w-full max-w-4xl flex-col items-center px-4",
   );
 
   const textContainerClasses = cn(
@@ -416,7 +411,10 @@ function DashboardClientPage() {
                     contentEditable={isEditMode}
                     suppressContentEditableWarning={true}
                     onFocus={() => setActiveEditor('hero-title-editor')}
-                    onBlur={() => setActiveEditor(null)}
+                    onBlur={(e) => {
+                      setActiveEditor(null);
+                      setTempHeroTitle(e.currentTarget.innerHTML);
+                    }}
                     className={cn(
                         "text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl",
                         isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
@@ -445,10 +443,13 @@ function DashboardClientPage() {
                     contentEditable={isEditMode}
                     suppressContentEditableWarning={true}
                     onFocus={() => setActiveEditor('hero-subtitle-editor')}
-                    onBlur={() => setActiveEditor(null)}
+                    onBlur={(e) => {
+                      setActiveEditor(null);
+                      setTempHeroSubtitle(e.currentTarget.innerHTML);
+                    }}
                     className={cn(
                         "max-w-2xl text-lg text-muted-foreground md:text-xl",
-                        {'mx-auto': heroAlignment === 'center', 'ml-auto': heroAlignment === 'end'},
+                        {'mx-auto': heroAlignment === 'center', 'ml-auto': heroAlignment === 'end', 'mr-auto': heroAlignment === 'left'},
                         isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
                     )}
                 />
@@ -471,6 +472,7 @@ function DashboardClientPage() {
                     ref={ctaRef}
                     contentEditable={true}
                     suppressContentEditableWarning={true}
+                    onBlur={(e) => setTempCtaText(e.currentTarget.innerHTML)}
                     className="inline-block px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-md text-lg font-semibold outline-none focus:ring-2 focus:ring-ring"
                  >
                  </div>
