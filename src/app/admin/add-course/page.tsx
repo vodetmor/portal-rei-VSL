@@ -6,6 +6,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useFirestore } from '@/firebase';
+import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { collection, addDoc } from 'firebase/firestore';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -17,8 +18,13 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Trash2 } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Upload, Link2 } from 'lucide-react';
 import { Separator } from '@/components/ui/separator';
+import { AlertDialog, AlertDialogAction, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
+import Image from 'next/image';
+import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+
 
 const addCourseSchema = z.object({
   title: z.string().min(5, 'O título deve ter pelo menos 5 caracteres.'),
@@ -39,12 +45,23 @@ interface Module {
     lessons: Lesson[];
 }
 
+const DEFAULT_COURSE_IMAGE = "https://placehold.co/400x600/0f0f0f/b3b3b3?text=400x600";
+
 function AddCourseForm() {
   const firestore = useFirestore();
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [modules, setModules] = useState<Module[]>([]);
+
+  const [tempImage, setTempImage] = useState(DEFAULT_COURSE_IMAGE);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imageUrlInput, setImageUrlInput] = useState('');
+  const [imageInputMode, setImageInputMode] = useState<'upload' | 'url'>('upload');
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [newCourseId, setNewCourseId] = useState<string | null>(null);
 
   const form = useForm<AddCourseFormValues>({
     resolver: zodResolver(addCourseSchema),
@@ -54,7 +71,32 @@ function AddCourseForm() {
     }
   });
 
-  // Module and Lesson handlers
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setTempImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleUrlInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const newUrl = event.target.value;
+    setImageUrlInput(newUrl);
+    if (newUrl.startsWith('http://') || newUrl.startsWith('https://')) {
+      setTempImage(newUrl);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    setTempImage(DEFAULT_COURSE_IMAGE);
+    setImageUrlInput('');
+    setImageFile(null);
+  };
+
   const addModule = () => {
     setModules([...modules, { id: uuidv4(), title: '', lessons: [] }]);
   };
@@ -103,32 +145,48 @@ function AddCourseForm() {
   const onSubmit = async (data: AddCourseFormValues) => {
     if (!firestore) return;
     setIsSubmitting(true);
+    setUploadProgress(null);
+
+    let finalImageUrl = DEFAULT_COURSE_IMAGE;
     
-    // Use a standard placeholder image instead of a random one.
-    const thumbnailUrl = 'https://placehold.co/400x600/0f0f0f/b3b3b3?text=400x600';
-    const videoUrl = ''; // Placeholder for main course video, if any
-
     try {
-      const courseData = {
-        title: data.title,
-        description: data.description,
-        videoUrl: videoUrl,
-        thumbnailUrl: thumbnailUrl,
-        imageHint: 'placeholder',
-        createdAt: new Date(),
-        modules: modules.map(({ id, ...moduleRest }) => ({
-            ...moduleRest,
-            lessons: moduleRest.lessons.map(({ id: lessonId, ...lessonRest }) => lessonRest),
-        })),
-      };
-      
-      const courseDocRef = await addDoc(collection(firestore, 'courses'), courseData);
+        if (imageInputMode === 'upload' && imageFile) {
+            const storage = getStorage();
+            const storageRef = ref(storage, `courses/${uuidv4()}/${imageFile.name}`);
+            const uploadTask = uploadBytesResumable(storageRef, imageFile);
 
-      toast({
-        title: "Sucesso!",
-        description: "O curso foi criado. Agora você pode continuar editando.",
-      });
-      router.push(`/admin/edit-course/${courseDocRef.id}`);
+            finalImageUrl = await new Promise<string>((resolve, reject) => {
+                uploadTask.on('state_changed',
+                    (snapshot) => setUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
+                    (error) => {
+                        console.error("Upload failed:", error);
+                        toast({ variant: "destructive", title: "Erro de Upload", description: "Não foi possível enviar a imagem." });
+                        reject(error);
+                    },
+                    () => getDownloadURL(uploadTask.snapshot.ref).then(resolve).catch(reject)
+                );
+            });
+        } else if (imageInputMode === 'url' && imageUrlInput) {
+            finalImageUrl = imageUrlInput;
+        }
+
+        const courseData = {
+            title: data.title,
+            description: data.description,
+            videoUrl: '', 
+            thumbnailUrl: finalImageUrl,
+            imageHint: 'placeholder',
+            createdAt: new Date(),
+            modules: modules.map(({ id, ...moduleRest }) => ({
+                ...moduleRest,
+                lessons: moduleRest.lessons.map(({ id: lessonId, ...lessonRest }) => lessonRest),
+            })),
+        };
+      
+        const courseDocRef = await addDoc(collection(firestore, 'courses'), courseData);
+        setNewCourseId(courseDocRef.id);
+        setShowSuccessDialog(true);
+
     } catch (error) {
       console.error('Error creating course:', error);
       toast({
@@ -143,6 +201,7 @@ function AddCourseForm() {
   
 
   return (
+    <>
     <div className="container mx-auto px-4 py-8 pt-24 md:px-8">
        <div className="mb-6">
           <Button asChild variant="outline" size="sm">
@@ -156,7 +215,7 @@ function AddCourseForm() {
          <CardHeader>
           <CardTitle>Adicionar Novo Curso</CardTitle>
           <CardDescription>
-            Preencha os detalhes iniciais do curso e adicione os módulos e aulas.
+            Preencha os detalhes iniciais do curso, defina a imagem e adicione os módulos e aulas.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -188,7 +247,54 @@ function AddCourseForm() {
                             </FormItem>
                         )}
                     />
-                     <Separator />
+                    <Separator />
+                     
+                    {/* Thumbnail Section */}
+                     <div className="space-y-4">
+                        <h3 className="text-base font-medium text-white">Imagem da Miniatura</h3>
+                        <div className="flex flex-col sm:flex-row gap-6 items-start">
+                            <div className="aspect-[2/3] w-full max-w-[200px] mx-auto sm:mx-0 rounded-lg overflow-hidden bg-muted relative shrink-0">
+                                <Image src={tempImage} alt="Pré-visualização da miniatura" fill className="object-cover"/>
+                            </div>
+                            <div className="w-full space-y-2">
+                                <Tabs value={imageInputMode} onValueChange={(value) => setImageInputMode(value as 'upload' | 'url')} className="w-full">
+                                    <TabsList className="grid w-full grid-cols-2">
+                                        <TabsTrigger value="upload">Enviar Arquivo</TabsTrigger>
+                                        <TabsTrigger value="url">Usar URL</TabsTrigger>
+                                    </TabsList>
+                                    <TabsContent value="upload" className="mt-4">
+                                        <label htmlFor="course-image-upload" className="flex items-center gap-2 cursor-pointer text-sm text-muted-foreground hover:text-white border border-dashed rounded-md p-3 justify-center bg-background/50">
+                                            <Upload className="h-4 w-4" />
+                                            <span>{imageFile ? imageFile.name : 'Clique para selecionar'}</span>
+                                        </label>
+                                        <Input id="course-image-upload" type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
+                                        {uploadProgress !== null && imageInputMode === 'upload' && (
+                                            <Progress value={uploadProgress} className="w-full h-2 mt-2" />
+                                        )}
+                                    </TabsContent>
+                                    <TabsContent value="url" className="mt-4">
+                                        <div className="relative">
+                                            <Link2 className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                            <Input
+                                                type="text"
+                                                placeholder="https://exemplo.com/imagem.png"
+                                                value={imageUrlInput}
+                                                onChange={handleUrlInputChange}
+                                                className="w-full bg-background/50 pl-9"
+                                            />
+                                        </div>
+                                    </TabsContent>
+                                </Tabs>
+                                <Button onClick={handleRemoveImage} variant="outline" size="sm" className="w-full gap-2 text-destructive border-destructive/50 hover:bg-destructive/10 hover:text-destructive">
+                                    <Trash2 className="h-4 w-4" />
+                                    Remover Imagem
+                                </Button>
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <Separator />
 
                     {/* Modules and Lessons Section */}
                     <div className="space-y-6">
@@ -259,6 +365,22 @@ function AddCourseForm() {
         </CardContent>
       </Card>
     </div>
+    <AlertDialog open={showSuccessDialog} onOpenChange={setShowSuccessDialog}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+            <AlertDialogTitle>Curso Criado com Sucesso!</AlertDialogTitle>
+            <AlertDialogDescription>
+                Seu novo curso foi salvo. Agora você pode continuar para a página de edição para adicionar mais detalhes e conteúdo.
+            </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogAction onClick={() => router.push(`/admin/edit-course/${newCourseId}`)}>
+                    Continuar para Edição
+                </AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+    </AlertDialog>
+    </>
   );
 }
 
