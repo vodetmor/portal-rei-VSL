@@ -6,7 +6,6 @@ service cloud.firestore {
     // Helper function to check if the user is an admin
     function isAdmin() {
       // Use a simple, direct check against the admin email for performance.
-      // The get() call is expensive and can fail on list queries.
       return request.auth != null && request.auth.token.email == 'admin@reidavsl.com';
     }
 
@@ -61,13 +60,13 @@ service cloud.firestore {
 
         // Comments Subcollection
         match /comments/{commentId} {
-          // ANY authenticated user can read comments
+          // ANY authenticated user can read comments, as requested.
           allow list, read: if request.auth != null;
           
           // Creation allowed only for users with course access or admins
           allow create: if (request.auth != null && hasCourseAccess(courseId)) || isAdmin();
           
-          // Update: Admins can pin, users with access can edit their own comments
+          // Update: Admins can pin/update counts, user can edit their own comment if they have access
           allow update: if (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isPinned', 'likeCount', 'replyCount']))
                         || (request.auth != null && request.auth.uid == resource.data.userId && hasCourseAccess(courseId));
           
@@ -77,7 +76,7 @@ service cloud.firestore {
 
           // --- Replies Subcollection ---
           match /replies/{replyId} {
-            // ANY authenticated user can read replies
+            // ANY authenticated user can read replies.
             allow list, read: if request.auth != null;
             allow create: if (request.auth != null && hasCourseAccess(courseId)) || isAdmin();
             allow update: if (request.auth != null && request.auth.uid == resource.data.userId && hasCourseAccess(courseId)) || isAdmin();
@@ -86,7 +85,7 @@ service cloud.firestore {
 
           // --- Likes Subcollection ---
           match /likes/{userId} {
-            // ANY authenticated user can read likes
+            // ANY authenticated user can see who liked a comment.
             allow list, read: if request.auth != null;
             allow create, delete: if request.auth != null && request.auth.uid == userId && hasCourseAccess(courseId);
           }
