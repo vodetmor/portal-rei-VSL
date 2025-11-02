@@ -8,7 +8,7 @@ import { doc, getDoc, collection, getDocs, setDoc, type DocumentData } from 'fir
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Trophy, UploadCloud, Gem, Crown, Star } from 'lucide-react';
+import { Trophy, UploadCloud, Gem, Crown, Star, Plus } from 'lucide-react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { useEditMode } from '@/context/EditModeContext';
 import { Input } from '@/components/ui/input';
@@ -17,6 +17,8 @@ import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/
 import { useToast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { UploadModal } from '@/components/admin/upload-modal';
+
 
 interface Course extends DocumentData {
   id: string;
@@ -63,10 +65,35 @@ export default function DashboardPage() {
 
   const [isUploading, setIsUploading] = useState(false);
   const [contentLoading, setContentLoading] = useState(true);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const MembersIconComponent = iconComponents[membersIcon] || Trophy;
+
+  const fetchCourses = useCallback(async () => {
+    if (!firestore) return;
+    setLoading(true);
+    try {
+      const querySnapshot = await getDocs(collection(firestore, 'courses'));
+      const coursesData = querySnapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+      })) as Course[];
+      setCourses(coursesData);
+    } catch (error) {
+      console.error("Error fetching courses: ", error);
+      setCourses([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [firestore]);
+  
+  const handleUploadSuccess = () => {
+    fetchCourses();
+    setIsModalOpen(false);
+  }
 
 
   const handleSaveChanges = useCallback(async () => {
@@ -174,26 +201,11 @@ export default function DashboardPage() {
             }
         }
         
-        // Fetch courses and page content
-        setLoading(true);
+        // Fetch page content
         await fetchPageContent();
-        try {
-          const querySnapshot = await getDocs(collection(firestore, 'courses'));
-          if (querySnapshot.empty) {
-            setCourses([]);
-          } else {
-            const coursesData = querySnapshot.docs.map(doc => ({
-              id: doc.id,
-              ...doc.data()
-            })) as Course[];
-            setCourses(coursesData);
-          }
-        } catch (error) {
-          console.error("Error fetching courses: ", error);
-          setCourses([]); // Set to empty array on error
-        } finally {
-          setLoading(false);
-        }
+        
+        // Fetch courses
+        await fetchCourses();
 
       } else {
         setIsAdmin(false);
@@ -205,7 +217,7 @@ export default function DashboardPage() {
     if (user && firestore) {
       checkAdminAndFetchData();
     }
-  }, [user, firestore]);
+  }, [user, firestore, fetchCourses]);
 
 
   const handleImageContainerClick = () => {
@@ -358,7 +370,8 @@ export default function DashboardPage() {
 
       {/* Members Area Section */}
       <section className="container mx-auto px-4 py-16 md:px-8">
-        <div className="mb-8">
+        <div className="mb-8 flex justify-between items-center">
+          <div>
             <div className="flex items-center gap-3 text-2xl font-bold text-white">
                  {isEditMode ? (
                     <div data-editable="true">
@@ -403,6 +416,12 @@ export default function DashboardPage() {
                     <p className="pl-10">{membersSubtitle}</p>
                 )}
              </div>
+          </div>
+          {isAdmin && (
+            <Button onClick={() => setIsModalOpen(true)}>
+              <Plus className="mr-2 h-4 w-4" /> Adicionar Curso
+            </Button>
+          )}
         </div>
         
         {loading ? (
@@ -442,6 +461,12 @@ export default function DashboardPage() {
           </Carousel>
         )}
       </section>
+
+      <UploadModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)}
+        onUploadSuccess={handleUploadSuccess}
+      />
     </div>
   );
 }
