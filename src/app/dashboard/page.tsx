@@ -130,14 +130,14 @@ function DashboardClientPage() {
     setOpenCollapsible(null);
   };
 
-  const uploadImage = async (file: File, path: string, progressSetter: (p: number) => void): Promise<string> => {
+  const uploadImage = async (file: File, path: string): Promise<string> => {
     const storage = getStorage();
     const storageRef = ref(storage, `${path}/${Date.now()}-${file.name}`);
     const uploadTask = uploadBytesResumable(storageRef, file);
 
     return new Promise((resolve, reject) => {
         uploadTask.on('state_changed',
-            (snapshot) => progressSetter((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
+            (snapshot) => setUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
             (error) => {
                 console.error("Upload failed:", error);
                 toast({ variant: "destructive", title: "Erro de Upload", description: "Não foi possível enviar a imagem." });
@@ -153,20 +153,15 @@ function DashboardClientPage() {
     setIsSaving(true);
     setUploadProgress(null);
 
-    let finalHeroImageUrlDesktop = tempHeroImageDesktop;
-    let finalHeroImageUrlMobile = tempHeroImageMobile;
-    
     try {
+        let finalHeroImageUrlDesktop = tempHeroImageDesktop;
         if (heroImageDesktopFile) {
-            finalHeroImageUrlDesktop = await uploadImage(heroImageDesktopFile, 'layout/dashboard-hero/desktop', setUploadProgress);
-        } else {
-            finalHeroImageUrlDesktop = tempHeroImageUrlInputDesktop;
+            finalHeroImageUrlDesktop = await uploadImage(heroImageDesktopFile, 'layout/dashboard-hero/desktop');
         }
 
+        let finalHeroImageUrlMobile = tempHeroImageMobile;
         if (heroImageMobileFile) {
-            finalHeroImageUrlMobile = await uploadImage(heroImageMobileFile, 'layout/dashboard-hero/mobile', setUploadProgress);
-        } else {
-            finalHeroImageUrlMobile = tempHeroImageUrlInputMobile;
+            finalHeroImageUrlMobile = await uploadImage(heroImageMobileFile, 'layout/dashboard-hero/mobile');
         }
 
         const titleContent = titleRef.current?.innerHTML || tempHeroTitle;
@@ -228,28 +223,28 @@ function DashboardClientPage() {
   const handleHeroFileChange = (e: React.ChangeEvent<HTMLInputElement>, device: 'desktop' | 'mobile') => {
     const file = e.target.files?.[0];
     if (file) {
-      if (device === 'desktop') {
-        setHeroImageDesktopFile(file);
-        const reader = new FileReader();
-        reader.onloadend = () => setTempHeroImageDesktop(reader.result as string);
-        reader.readAsDataURL(file);
-      } else {
-        setHeroImageMobileFile(file);
-        const reader = new FileReader();
-        reader.onloadend = () => setTempHeroImageMobile(reader.result as string);
-        reader.readAsDataURL(file);
-      }
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onloadend = () => {
+          if (device === 'desktop') {
+            setHeroImageDesktopFile(file);
+            setTempHeroImageDesktop(reader.result as string);
+          } else {
+            setHeroImageMobileFile(file);
+            setTempHeroImageMobile(reader.result as string);
+          }
+      };
     }
   };
 
   const handleHeroUrlChange = (e: React.ChangeEvent<HTMLInputElement>, device: 'desktop' | 'mobile') => {
     const url = e.target.value;
-    if (device === 'desktop') {
-      setTempHeroImageUrlInputDesktop(url);
-      if (url.startsWith('http')) setTempHeroImageDesktop(url);
+     if (device === 'desktop') {
+        setTempHeroImageUrlInputDesktop(url);
+        if (url.startsWith('http')) setTempHeroImageDesktop(url);
     } else {
-      setTempHeroImageUrlInputMobile(url);
-      if (url.startsWith('http')) setTempHeroImageMobile(url);
+        setTempHeroImageUrlInputMobile(url);
+        if (url.startsWith('http')) setTempHeroImageMobile(url);
     }
   };
 
@@ -584,6 +579,7 @@ useEffect(() => {
                                     onUrlChange={handleHeroUrlChange}
                                     onRemove={handleRemoveHeroImage}
                                     uploadProgress={uploadProgress}
+                                    isUploading={isSaving && imageInputMode === 'desktop'}
                                 />
                             </TabsContent>
                             <TabsContent value="mobile" className="mt-4 space-y-3">
@@ -595,6 +591,7 @@ useEffect(() => {
                                     onUrlChange={handleHeroUrlChange}
                                     onRemove={handleRemoveHeroImage}
                                     uploadProgress={uploadProgress}
+                                    isUploading={isSaving && imageInputMode === 'mobile'}
                                 />
                             </TabsContent>
                         </Tabs>
@@ -661,7 +658,8 @@ function ImageUploader({
   url,
   onUrlChange,
   onRemove,
-  uploadProgress
+  uploadProgress,
+  isUploading
 }: {
   device: 'desktop' | 'mobile';
   file: File | null;
@@ -670,6 +668,7 @@ function ImageUploader({
   onUrlChange: (e: React.ChangeEvent<HTMLInputElement>, device: 'desktop' | 'mobile') => void;
   onRemove: (device: 'desktop' | 'mobile') => void;
   uploadProgress: number | null;
+  isUploading: boolean;
 }) {
   return (
     <Tabs defaultValue="upload" className="w-full">
@@ -683,7 +682,7 @@ function ImageUploader({
           <span>{file ? file.name : 'Selecionar imagem'}</span>
         </label>
         <Input id={`hero-image-upload-${device}`} type="file" accept="image/*" onChange={(e) => onFileChange(e, device)} className="hidden" />
-        {uploadProgress !== null && <Progress value={uploadProgress} className="w-full h-2" />}
+        {isUploading && uploadProgress !== null && <Progress value={uploadProgress} className="w-full h-2" />}
       </TabsContent>
       <TabsContent value="url" className="mt-4">
         <div className="relative">
@@ -704,3 +703,5 @@ export default function DashboardPage() {
     <DashboardClientPage />
   )
 }
+
+    
