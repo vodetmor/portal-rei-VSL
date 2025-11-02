@@ -72,6 +72,7 @@ export default function CoursePlayerPage() {
   const [isSaving, setIsSaving] = useState(false);
   const [courseAccessInfo, setCourseAccessInfo] = useState<CourseAccessInfo | null>(null);
   const [userProgress, setUserProgress] = useState<UserProgress | null>(null);
+  const [isClient, setIsClient] = useState(false);
 
   // Temp states for editing
   const [tempHeroImageDesktop, setTempHeroImageDesktop] = useState(DEFAULT_HERO_IMAGE_DESKTOP);
@@ -92,6 +93,10 @@ export default function CoursePlayerPage() {
   const [activeEditor, setActiveEditor] = useState<string | null>(null);
   const titleRef = useRef<HTMLDivElement>(null);
   const descriptionRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
 
   const checkAdminStatus = useCallback(async () => {
     if (!user || !firestore) return false;
@@ -322,8 +327,9 @@ export default function CoursePlayerPage() {
   };
 
   const isModuleUnlocked = useCallback((module: Module) => {
-    if (isAdmin) return true;
+    if (isAdmin || !isClient) return true; // Admins and server-side render see all as unlocked
     if (!courseAccessInfo) return false;
+
     const delay = module.releaseDelayDays || 0;
     if (delay === 0) return true;
 
@@ -331,10 +337,11 @@ export default function CoursePlayerPage() {
     const releaseDate = addDays(grantedDate, delay);
     return new Date() >= releaseDate;
 
-  }, [courseAccessInfo, isAdmin]);
+  }, [courseAccessInfo, isAdmin, isClient]);
   
   const getDaysUntilRelease = (module: Module): number | null => {
-    if (!courseAccessInfo || isAdmin) return null;
+    if (!courseAccessInfo || isAdmin || !isClient) return null;
+    
     const delay = module.releaseDelayDays || 0;
     if (delay === 0) return null;
     
@@ -647,3 +654,5 @@ export default function CoursePlayerPage() {
     </div>
   );
 }
+
+    
