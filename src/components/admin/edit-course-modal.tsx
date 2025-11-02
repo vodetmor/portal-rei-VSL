@@ -15,17 +15,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Progress } from '../ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Upload, Link2, Trash2, Check, Star, X } from 'lucide-react';
+import { Upload, Link2, Trash2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import Image from 'next/image';
-import { Switch } from '../ui/switch';
-import { Label } from '../ui/label';
 import { ScrollArea } from '../ui/scroll-area';
 
 const editCourseSchema = z.object({
   title: z.string().min(5, 'O título deve ter pelo menos 5 caracteres.'),
   description: z.string().min(10, 'A descrição deve ter pelo menos 10 caracteres.'),
-  isFeatured: z.boolean().default(false),
 });
 
 type EditCourseFormValues = z.infer<typeof editCourseSchema>;
@@ -68,7 +65,6 @@ export function EditCourseModal({ isOpen, onClose, course, onCourseUpdate }: Edi
       form.reset({
         title: course.title,
         description: course.description || '',
-        isFeatured: course.isFeatured || false,
       });
       setTempImage(course.thumbnailUrl || DEFAULT_COURSE_IMAGE);
       setImageUrlInput(course.thumbnailUrl || '');
@@ -145,7 +141,6 @@ export function EditCourseModal({ isOpen, onClose, course, onCourseUpdate }: Edi
         title: data.title,
         description: data.description,
         thumbnailUrl: finalImageUrl,
-        isFeatured: data.isFeatured,
       };
 
       await updateDoc(courseRef, dataToSave);
@@ -196,29 +191,6 @@ export function EditCourseModal({ isOpen, onClose, course, onCourseUpdate }: Edi
                                 <FormLabel>Descrição</FormLabel>
                                 <FormControl><Textarea {...field} rows={4} /></FormControl>
                                 <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={form.control}
-                        name="isFeatured"
-                        render={({ field }) => (
-                            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm bg-background/50">
-                                <div className="space-y-0.5">
-                                    <FormLabel className="flex items-center gap-2">
-                                        <Star className="h-4 w-4 text-primary" /> 
-                                        Curso em Destaque
-                                    </FormLabel>
-                                    <p className="text-xs text-muted-foreground">
-                                        Marque para exibir este curso na seção de destaques.
-                                    </p>
-                                </div>
-                                <FormControl>
-                                    <Switch
-                                    checked={field.value}
-                                    onCheckedChange={field.onChange}
-                                    />
-                                </FormControl>
                             </FormItem>
                         )}
                     />

@@ -74,9 +74,6 @@ function DashboardClientPage() {
   const [tempHeroTitle, setTempHeroTitle] = useState(layoutData.heroTitle);
   const [tempHeroSubtitle, setTempHeroSubtitle] = useState(layoutData.heroSubtitle);
   const [tempHeroImage, setTempHeroImage] = useState(layoutData.heroImage);
-  const [tempMembersTitle, setTempMembersTitle] = useState(layoutData.membersTitle);
-  const [tempMembersSubtitle, setTempMembersSubtitle] = useState(layoutData.membersSubtitle);
-  const [tempMembersIcon, setTempMembersIcon] = useState(layoutData.membersIcon);
   const [heroAlignment, setHeroAlignment] = useState<'left' | 'center' | 'right'>('left');
 
   
@@ -87,8 +84,6 @@ function DashboardClientPage() {
 
   const [openCollapsible, setOpenCollapsible] = useState<string | null>(null);
 
-  
-  const SelectedIcon = iconMap[isEditMode ? tempMembersIcon : layoutData.membersIcon] || Trophy;
 
   const applyFormat = (command: string) => {
     const editorId = activeEditor;
@@ -115,8 +110,6 @@ function DashboardClientPage() {
         // Update state after DOM manipulation
         if (editorId === 'hero-title-editor') setTempHeroTitle(editorElement.innerHTML);
         else if (editorId === 'hero-subtitle-editor') setTempHeroSubtitle(editorElement.innerHTML);
-        else if (editorId === 'members-title-editor') setTempMembersTitle(editorElement.innerHTML);
-        else if (editorId === 'members-subtitle-editor') setTempMembersSubtitle(editorElement.innerHTML);
       }
       return;
     }
@@ -127,8 +120,6 @@ function DashboardClientPage() {
     // This part is crucial to make React aware of the DOM changes from execCommand
     if (editorId === 'hero-title-editor') setTempHeroTitle(editorElement.innerHTML);
     else if (editorId === 'hero-subtitle-editor') setTempHeroSubtitle(editorElement.innerHTML);
-    else if (editorId === 'members-title-editor') setTempMembersTitle(editorElement.innerHTML);
-    else if (editorId === 'members-subtitle-editor') setTempMembersSubtitle(editorElement.innerHTML);
   };
   
   
@@ -140,9 +131,6 @@ function DashboardClientPage() {
     setTempHeroTitle(layoutData.heroTitle);
     setTempHeroSubtitle(layoutData.heroSubtitle);
     setTempHeroImage(layoutData.heroImage);
-    setTempMembersTitle(layoutData.membersTitle);
-    setTempMembersSubtitle(layoutData.membersSubtitle);
-    setTempMembersIcon(layoutData.membersIcon);
     setTempHeroImageUrlInput(layoutData.heroImage);
     setImageInputMode('upload');
     setHeroImageFile(null);
@@ -225,9 +213,6 @@ function DashboardClientPage() {
         title: tempHeroTitle,
         subtitle: tempHeroSubtitle,
         imageUrl: finalHeroImageUrl,
-        membersTitle: tempMembersTitle,
-        membersSubtitle: tempMembersSubtitle,
-        membersIcon: tempMembersIcon,
     };
     
     const layoutRef = doc(firestore, 'layout', 'dashboard-hero');
@@ -239,9 +224,6 @@ function DashboardClientPage() {
           heroTitle: dataToSave.title,
           heroSubtitle: dataToSave.subtitle,
           heroImage: dataToSave.imageUrl,
-          membersTitle: dataToSave.membersTitle,
-          membersSubtitle: dataToSave.membersSubtitle,
-          membersIcon: dataToSave.membersIcon,
       }));
 
       toast({
@@ -531,98 +513,6 @@ function DashboardClientPage() {
 
         {/* Members Area Section */}
         <section className="container mx-auto px-4 py-16 md:px-8 space-y-12">
-          
-          {/* Featured Carousel */}
-          <div>
-            <div className="mb-8 flex items-center gap-4 relative">
-                {isEditMode ? (
-                  <div className='flex w-full items-center gap-2 p-2 rounded-lg bg-background/50 border border-dashed border-border'>
-                    <Select value={tempMembersIcon} onValueChange={setTempMembersIcon}>
-                      <SelectTrigger className="w-fit bg-transparent border-none h-12 px-3" data-editable="true">
-                        <SelectValue>
-                          <SelectedIcon className="h-8 w-8 text-primary" />
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Trophy"><Trophy className="mr-2 h-4 w-4"/>Troféu</SelectItem>
-                        <SelectItem value="Gem"><Gem className="mr-2 h-4 w-4"/>Joia</SelectItem>
-                        <SelectItem value="Crown"><Crown className="mr-2 h-4 w-4"/>Coroa</SelectItem>
-                        <SelectItem value="Star"><Star className="mr-2 h-4 w-4"/>Estrela</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <div className='flex flex-col relative w-full'>
-                      <div
-                          id="members-title-editor"
-                          contentEditable={isEditMode}
-                          suppressContentEditableWarning={true}
-                          onFocus={() => setActiveEditor('members-title-editor')}
-                          onBlur={() => setActiveEditor(null)}
-                          onInput={(e) => setTempMembersTitle(e.currentTarget.innerHTML)}
-                          className="text-2xl font-bold bg-transparent border-none outline-none focus:ring-2 focus:ring-primary rounded-md p-1 -m-1"
-                          dangerouslySetInnerHTML={{ __html: isEditMode ? tempMembersTitle : layoutData.membersTitle }}
-                       />
-                       <p
-                          id="members-subtitle-editor"
-                          contentEditable={isEditMode}
-                          suppressContentEditableWarning={true}
-                          onFocus={() => setActiveEditor('members-subtitle-editor')}
-                          onBlur={() => setActiveEditor(null)}
-                          onInput={(e) => setTempMembersSubtitle(e.currentTarget.innerHTML)}
-                          className="text-sm bg-transparent border-none outline-none focus:ring-2 focus:ring-primary rounded-md p-1 -m-1 text-muted-foreground"
-                          dangerouslySetInnerHTML={{ __html: isEditMode ? tempMembersSubtitle : layoutData.membersSubtitle }}
-                       />
-                        {(activeEditor === 'members-title-editor' || activeEditor === 'members-subtitle-editor') && (
-                            <ActionToolbar
-                                className="absolute -top-14"
-                                buttons={[
-                                    { label: "Bold", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
-                                    { label: "Italic", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
-                                    { label: "Underline", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
-                                    { label: "Color", icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor') },
-                                ]}
-                            />
-                        )}
-                    </div>
-                  </div>
-                ) : (
-                    <div className="flex items-center gap-4">
-                        <SelectedIcon className="h-10 w-10 text-primary" />
-                        <div>
-                            <h2 className="text-2xl font-bold text-white" dangerouslySetInnerHTML={{ __html: layoutData.membersTitle }} />
-                            <p className="text-sm text-muted-foreground" dangerouslySetInnerHTML={{ __html: layoutData.membersSubtitle }}/>
-                        </div>
-                    </div>
-                )}
-            </div>
-            
-            {loading ? (
-              <div className="flex space-x-4">
-                {Array.from({ length: 4 }).map((_, index) => (
-                    <div key={index} className="w-1/4">
-                        <Skeleton className="h-[180px] w-full rounded-lg" />
-                    </div>
-                ))}
-              </div>
-            ) : (
-              <Carousel opts={{ align: "start", loop: courses.filter(c => c.isFeatured).length > 4 }} className="w-full">
-                <CarouselContent className="-ml-4">
-                  {courses.filter(c => c.isFeatured).map((course, index) => (
-                    <CarouselItem key={course.id} className="md:basis-1/2 lg:basis-1/3 xl:basis-1/5 pl-4">
-                        <CourseCard
-                          course={course}
-                          priority={index < 4}
-                          isAdmin={isAdmin}
-                          onEdit={handleEdit}
-                          onDelete={handleConfirmDelete}
-                        />
-                    </CarouselItem>
-                  ))}
-                </CarouselContent>
-                <CarouselPrevious className="hidden md:flex -left-4" />
-                <CarouselNext className="hidden md:flex -right-4" />
-              </Carousel>
-            )}
-          </div>
           
           {/* All Courses Carousel */}
            <div>

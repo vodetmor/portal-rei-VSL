@@ -8,20 +8,14 @@ const DEFAULT_DEFAULTS = {
     heroTitle: "Seu Reinado <span class='text-primary'>começa aqui</span>.",
     heroSubtitle: "No Rei da VSL, cada copy se torna uma conversão poderosa.",
     heroImage: "https://picsum.photos/seed/hero-bg/1920/1080",
-    membersTitle: "Área de Membros <span class='text-primary'>Premium</span>",
-    membersSubtitle: "Acesso exclusivo aos melhores conteúdos sobre VSL.",
-    membersIcon: 'Trophy',
 }
 
 interface LayoutData {
   heroTitle: string;
   heroSubtitle: string;
   heroImage: string;
-  membersTitle: string;
-  membersSubtitle: string;
-  membersIcon: string;
   isLoading: boolean;
-  defaults: typeof DEFAULT_DEFAULTS;
+  defaults: Omit<typeof DEFAULT_DEFAULTS, 'membersTitle' | 'membersSubtitle' | 'membersIcon'>;
 }
 
 interface LayoutContextType {
@@ -52,9 +46,6 @@ export const LayoutProvider = ({ children }: { children: ReactNode }) => {
             heroTitle: data.title || prev.defaults.heroTitle,
             heroSubtitle: data.subtitle || prev.defaults.heroSubtitle,
             heroImage: data.imageUrl || prev.defaults.heroImage,
-            membersTitle: data.membersTitle || prev.defaults.membersTitle,
-            membersSubtitle: data.membersSubtitle || prev.defaults.membersSubtitle,
-            membersIcon: data.membersIcon || prev.defaults.membersIcon,
         }));
       }
     } catch (error) {
