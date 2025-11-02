@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import AdminGuard from '@/components/admin/admin-guard';
 import { useFirestore } from '@/firebase';
-import { doc, getDoc, collection, getDocs, setDoc, deleteDoc, DocumentData } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, setDoc, deleteDoc, DocumentData, updateDoc } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,15 +11,18 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { ArrowLeft, Check, X } from 'lucide-react';
+import { ArrowLeft, Check, X, ShieldAlert } from 'lucide-react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Label } from '@/components/ui/label';
 
 interface User extends DocumentData {
   id: string;
   displayName: string;
   email: string;
   photoURL?: string;
+  role?: 'admin' | 'user';
 }
 
 interface Course extends DocumentData {
@@ -42,6 +45,7 @@ function ManageUserAccessPage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [courseAccess, setCourseAccess] = useState<CourseAccess>({});
   const [loading, setLoading] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   const fetchData = useCallback(async () => {
     if (!firestore || !userId) return;
@@ -51,7 +55,9 @@ function ManageUserAccessPage() {
       const userRef = doc(firestore, 'users', userId as string);
       const userSnap = await getDoc(userRef);
       if (userSnap.exists()) {
-        setUser({ id: userSnap.id, ...userSnap.data() } as User);
+        const userData = { id: userSnap.id, ...userSnap.data() } as User;
+        setUser(userData);
+        setIsAdmin(userData.role === 'admin');
       } else {
         throw new Error("User not found");
       }
@@ -128,6 +134,36 @@ function ManageUserAccessPage() {
         setCourseAccess(prev => ({ ...prev, [courseId]: !hasAccess }));
     }
   };
+  
+    const handleRoleChange = async () => {
+    if (!firestore || !user) return;
+    const newRole = isAdmin ? 'user' : 'admin';
+    const userRef = doc(firestore, 'users', user.id);
+
+    try {
+      await updateDoc(userRef, { role: newRole });
+      setIsAdmin(newRole === 'admin');
+      toast({
+        title: "Função Atualizada!",
+        description: `${user.displayName} agora é ${newRole === 'admin' ? 'um administrador' : 'um usuário'}.`,
+      });
+    } catch (error) {
+      console.error("Error updating role:", error);
+      const permissionError = new FirestorePermissionError({
+        path: userRef.path,
+        operation: 'update',
+        requestResourceData: { role: newRole },
+      });
+      errorEmitter.emit('permission-error', permissionError);
+      toast({
+        variant: "destructive",
+        title: "Erro de Permissão",
+        description: "Não foi possível alterar a função do usuário.",
+      });
+    }
+  };
+
+  const isOwner = user?.email === 'admin@reidavsl.com';
 
 
   if (loading) {
@@ -145,7 +181,7 @@ function ManageUserAccessPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8 md:px-8">
+    <div className="container mx-auto px-4 py-8 md:px-8 space-y-8">
       <div className="mb-6 pt-20">
         <Button asChild variant="outline" size="sm">
           <Link href="/admin/users">
@@ -155,7 +191,7 @@ function ManageUserAccessPage() {
         </Button>
       </div>
 
-      <Card className="mb-8">
+      <Card>
         <CardHeader className="flex flex-row items-center gap-4">
           <Avatar className="h-16 w-16">
             <AvatarImage src={user.photoURL} />
@@ -168,6 +204,48 @@ function ManageUserAccessPage() {
         </CardHeader>
       </Card>
       
+      <Card>
+        <CardHeader>
+          <CardTitle>Função Administrativa</CardTitle>
+          <CardDescription>Promova ou rebaixe o usuário da função de administrador.</CardDescription>
+        </CardHeader>
+        <CardContent>
+            <AlertDialog>
+                <div className="flex items-center justify-between p-4 rounded-lg border bg-secondary/50">
+                    <div>
+                        <Label htmlFor="admin-switch" className="font-medium text-white">Administrador</Label>
+                        <p className="text-sm text-muted-foreground">Concede permissões para gerenciar todo o site.</p>
+                    </div>
+                    <AlertDialogTrigger asChild disabled={isOwner}>
+                        <Switch
+                            id="admin-switch"
+                            checked={isAdmin}
+                            // The onCheckedChange is handled by the AlertDialog confirmation
+                            // This just triggers the dialog
+                            onCheckedChange={() => {}} 
+                            disabled={isOwner}
+                        />
+                    </AlertDialogTrigger>
+                     {isOwner && <p className="text-xs text-primary">O dono do site não pode ser alterado.</p>}
+                </div>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Você tem certeza?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            {isAdmin
+                                ? `Isso removerá todas as permissões de administrador de ${user.displayName}. O usuário não poderá mais gerenciar cursos, usuários ou configurações do site.`
+                                : `Isso concederá permissões de administrador para ${user.displayName}. O usuário poderá gerenciar cursos, usuários e configurações do site.`}
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleRoleChange}>Confirmar</AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle>Acesso aos Cursos</CardTitle>
