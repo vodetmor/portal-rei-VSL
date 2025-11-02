@@ -18,7 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Trash2, Save, Upload, Link2, GripVertical, FileVideo, Eye, CalendarDays, Send, BarChart2 } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, Upload, Link2, GripVertical, FileVideo, Eye, CalendarDays, Send, BarChart2, Book } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
@@ -30,6 +30,11 @@ import { logAdminAction } from '@/lib/audit';
 import { Badge } from '@/components/ui/badge';
 import CourseAnalytics from '@/components/admin/course-analytics';
 
+interface ComplementaryMaterial {
+  id: string;
+  title: string;
+  url: string;
+}
 
 interface Lesson {
   id: string;
@@ -37,6 +42,7 @@ interface Lesson {
   description?: string;
   videoUrl: string;
   releaseDelayDays?: number;
+  complementaryMaterials?: ComplementaryMaterial[];
 }
 
 interface Module {
@@ -95,7 +101,7 @@ function EditCoursePageContent() {
           ...m,
           id: m.id || uuidv4(), // Use existing ID or generate new client-side ID
           releaseDelayDays: m.releaseDelayDays || 0,
-          lessons: (m.lessons || []).map(l => ({ ...l, id: l.id || uuidv4(), description: l.description || '', videoUrl: l.videoUrl || '', releaseDelayDays: l.releaseDelayDays || 0 }))
+          lessons: (m.lessons || []).map(l => ({ ...l, id: l.id || uuidv4(), description: l.description || '', videoUrl: l.videoUrl || '', releaseDelayDays: l.releaseDelayDays || 0, complementaryMaterials: (l.complementaryMaterials || []).map(cm => ({...cm, id: cm.id || uuidv4()})) }))
         })));
       } else {
         toast({ variant: "destructive", title: "Erro", description: "Curso não encontrado." });
@@ -150,12 +156,12 @@ function EditCoursePageContent() {
   const addLesson = (moduleId: string) => {
     setModules(modules.map(m => 
       m.id === moduleId 
-        ? { ...m, lessons: [...m.lessons, { id: uuidv4(), title: `Nova Aula ${m.lessons.length + 1}`, description: '', videoUrl: '', releaseDelayDays: 0 }] }
+        ? { ...m, lessons: [...m.lessons, { id: uuidv4(), title: `Nova Aula ${m.lessons.length + 1}`, description: '', videoUrl: '', releaseDelayDays: 0, complementaryMaterials: [] }] }
         : m
     ));
   };
 
-  const updateLessonField = (moduleId: string, lessonId: string, field: keyof Lesson, value: string | number) => {
+  const updateLessonField = (moduleId: string, lessonId: string, field: keyof Lesson, value: any) => {
     setModules(modules.map(m => 
       m.id === moduleId 
         ? { ...m, lessons: m.lessons.map(l => l.id === lessonId ? { ...l, [field]: value } : l) }
@@ -464,7 +470,7 @@ interface ModuleEditorProps {
     onUpdate: <K extends keyof Module>(moduleId: string, field: K, value: Module[K]) => void;
     onRemove: (moduleId: string, moduleTitle: string) => void;
     onAddLesson: (moduleId: string) => void;
-    onUpdateLesson: (moduleId: string, lessonId: string, field: keyof Lesson, value: string | number) => void;
+    onUpdateLesson: (moduleId: string, lessonId: string, field: keyof Lesson, value: any) => void;
     onRemoveLesson: (moduleId: string, lessonId: string, lessonTitle: string) => void;
     onReorderLessons: (moduleId: string, reorderedLessons: Lesson[]) => void;
 }
@@ -640,7 +646,7 @@ function ModuleEditor({ module, onUpdate, onRemove, onAddLesson, onUpdateLesson,
 interface LessonEditorProps {
   lesson: Lesson;
   moduleId: string;
-  onUpdate: (moduleId: string, lessonId: string, field: keyof Lesson, value: string | number) => void;
+  onUpdate: (moduleId: string, lessonId: string, field: keyof Lesson, value: any) => void;
   onRemove: (moduleId: string, lessonId: string, lessonTitle: string) => void;
 }
 
@@ -680,6 +686,25 @@ function LessonEditor({ lesson, moduleId, onUpdate, onRemove }: LessonEditorProp
       );
     }
   };
+
+  const handleAddMaterial = () => {
+    const newMaterial: ComplementaryMaterial = { id: uuidv4(), title: '', url: '' };
+    const updatedMaterials = [...(lesson.complementaryMaterials || []), newMaterial];
+    onUpdate(moduleId, lesson.id, 'complementaryMaterials', updatedMaterials);
+  };
+  
+  const handleUpdateMaterial = (materialId: string, field: keyof Omit<ComplementaryMaterial, 'id'>, value: string) => {
+    const updatedMaterials = (lesson.complementaryMaterials || []).map(m =>
+      m.id === materialId ? { ...m, [field]: value } : m
+    );
+    onUpdate(moduleId, lesson.id, 'complementaryMaterials', updatedMaterials);
+  };
+  
+  const handleRemoveMaterial = (materialId: string) => {
+    const updatedMaterials = (lesson.complementaryMaterials || []).filter(m => m.id !== materialId);
+    onUpdate(moduleId, lesson.id, 'complementaryMaterials', updatedMaterials);
+  };
+  
 
   return (
     <Reorder.Item
@@ -728,50 +753,83 @@ function LessonEditor({ lesson, moduleId, onUpdate, onRemove }: LessonEditorProp
         rows={2}
       />
       
-      {lesson.videoUrl && !isDriveLink && (
-        <div className="aspect-video w-full rounded-md overflow-hidden bg-muted my-2">
-          <ReactPlayer
-            url={lesson.videoUrl}
-            width="100%"
-            height="100%"
-            controls={true}
-            light={false} 
-            playing={false}
-          />
-        </div>
-      )}
-
-      {isDriveLink && (
-          <div className="my-2 p-3 rounded-md bg-secondary/50 border border-blue-500/50 flex items-center gap-3">
-              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-blue-400 flex-shrink-0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="m10.4 17.6 1.6-1.6"></path><path d="m12 16 3-3"></path><path d="m11.2 14.8 3.2-3.2"></path></svg>
-              <div>
-                  <p className="text-sm font-medium text-white">Link do Google Drive Anexado</p>
-                  <p className="text-xs text-muted-foreground truncate">{lesson.videoUrl}</p>
-              </div>
-          </div>
-      )}
-
-      <Tabs defaultValue="url" className="w-full">
-        <TabsList className="grid w-full grid-cols-2 h-8">
-            <TabsTrigger value="upload" className="text-xs">Enviar Mídia</TabsTrigger>
-            <TabsTrigger value="url" className="text-xs">Usar URL</TabsTrigger>
-        </TabsList>
-        <TabsContent value="upload" className="mt-2">
-            <label htmlFor={`lesson-video-upload-${lesson.id}`} className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground hover:text-white border border-dashed rounded-md p-2 justify-center bg-background/50">
-                <Upload className="h-3 w-3" /><span>{videoFile ? videoFile.name : 'Selecionar arquivo (vídeo, pdf...)'}</span>
-            </label>
-            <Input id={`lesson-video-upload-${lesson.id}`} type="file" accept="video/*,application/pdf,image/*" onChange={handleVideoFileChange} className="hidden" />
-            {uploadProgress !== null && (<Progress value={uploadProgress} className="w-full h-1 mt-2" />)}
-        </TabsContent>
-        <TabsContent value="url" className="mt-2">
-            <Input
-              placeholder="URL do Vídeo (YouTube, Vimeo) ou Link (Google Drive)"
-              value={lesson.videoUrl}
-              onChange={(e) => onUpdate(moduleId, lesson.id, 'videoUrl', e.target.value)}
-              className="h-8 text-xs"
+       {/* Main Video Section */}
+       <div className="space-y-2 pt-2">
+        <h5 className="text-sm font-semibold text-white flex items-center gap-2"><FileVideo className="h-4 w-4 text-primary" />Vídeo Principal</h5>
+        {lesson.videoUrl && !isDriveLink && (
+            <div className="aspect-video w-full rounded-md overflow-hidden bg-muted my-2">
+            <ReactPlayer
+                url={lesson.videoUrl}
+                width="100%"
+                height="100%"
+                controls={true}
+                light={false} 
+                playing={false}
             />
-        </TabsContent>
-      </Tabs>
+            </div>
+        )}
+
+        {isDriveLink && (
+            <div className="my-2 p-3 rounded-md bg-secondary/50 border border-blue-500/50 flex items-center gap-3">
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-blue-400 flex-shrink-0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="m10.4 17.6 1.6-1.6"></path><path d="m12 16 3-3"></path><path d="m11.2 14.8 3.2-3.2"></path></svg>
+                <div>
+                    <p className="text-sm font-medium text-white">Link do Google Drive Anexado</p>
+                    <p className="text-xs text-muted-foreground truncate">{lesson.videoUrl}</p>
+                </div>
+            </div>
+        )}
+
+        <Tabs defaultValue="url" className="w-full">
+            <TabsList className="grid w-full grid-cols-2 h-8">
+                <TabsTrigger value="upload" className="text-xs">Enviar Mídia</TabsTrigger>
+                <TabsTrigger value="url" className="text-xs">Usar URL</TabsTrigger>
+            </TabsList>
+            <TabsContent value="upload" className="mt-2">
+                <label htmlFor={`lesson-video-upload-${lesson.id}`} className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground hover:text-white border border-dashed rounded-md p-2 justify-center bg-background/50">
+                    <Upload className="h-3 w-3" /><span>{videoFile ? videoFile.name : 'Selecionar arquivo (vídeo, pdf...)'}</span>
+                </label>
+                <Input id={`lesson-video-upload-${lesson.id}`} type="file" accept="video/*,application/pdf,image/*" onChange={handleVideoFileChange} className="hidden" />
+                {uploadProgress !== null && (<Progress value={uploadProgress} className="w-full h-1 mt-2" />)}
+            </TabsContent>
+            <TabsContent value="url" className="mt-2">
+                <Input
+                placeholder="URL do Vídeo (YouTube, Vimeo) ou Link (Google Drive)"
+                value={lesson.videoUrl}
+                onChange={(e) => onUpdate(moduleId, lesson.id, 'videoUrl', e.target.value)}
+                className="h-8 text-xs"
+                />
+            </TabsContent>
+        </Tabs>
+      </div>
+
+       {/* Complementary Content Section */}
+       <div className="space-y-3 pt-4 mt-4 border-t border-border/50">
+        <h5 className="text-sm font-semibold text-white flex items-center gap-2"><Book className="h-4 w-4 text-primary" />Conteúdo Complementar</h5>
+        {(lesson.complementaryMaterials || []).map((material) => (
+            <div key={material.id} className="flex items-center gap-2 p-2 rounded-md bg-secondary/40 border border-border/50">
+                <div className="flex-grow space-y-2">
+                     <Input
+                        placeholder="Título do material"
+                        value={material.title}
+                        onChange={(e) => handleUpdateMaterial(material.id, 'title', e.target.value)}
+                        className="h-8 text-xs"
+                    />
+                     <Input
+                        placeholder="URL do material"
+                        value={material.url}
+                        onChange={(e) => handleUpdateMaterial(material.id, 'url', e.target.value)}
+                        className="h-8 text-xs"
+                    />
+                </div>
+                <Button type="button" variant="ghost" size="icon" onClick={() => handleRemoveMaterial(material.id)}>
+                    <Trash2 className="h-4 w-4 text-destructive/70" />
+                </Button>
+            </div>
+        ))}
+         <Button type="button" variant="link" size="sm" className="w-full" onClick={handleAddMaterial}>
+            <Plus className="mr-2 h-4 w-4" /> Adicionar Material
+        </Button>
+      </div>
     </Reorder.Item>
   );
 }
@@ -784,3 +842,5 @@ export default function EditCoursePage() {
         </AdminGuard>
     )
 }
+
+    
