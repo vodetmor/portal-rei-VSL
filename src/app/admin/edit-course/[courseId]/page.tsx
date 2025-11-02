@@ -195,7 +195,7 @@ function EditCoursePageContent() {
         </div>
         <div className="flex gap-2">
             <Button asChild variant="secondary">
-                <Link href={`/courses/${courseId}`} target="_blank">
+                <Link href={`/courses/${courseId}`}>
                     Visualizar Curso
                 </Link>
             </Button>
