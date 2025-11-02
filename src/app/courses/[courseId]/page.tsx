@@ -305,7 +305,7 @@ export default function CoursePlayerPage() {
   };
 
   const isModuleUnlocked = useCallback((module: Module): boolean => {
-    if (isAdmin || !isClient) return true; // Admins see all, server-render assumes unlocked
+    if (isAdmin || !isClient) return true;
     if (!courseAccessInfo) return false;
 
     const delay = module.releaseDelayDays || 0;
@@ -317,7 +317,7 @@ export default function CoursePlayerPage() {
       return new Date() >= releaseDate;
     } catch (e) {
       console.error("Error parsing date for module unlock check", e);
-      return false; // Fail safely
+      return false;
     }
   }, [isAdmin, isClient, courseAccessInfo]);
 
@@ -460,8 +460,11 @@ export default function CoursePlayerPage() {
         </div>
         
         {isAdmin && !isEditMode && (
-          <div className="absolute top-24 right-8 z-20">
+          <div className="absolute top-24 right-8 z-20 flex items-center gap-2">
             <Button onClick={enterEditMode} variant="outline"><Pencil className="mr-2 h-4 w-4" /> Editar Página</Button>
+            <Button asChild variant="default">
+                <Link href={`/admin/edit-course/${courseId}`}>Gerenciar Módulos</Link>
+            </Button>
           </div>
         )}
 

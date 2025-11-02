@@ -97,7 +97,7 @@ function EditCoursePageContent() {
   const [heroImageDesktopFile, setHeroImageDesktopFile] = useState<File | null>(null);
   const [heroImageMobileFile, setHeroImageMobileFile] = useState<File | null>(null);
   const [heroImageUrlInputDesktop, setHeroImageUrlInputDesktop] = useState('');
-  const [heroImageUrlInputMobile, setHeroImageUrlInputMobile] = useState('');
+  const [heroImageUrlInputMobile, setHeroImageUrlInputMobile] useState('');
   const [imageInputMode, setImageInputMode] = useState<'desktop' | 'mobile'>('desktop');
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   
@@ -594,7 +594,7 @@ function EditCoursePageContent() {
               </div>
               <div className="flex items-center gap-4">
                 <Button asChild variant="outline">
-                      <Link href={`/courses/${courseId}`} target="_blank">
+                      <Link href={`/courses/${courseId}`}>
                           <Eye className="mr-2 h-4 w-4" /> Visualizar
                       </Link>
                   </Button>
@@ -1102,5 +1102,3 @@ export default function EditCoursePage() {
         </AdminGuard>
     )
 }
-
-    
