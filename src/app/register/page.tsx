@@ -1,6 +1,6 @@
 'use client';
 import { Button } from '@/components/ui/button';
-import { useAuth, useUser, useFirestore } from '@/firebase';
+import { useAuth, useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
@@ -67,19 +67,32 @@ export default function RegisterPage() {
       const newUser = userCredential.user;
 
       const userRole = data.email === 'admin@reidavsl.com' ? 'admin' : 'user';
-
-      await setDoc(doc(firestore, 'users', newUser.uid), {
+      const userDocRef = doc(firestore, 'users', newUser.uid);
+      const userDocData = {
         email: newUser.email,
         displayName: newUser.email?.split('@')[0] || 'Novo Usuário',
         photoURL: '',
         role: userRole,
-      });
+      };
 
-      router.push('/dashboard');
+      // Non-blocking write with specific error handling
+      setDoc(userDocRef, userDocData)
+        .then(() => {
+          router.push('/dashboard');
+        })
+        .catch((error) => {
+            const permissionError = new FirestorePermissionError({
+                path: userDocRef.path,
+                operation: 'create',
+                requestResourceData: userDocData
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        });
+
     } catch (error: any) {
       const message = mapFirebaseError(error.code);
       setAuthError(message);
-      console.error('Error signing up', error);
+      // This catch block handles errors from createUserWithEmailAndPassword, not setDoc
     }
   };
 
