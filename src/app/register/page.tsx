@@ -79,9 +79,6 @@ export default function RegisterPage() {
 
       // Non-blocking write with specific error handling
       setDoc(userDocRef, userDocData)
-        .then(() => {
-          router.push('/dashboard');
-        })
         .catch(async (serverError) => {
             const permissionError = new FirestorePermissionError({
                 path: userDocRef.path,
@@ -90,6 +87,8 @@ export default function RegisterPage() {
             });
             errorEmitter.emit('permission-error', permissionError);
         });
+
+      router.push('/dashboard');
 
     } catch (error: any) {
       const message = mapFirebaseError(error.code);

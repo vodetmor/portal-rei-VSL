@@ -1,7 +1,7 @@
 
 'use client';
 import { useState, useEffect } from 'react';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirestore, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
 import AdminGuard from '@/components/admin/admin-guard';
 import { collection, getDocs, deleteDoc, doc, addDoc, setDoc, DocumentData, serverTimestamp } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
@@ -110,7 +110,8 @@ function AdminDashboard() {
         status: 'draft', // New courses start as drafts
       };
       // Step 1: Create the course
-      const docRef = await addDoc(collection(firestore, 'courses'), newCourseData);
+      const courseRef = collection(firestore, 'courses');
+      const docRef = await addDoc(courseRef, newCourseData);
       
       // Step 2: Log the admin action
       await logAdminAction(firestore, user, 'course_created', {
@@ -121,10 +122,11 @@ function AdminDashboard() {
 
       // Step 3: Grant access to the admin who created it
       const accessRef = doc(firestore, `users/${user.uid}/courseAccess`, docRef.id);
-      await setDoc(accessRef, {
+      const accessData = {
         grantedAt: serverTimestamp(),
         courseId: docRef.id,
-      });
+      };
+      await setDoc(accessRef, accessData);
 
       toast({
         title: "Rascunho Criado!",
@@ -135,6 +137,12 @@ function AdminDashboard() {
 
     } catch (error) {
        console.error("Error creating new course draft: ", error);
+       const permissionError = new FirestorePermissionError({
+           path: 'courses',
+           operation: 'create',
+           requestResourceData: { title: "Novo Curso (Rascunho)" }
+       });
+       errorEmitter.emit('permission-error', permissionError);
        toast({
         variant: "destructive",
         title: "Erro ao Criar Rascunho",
@@ -147,31 +155,35 @@ function AdminDashboard() {
     if (!firestore || !itemToDelete || !user) return;
     const { id, type, title } = itemToDelete;
     const collectionName = type === 'course' ? 'courses' : 'premiumLinks';
+    const docRef = doc(firestore, collectionName, id);
 
-    try {
-      await deleteDoc(doc(firestore, collectionName, id));
-      
-      await logAdminAction(firestore, user, `${type}_deleted`, {
-        type: type === 'course' ? 'Course' : 'Premium Link',
-        id: id,
-        title: title,
-      });
+    deleteDoc(docRef)
+      .then(async () => {
+        await logAdminAction(firestore, user, `${type}_deleted`, {
+          type: type === 'course' ? 'Course' : 'Premium Link',
+          id: id,
+          title: title,
+        });
 
-      toast({
-        title: `${type === 'course' ? 'Curso' : 'Link'} Excluído`,
-        description: `O ${type === 'course' ? 'curso' : 'link'} foi removido com sucesso.`,
+        toast({
+          title: `${type === 'course' ? 'Curso' : 'Link'} Excluído`,
+          description: `O ${type === 'course' ? 'curso' : 'link'} foi removido com sucesso.`,
+        });
+        fetchData();
       })
-      fetchData(); 
-    } catch (error) {
-      console.error(`Error deleting ${type}: `, error);
-      toast({
-        variant: "destructive",
-        title: "Erro ao Excluir",
-        description: `Não foi possível excluir o ${type}. Verifique as permissões.`
+      .catch((error) => {
+        console.error(`Error deleting ${type}: `, error);
+        const permissionError = new FirestorePermissionError({ path: docRef.path, operation: 'delete' });
+        errorEmitter.emit('permission-error', permissionError);
+        toast({
+          variant: "destructive",
+          title: "Erro ao Excluir",
+          description: `Não foi possível excluir o ${type}. Verifique as permissões.`,
+        });
+      })
+      .finally(() => {
+        setItemToDelete(null);
       });
-    } finally {
-      setItemToDelete(null);
-    }
   };
 
   const handleCreatePremiumLink = async () => {
@@ -185,25 +197,33 @@ function AdminDashboard() {
         return;
     }
 
-    try {
-        const newLink = { name: newLinkName, courseIds };
-        const docRef = await addDoc(collection(firestore, 'premiumLinks'), newLink);
-        
+    const newLink = { name: newLinkName, courseIds };
+    const linksCollection = collection(firestore, 'premiumLinks');
+    
+    addDoc(linksCollection, newLink)
+      .then(async (docRef) => {
         await logAdminAction(firestore, user, 'premium_link_created', {
             type: 'Premium Link',
             id: docRef.id,
             title: newLink.name
-        })
+        });
 
         toast({ title: "Sucesso!", description: "Link premium criado." });
         setNewLinkName('');
         setSelectedCourses({});
         setIsLinkDialogOpen(false);
         fetchData();
-    } catch (error) {
+      })
+      .catch((error) => {
         console.error("Error creating premium link: ", error);
+        const permissionError = new FirestorePermissionError({
+            path: linksCollection.path,
+            operation: 'create',
+            requestResourceData: newLink
+        });
+        errorEmitter.emit('permission-error', permissionError);
         toast({ variant: "destructive", title: "Erro", description: "Não foi possível criar o link." });
-    }
+      });
   };
 
   const copyLinkToClipboard = (id: string) => {

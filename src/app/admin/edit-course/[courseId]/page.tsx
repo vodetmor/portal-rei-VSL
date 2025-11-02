@@ -3,7 +3,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useFirestore, useUser } from '@/firebase';
+import { useFirestore, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { v4 as uuidv4 } from 'uuid';
@@ -103,6 +103,11 @@ function EditCoursePageContent() {
       }
     } catch (error) {
       console.error('Error fetching course:', error);
+      const permissionError = new FirestorePermissionError({
+          path: `courses/${courseId}`,
+          operation: 'get'
+      });
+      errorEmitter.emit('permission-error', permissionError);
       toast({ variant: "destructive", title: "Erro de Permissão", description: "Você não tem permissão para carregar este curso." });
     } finally {
       setLoading(false);
@@ -224,6 +229,12 @@ function EditCoursePageContent() {
       fetchCourse(); // Re-fetch to update status indicator
     } catch (error) {
       console.error('Error updating course:', error);
+      const permissionError = new FirestorePermissionError({
+          path: `courses/${courseId}`,
+          operation: 'update',
+          requestResourceData: { title: tempTitle, status } // Example data
+      });
+      errorEmitter.emit('permission-error', permissionError);
       toast({ variant: "destructive", title: "Erro ao salvar", description: "Ocorreu um erro ao salvar o curso." });
     } finally {
       setIsSaving(false);

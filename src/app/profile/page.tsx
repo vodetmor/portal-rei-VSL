@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser, useFirestore, useAuth } from '@/firebase';
+import { useUser, useFirestore, useAuth, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -149,10 +149,19 @@ export default function ProfilePage() {
       });
 
       const userDocRef = doc(firestore, 'users', user.uid);
-      await setDoc(userDocRef, {
+      const userData = {
         displayName: data.displayName,
         photoURL: photoURL,
-      }, { merge: true });
+      };
+
+      setDoc(userDocRef, userData, { merge: true }).catch(err => {
+          const permissionError = new FirestorePermissionError({
+              path: userDocRef.path,
+              operation: 'update',
+              requestResourceData: userData
+          });
+          errorEmitter.emit('permission-error', permissionError);
+      });
 
       toast({ title: "Sucesso!", description: "Seu perfil foi atualizado." });
       setAvatarFile(null);
@@ -185,7 +194,7 @@ export default function ProfilePage() {
     } catch (error: any) {
       console.error('Error updating password:', error);
       let description = "Não foi possível alterar a senha.";
-      if (error.code === 'auth/wrong-password') {
+      if (error.code === 'auth/wrong-password' || error.code === 'auth/invalid-credential') {
         description = "A senha atual está incorreta.";
          passwordForm.setError("currentPassword", { type: "manual", message: "Senha atual incorreta."});
       }

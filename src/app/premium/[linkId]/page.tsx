@@ -1,7 +1,7 @@
 'use client';
 import { useAuth, useUser, useFirestore } from '@/firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc, getDoc, collection, writeBatch } from 'firebase/firestore';
+import { doc, setDoc, getDoc, collection, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { useRouter, useParams } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
@@ -12,6 +12,8 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Eye, EyeOff, Lock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 const authSchema = z.object({
   email: z.string().email({ message: 'Por favor, insira um email válido.' }),
@@ -90,13 +92,19 @@ export default function PremiumAccessPage() {
         const batch = writeBatch(firestore);
         linkData.courseIds.forEach(courseId => {
             const accessRef = doc(firestore, `users/${userId}/courseAccess`, courseId);
-            batch.set(accessRef, { grantedAt: new Date(), courseId: courseId });
+            batch.set(accessRef, { grantedAt: serverTimestamp(), courseId: courseId });
         });
         await batch.commit();
         toast({ title: "Acesso Liberado!", description: "Seus cursos estão disponíveis no painel." });
         router.push('/dashboard');
     } catch (e) {
         console.error("Failed to grant course access:", e);
+        const permissionError = new FirestorePermissionError({
+            path: `/users/${userId}/courseAccess`,
+            operation: 'write',
+            requestResourceData: { courses: linkData.courseIds }
+        });
+        errorEmitter.emit('permission-error', permissionError);
         toast({ variant: 'destructive', title: "Erro Crítico", description: "Não foi possível liberar seu acesso. Contate o suporte." });
     }
   };
@@ -139,11 +147,15 @@ export default function PremiumAccessPage() {
         } else {
             userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
             const userDocRef = doc(firestore, 'users', userCredential.user.uid);
-            await setDoc(userDocRef, {
+            const userDocData = {
                 email: userCredential.user.email,
                 displayName: userCredential.user.email?.split('@')[0] || 'Novo Usuário',
                 photoURL: '',
                 role: 'user',
+            };
+             setDoc(userDocRef, userDocData).catch(err => {
+                const permissionError = new FirestorePermissionError({ path: userDocRef.path, operation: 'create', requestResourceData: userDocData });
+                errorEmitter.emit('permission-error', permissionError);
             });
         }
         // Grant access is handled by the useEffect watching the user state

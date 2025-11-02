@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import AdminGuard from '@/components/admin/admin-guard';
 import { useFirestore, useUser } from '@/firebase';
-import { doc, getDoc, collection, getDocs, setDoc, deleteDoc, DocumentData, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, setDoc, deleteDoc, DocumentData, updateDoc, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -12,7 +12,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { ArrowLeft, Check, X, ShieldAlert, BookOpen, Lock, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Check, X, ShieldAlert, BookOpen, Lock, ChevronDown, Trash2 } from 'lucide-react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
@@ -46,6 +46,7 @@ interface CourseAccess {
 interface UserProgress {
     [courseId: string]: {
         completedLessons: Record<string, any>;
+        updatedAt: any;
     }
 }
 
@@ -176,35 +177,74 @@ function ManageUserAccessPage() {
     if (!firestore || !user || !adminUser || targetRole === null) return;
     
     const userRef = doc(firestore, 'users', user.id);
+    const userData = { role: targetRole };
+
+    updateDoc(userRef, userData)
+      .then(async () => {
+        await logAdminAction(firestore, adminUser, targetRole === 'admin' ? 'user_promoted' : 'user_demoted', {
+            type: 'User Role',
+            id: user.id,
+            title: `Usuário ${user.email} para ${targetRole}`
+        });
+        
+        setIsAdmin(targetRole === 'admin');
+        toast({
+          title: "Função Atualizada!",
+          description: `${user.displayName} agora é ${targetRole === 'admin' ? 'um administrador' : 'um usuário'}.`,
+        });
+      })
+      .catch((error) => {
+        console.error("Error updating role:", error);
+        const permissionError = new FirestorePermissionError({ path: userRef.path, operation: 'update', requestResourceData: userData });
+        errorEmitter.emit('permission-error', permissionError);
+        toast({
+          variant: "destructive",
+          title: "Erro de Permissão",
+          description: "Não foi possível alterar a função do usuário.",
+        });
+      })
+      .finally(() => {
+        setIsConfirmingRoleChange(false);
+        setTargetRole(null);
+      });
+  };
+
+  const handleResetProgress = async (courseId: string, courseTitle: string) => {
+    if (!firestore || !userId || !adminUser) return;
+    
+    const progressRef = doc(firestore, `users/${userId}/progress`, courseId);
 
     try {
-      await updateDoc(userRef, { role: targetRole });
+        const batch = writeBatch(firestore);
+        // Deleting the document is the cleanest way to reset progress.
+        batch.delete(progressRef); 
+        // We could also reset courseAccess here if needed, but for now we only reset progress
+        // e.g., batch.update(doc(firestore, `users/${userId}/courseAccess`, courseId), { grantedAt: serverTimestamp() });
 
-      await logAdminAction(firestore, adminUser, targetRole === 'admin' ? 'user_promoted' : 'user_demoted', {
-          type: 'User Role',
-          id: user.id,
-          title: `Usuário ${user.email} para ${targetRole}`
-      });
-      
-      setIsAdmin(targetRole === 'admin');
-      toast({
-        title: "Função Atualizada!",
-        description: `${user.displayName} agora é ${targetRole === 'admin' ? 'um administrador' : 'um usuário'}.`,
-      });
+        await batch.commit();
+
+        await logAdminAction(firestore, adminUser, 'progress_reset', {
+            type: 'User Progress',
+            id: courseId,
+            title: `Progresso em '${courseTitle}' para ${user?.email}`
+        });
+
+        toast({
+            title: "Progresso Resetado!",
+            description: `O progresso de ${user?.displayName} em ${courseTitle} foi reiniciado.`
+        });
+        fetchData(); // Refresh data
     } catch (error) {
-      console.error("Error updating role:", error);
-      const permissionError = new FirestorePermissionError({ path: userRef.path, operation: 'update', requestResourceData: { role: targetRole } });
-      errorEmitter.emit('permission-error', permissionError);
-      toast({
-        variant: "destructive",
-        title: "Erro de Permissão",
-        description: "Não foi possível alterar la função do usuário.",
-      });
-    } finally {
-      setIsConfirmingRoleChange(false);
-      setTargetRole(null);
+        console.error("Error resetting progress: ", error);
+        const permissionError = new FirestorePermissionError({
+            path: progressRef.path,
+            operation: 'delete',
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        toast({ variant: "destructive", title: "Erro", description: "Não foi possível resetar o progresso." });
     }
   };
+
 
   const onSwitchChange = (checked: boolean) => {
       if (isOwner) return;
@@ -304,6 +344,7 @@ function ManageUserAccessPage() {
                 access={courseAccess[course.id] || null}
                 progress={userProgress[course.id] || null}
                 onAccessChange={(hasAccess) => handleAccessChange(course.id, course.title, hasAccess)}
+                onResetProgress={() => handleResetProgress(course.id, course.title)}
              />
           )) : (
             <p className="text-muted-foreground text-center py-4">Nenhum curso encontrado na plataforma.</p>
@@ -320,9 +361,10 @@ interface CourseProgressCardProps {
     access: { grantedAt: any } | null;
     progress: UserProgress[string] | null;
     onAccessChange: (hasAccess: boolean) => void;
+    onResetProgress: () => void;
 }
 
-function CourseProgressCard({ course, access, progress, onAccessChange }: CourseProgressCardProps) {
+function CourseProgressCard({ course, access, progress, onAccessChange, onResetProgress }: CourseProgressCardProps) {
     const totalLessons = course.modules?.reduce((acc, mod) => acc + (mod.lessons?.length || 0), 0) || 0;
     const completedLessonsCount = progress ? Object.keys(progress.completedLessons).length : 0;
     const overallProgress = totalLessons > 0 ? (completedLessonsCount / totalLessons) * 100 : 0;
@@ -373,7 +415,28 @@ function CourseProgressCard({ course, access, progress, onAccessChange }: Course
                         </div>
                     </div>
                 </div>
-                <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                    {hasAccess && (
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="h-8 w-8">
+                                    <Trash2 className="h-4 w-4 text-destructive/70" />
+                                </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Resetar Progresso?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        Isso apagará todo o progresso de aulas concluídas deste usuário no curso "{course.title}". A data de liberação dos módulos (drip content) não será afetada. Esta ação não pode ser desfeita.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                    <AlertDialogAction onClick={onResetProgress}>Confirmar e Resetar</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    )}
                     {hasAccess && course.modules?.length > 0 && (
                         <CollapsibleTrigger asChild>
                             <Button variant="ghost" size="sm" className="flex gap-2">

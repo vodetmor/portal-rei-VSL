@@ -20,6 +20,8 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, UserCog } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { Input } from '@/components/ui/input';
+import { errorEmitter } from '@/firebase/error-emitter';
+import { FirestorePermissionError } from '@/firebase/errors';
 
 interface User extends DocumentData {
   id: string;
@@ -48,6 +50,13 @@ function UserManagementPage() {
         setUsers(usersData);
       } catch (error) {
         console.error("Error fetching users:", error);
+        // This is a prime candidate for the permission error emitter
+        const permissionError = new FirestorePermissionError({
+            path: 'users',
+            operation: 'list'
+        });
+        errorEmitter.emit('permission-error', permissionError);
+
         toast({
           variant: "destructive",
           title: "Erro de Permissão",
@@ -142,7 +151,7 @@ function UserManagementPage() {
                     )}
                   </TableCell>
                   <TableCell className="text-right">
-                    <Button asChild variant="outline" size="sm" disabled={user.email === 'admin@reidavsl.com'}>
+                    <Button asChild variant="outline" size="sm">
                       <Link href={`/admin/users/${user.id}`}>
                         <UserCog className="mr-2 h-4 w-4" />
                         Gerenciar
