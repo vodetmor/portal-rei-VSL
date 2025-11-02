@@ -48,11 +48,7 @@ export default function LoginPage() {
       console.error('Error signing in', error);
       switch (error.code) {
         case 'auth/user-not-found':
-          setAuthError('Nenhum usuário encontrado com este email.');
-          break;
         case 'auth/wrong-password':
-          setAuthError('Senha incorreta. Por favor, tente novamente.');
-          break;
         case 'auth/invalid-credential':
           setAuthError('Credenciais inválidas. Verifique seu e-mail e senha.');
           break;

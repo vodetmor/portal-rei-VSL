@@ -1,5 +1,6 @@
 'use client';
-import { useAuth, useUser } from '@/firebase';
+import { useAuth, useUser, useFirestore } from '@/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,13 +13,15 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Bell, Search } from 'lucide-react';
+import { Bell, Search, ShieldCheck } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export function Nav() {
   const { user, loading } = useUser();
   const auth = useAuth();
+  const firestore = useFirestore();
   const [isScrolled, setIsScrolled] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -30,6 +33,24 @@ export function Nav() {
       window.removeEventListener('scroll', handleScroll);
     };
   }, []);
+
+  useEffect(() => {
+    const checkAdminRole = async () => {
+      if (user && firestore) {
+        const userDocRef = doc(firestore, 'users', user.uid);
+        const userDoc = await getDoc(userDocRef);
+        if (userDoc.exists() && userDoc.data().role === 'admin') {
+          setIsAdmin(true);
+        } else {
+          setIsAdmin(false);
+        }
+      } else {
+        setIsAdmin(false);
+      }
+    };
+
+    checkAdminRole();
+  }, [user, firestore]);
 
   const handleSignOut = () => {
     if (auth) {
@@ -50,7 +71,12 @@ export function Nav() {
           {user && (
              <nav className="hidden md:flex items-center space-x-6 text-sm font-medium">
                 <Link href="/dashboard" className="text-neutral-300 hover:text-white transition-colors">Início</Link>
-                {/* Add more links like "Séries", "Filmes" if needed */}
+                {isAdmin && (
+                  <Link href="/admin" className="flex items-center gap-1 text-neutral-300 hover:text-white transition-colors">
+                    <ShieldCheck className="h-4 w-4" />
+                    Painel Admin
+                  </Link>
+                )}
              </nav>
           )}
         </div>
@@ -89,6 +115,11 @@ export function Nav() {
                   <DropdownMenuItem>
                     <Link href="/profile">Gerenciar Perfil</Link>
                   </DropdownMenuItem>
+                  {isAdmin && (
+                    <DropdownMenuItem>
+                       <Link href="/admin">Painel Admin</Link>
+                    </DropdownMenuItem>
+                  )}
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={handleSignOut}>Sair</DropdownMenuItem>
                 </DropdownMenuContent>

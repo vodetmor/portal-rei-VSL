@@ -1,18 +1,19 @@
 'use client';
 
 import Image from 'next/image';
-import { cn } from '@/lib/utils';
+import Link from 'next/link';
 
 interface CourseCardProps {
+  id: string;
   title: string;
   imageUrl: string;
   imageHint: string;
   priority?: boolean;
 }
 
-export function CourseCard({ title, imageUrl, imageHint, priority = false }: CourseCardProps) {
+export function CourseCard({ id, title, imageUrl, imageHint, priority = false }: CourseCardProps) {
   return (
-    <div className="group relative block cursor-pointer overflow-hidden rounded-lg">
+    <Link href={`/courses/${id}`} className="group relative block cursor-pointer overflow-hidden rounded-lg">
       <div className="aspect-video overflow-hidden">
         <Image
           src={imageUrl}
@@ -28,6 +29,6 @@ export function CourseCard({ title, imageUrl, imageHint, priority = false }: Cou
       <div className="absolute bottom-0 left-0 p-4">
         <h3 className="font-bold text-white">{title}</h3>
       </div>
-    </div>
+    </Link>
   );
 }
