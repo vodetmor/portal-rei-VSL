@@ -189,7 +189,7 @@ function DashboardClientPage() {
     
     const titleContent = titleRef.current?.innerHTML || tempHeroTitle;
     const subtitleContent = subtitleRef.current?.innerHTML || tempHeroSubtitle;
-    const ctaContent = ctaRef.current?.textContent || tempCtaText;
+    const ctaContent = ctaRef.current?.innerHTML || tempCtaText;
 
     const dataToSave = {
         title: titleContent,
@@ -341,11 +341,11 @@ function DashboardClientPage() {
     if (isEditMode) {
       if (titleRef.current) titleRef.current.innerHTML = tempHeroTitle;
       if (subtitleRef.current) subtitleRef.current.innerHTML = tempHeroSubtitle;
-      if (ctaRef.current) ctaRef.current.textContent = tempCtaText;
+      if (ctaRef.current) ctaRef.current.innerHTML = tempCtaText;
     } else {
         if (titleRef.current) titleRef.current.innerHTML = layoutData.heroTitle;
         if (subtitleRef.current) subtitleRef.current.innerHTML = layoutData.heroSubtitle;
-        if (ctaRef.current) ctaRef.current.textContent = layoutData.ctaText;
+        if (ctaRef.current) ctaRef.current.innerHTML = layoutData.ctaText;
     }
   }, [isEditMode, layoutData, tempHeroTitle, tempHeroSubtitle, tempCtaText]);
 
@@ -359,20 +359,16 @@ function DashboardClientPage() {
   }
   
   const heroContainerClasses = cn(
-    "relative z-10 mx-auto flex max-w-4xl flex-col items-center px-4"
+    "relative z-10 mx-auto flex w-full max-w-4xl flex-col px-4",
+     {
+      'items-start': heroAlignment === 'left',
+      'items-center': heroAlignment === 'center',
+      'items-end': heroAlignment === 'end'
+    }
   );
 
   const textContainerClasses = cn(
     "w-full",
-    {
-      'text-left': heroAlignment === 'left',
-      'text-center': heroAlignment === 'center',
-      'text-right': heroAlignment === 'end'
-    }
-  );
-  
-  const ctaContainerClasses = cn(
-    "mt-8 w-full",
     {
       'text-left': heroAlignment === 'left',
       'text-center': heroAlignment === 'center',
@@ -409,14 +405,14 @@ function DashboardClientPage() {
           )}
 
           <div className={heroContainerClasses}>
-              <div className={cn("relative", textContainerClasses)}>
+              <div className={cn("relative w-full", textContainerClasses)}>
                  <div
                     id="hero-title-editor"
                     ref={titleRef}
                     contentEditable={isEditMode}
                     suppressContentEditableWarning={true}
                     onFocus={() => setActiveEditor('hero-title-editor')}
-                    onBlur={() => { setActiveEditor(null); if (titleRef.current) setTempHeroTitle(titleRef.current.innerHTML); }}
+                    onBlur={() => { setActiveEditor(null); }}
                     className={cn(
                         "text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl",
                         isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
@@ -439,16 +435,17 @@ function DashboardClientPage() {
                 )}
               </div>
 
-              <div className={cn("relative mt-4", textContainerClasses)}>
+              <div className={cn("relative mt-4 w-full", textContainerClasses)}>
                 <div
                     id="hero-subtitle-editor"
                     ref={subtitleRef}
                     contentEditable={isEditMode}
                     suppressContentEditableWarning={true}
                     onFocus={() => setActiveEditor('hero-subtitle-editor')}
-                    onBlur={() => { setActiveEditor(null); if (subtitleRef.current) setTempHeroSubtitle(subtitleRef.current.innerHTML); }}
+                    onBlur={() => { setActiveEditor(null);}}
                     className={cn(
                         "max-w-2xl text-lg text-muted-foreground md:text-xl",
+                        {'mx-auto': heroAlignment === 'center', 'ml-auto': heroAlignment === 'end'},
                         isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
                     )}
                     dangerouslySetInnerHTML={{ __html: isEditMode ? tempHeroSubtitle : layoutData.heroSubtitle }}
@@ -466,20 +463,20 @@ function DashboardClientPage() {
                 )}
               </div>
 
-            <div className={ctaContainerClasses}>
+            <div className={cn("mt-8 w-full", textContainerClasses)}>
               {isEditMode ? (
                  <div
                     ref={ctaRef}
                     contentEditable={true}
                     suppressContentEditableWarning={true}
-                    onBlur={() => { if(ctaRef.current) setTempCtaText(ctaRef.current.textContent || '')}}
+                    onBlur={() => {}}
                     className="inline-block px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-md text-lg font-semibold outline-none focus:ring-2 focus:ring-ring"
+                    dangerouslySetInnerHTML={{ __html: tempCtaText }}
                  >
-                    {tempCtaText}
                  </div>
               ) : (
                 <Button onClick={handleCtaClick} size="lg" variant="default" className="bg-primary hover:bg-primary/90 text-primary-foreground">
-                    {layoutData.ctaText}
+                    <span dangerouslySetInnerHTML={{ __html: layoutData.ctaText }} />
                 </Button>
               )}
             </div>
