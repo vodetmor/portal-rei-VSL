@@ -576,6 +576,7 @@ interface CommentsSectionProps {
 
 function CommentsSection({ courseId, lessonId, user, isAdmin }: CommentsSectionProps) {
     const firestore = useFirestore();
+    const { toast } = useToast();
     const [commentText, setCommentText] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
     
