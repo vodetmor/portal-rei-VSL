@@ -1,5 +1,5 @@
 'use client';
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 
 export function useScroll(threshold: number) {
 	const [scrolled, setScrolled] = useState(false);
@@ -8,7 +8,7 @@ export function useScroll(threshold: number) {
 		const onScroll = () => {
 			setScrolled(window.scrollY > threshold);
 		};
-
+        
         // Check scroll position on mount (client-side only) and add listener
         onScroll();
 		window.addEventListener('scroll', onScroll, { passive: true });
