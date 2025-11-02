@@ -342,21 +342,19 @@ function DashboardClientPage() {
     );
   }
   
-  const heroContainerClasses = cn(
-    "relative z-10 mx-auto flex max-w-4xl flex-col px-4 pt-24",
-    {
-      'items-start': heroAlignment === 'left',
-      'items-center': heroAlignment === 'center',
-      'items-end': heroAlignment === 'right',
-    }
-  );
+  const heroContainerClasses = cn("relative z-10 mx-auto flex max-w-4xl flex-col px-4 pt-24");
 
   return (
       <div className="w-full">
         {/* Hero Section */}
         <section className={cn(
-          "relative flex h-[60vh] min-h-[500px] w-full flex-col items-center justify-center -mt-16",
-          isEditMode && "border-2 border-dashed border-primary/50"
+          "relative flex h-[60vh] min-h-[500px] w-full flex-col justify-center",
+          isEditMode && "border-2 border-dashed border-primary/50",
+          {
+            'items-start': heroAlignment === 'left',
+            'items-center': heroAlignment === 'center',
+            'items-end': heroAlignment === 'right',
+          }
         )}>
           {layoutData.isLoading ? <Skeleton className="absolute inset-0 z-0" /> : (
               <div className="absolute inset-0 z-0">
@@ -382,8 +380,13 @@ function DashboardClientPage() {
                   onBlur={() => setActiveEditor(null)}
                   onInput={(e) => setTempHeroTitle(e.currentTarget.innerHTML)}
                   className={cn(
-                    "text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl text-left",
-                    isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
+                    "text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl",
+                    isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2",
+                     {
+                        'text-left': heroAlignment === 'left',
+                        'text-center': heroAlignment === 'center',
+                        'text-right': heroAlignment === 'right',
+                    }
                   )}
                   dangerouslySetInnerHTML={{ __html: isEditMode ? tempHeroTitle : layoutData.heroTitle }}
                 />
@@ -403,11 +406,7 @@ function DashboardClientPage() {
                 )}
               </div>
 
-              <div className={cn("relative w-full", {
-                  'text-left': heroAlignment === 'left',
-                  'text-center': heroAlignment === 'center',
-                  'text-right': heroAlignment === 'right',
-              })}>
+              <div className="relative w-full">
                 <div 
                   id="hero-subtitle-editor"
                   contentEditable={isEditMode}
@@ -417,7 +416,12 @@ function DashboardClientPage() {
                   onInput={(e) => setTempHeroSubtitle(e.currentTarget.innerHTML)}
                   className={cn(
                     "mt-4 max-w-2xl text-lg text-muted-foreground md:text-xl",
-                    isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
+                    isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2",
+                     {
+                        'text-left': heroAlignment === 'left',
+                        'text-center': heroAlignment === 'center',
+                        'text-right': heroAlignment === 'right',
+                    }
                   )}
                   dangerouslySetInnerHTML={{ __html: isEditMode ? tempHeroSubtitle : layoutData.heroSubtitle }}
                 />
@@ -434,7 +438,11 @@ function DashboardClientPage() {
                 )}
               </div>
 
-            <div className="mt-8">
+            <div className={cn("mt-8 w-full", {
+                'text-left': heroAlignment === 'left',
+                'text-center': heroAlignment === 'center',
+                'text-right': heroAlignment === 'right',
+            })}>
               <Button asChild size="lg" variant="default" className="bg-primary hover:bg-primary/90 text-primary-foreground">
                 <Link href="#">Assistir Agora</Link>
               </Button>
