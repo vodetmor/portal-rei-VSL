@@ -93,7 +93,7 @@ export default function CoursePlayerPage() {
   };
 
   const fetchCourseAndAccess = useCallback(async () => {
-    if (!firestore || !courseId || !user) return;
+    if (!firestore || !courseId) return;
     setLoading(true);
     try {
       // Fetch course
@@ -115,25 +115,32 @@ export default function CoursePlayerPage() {
         return;
       }
       
-      // Fetch user access
-      const accessRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId);
-      const accessSnap = await getDoc(accessRef);
-      if (accessSnap.exists()) {
-        const accessData = accessSnap.data();
-        // Firestore Timestamps need to be converted to JS Dates then to ISO strings
-        const grantedAtDate = accessData.grantedAt.toDate();
-        setCourseAccessInfo({ grantedAt: grantedAtDate.toISOString() });
-      } else {
-        // If not admin, they shouldn't be here
-        if (!isAdmin) {
-             toast({ variant: "destructive", title: "Acesso Negado", description: "Você não tem acesso a este curso."});
-             router.push('/dashboard');
+      // Fetch user access only if a user is logged in
+      if (user) {
+        const accessRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId);
+        const accessSnap = await getDoc(accessRef);
+        if (accessSnap.exists()) {
+          const accessData = accessSnap.data();
+          // Firestore Timestamps need to be converted to JS Dates then to ISO strings
+          const grantedAtDate = accessData.grantedAt.toDate();
+          setCourseAccessInfo({ grantedAt: grantedAtDate.toISOString() });
+        } else {
+          // If not admin and no access record, they shouldn't be here
+          const userDoc = await getDoc(doc(firestore, 'users', user.uid));
+          const isUserAdmin = userDoc.exists() && userDoc.data().role === 'admin';
+          if (!isUserAdmin) {
+            toast({ variant: "destructive", title: "Acesso Negado", description: "Você não tem acesso a este curso."});
+            router.push('/dashboard');
+          }
         }
+      } else if (!isAdmin) { // If no user and not admin, deny access
+        toast({ variant: "destructive", title: "Acesso Negado", description: "Você precisa estar logado para acessar este curso."});
+        router.push('/login');
       }
 
     } catch (error) {
       console.error('Error fetching course or access:', error);
-      toast({ variant: "destructive", title: "Erro", description: "Você não tem permissão para ver este curso."});
+      toast({ variant: "destructive", title: "Erro de Permissão", description: "Ocorreu um erro ao carregar o curso."});
     } finally {
       setLoading(false);
     }
@@ -151,20 +158,23 @@ export default function CoursePlayerPage() {
           const userDoc = await getDoc(userDocRef);
           if (userDoc.exists() && userDoc.data().role === 'admin') {
             setIsAdmin(true);
+          } else {
+            setIsAdmin(false);
           }
         } catch (error) {
-          // Non-admin, ignore permission error for reading own role
+           setIsAdmin(false);
         }
+      } else {
+        setIsAdmin(false);
       }
     };
     checkAdmin();
   }, [user, firestore]);
 
   useEffect(() => {
-    if (user) { // Only fetch if user is available
-        fetchCourseAndAccess();
-    }
-  }, [user, fetchCourseAndAccess]);
+    // We can fetch course data regardless of user, but access logic depends on user
+    fetchCourseAndAccess();
+  }, [fetchCourseAndAccess]);
 
   // Edit Mode Handlers
   const enterEditMode = () => setIsEditMode(true);
@@ -235,13 +245,13 @@ export default function CoursePlayerPage() {
 
         if (heroImageDesktopFile) {
             finalHeroImageUrlDesktop = await uploadImage(heroImageDesktopFile, 'desktop');
-        } else {
+        } else if (heroImageUrlInputDesktop) {
             finalHeroImageUrlDesktop = heroImageUrlInputDesktop;
         }
 
         if (heroImageMobileFile) {
             finalHeroImageUrlMobile = await uploadImage(heroImageMobileFile, 'mobile');
-        } else {
+        } else if (heroImageUrlInputMobile) {
             finalHeroImageUrlMobile = heroImageUrlInputMobile;
         }
 
