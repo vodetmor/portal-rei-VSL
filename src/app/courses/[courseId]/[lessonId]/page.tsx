@@ -10,7 +10,7 @@ import ReactPlayer from 'react-player/lazy';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { CheckCircle, Circle, Lock, ArrowLeft, ArrowRight, X, Download, Link2 } from 'lucide-react';
+import { CheckCircle, Circle, Lock, ArrowLeft, ArrowRight, X, Download, Link2, FileText, Check } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
@@ -57,6 +57,7 @@ interface CourseAccessInfo {
 const urlRegex = /(https?:\/\/[^\s]+)/g;
 
 function makeLinksClickable(text: string) {
+    if(!text) return '';
     return text.replace(urlRegex, (url) => `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">${url}</a>`);
 }
 
@@ -197,38 +198,41 @@ export default function LessonPage() {
     }
   }, [user, userLoading, fetchLessonData, router]);
 
- const handleProgress = async (played: number) => {
-    if (isCurrentLessonCompleted) return; // Don't re-run if already completed
+ const markAsCompleted = async () => {
+    if (isCurrentLessonCompleted || !user || !firestore) return;
+    
+    setIsCurrentLessonCompleted(true);
 
-    if (played > 0.9 && user && firestore) {
-      setIsCurrentLessonCompleted(true); // Optimistic UI update
+    const progressRef = doc(firestore, `users/${user.uid}/progress`, courseId as string);
+    const newProgressPayload = {
+      [`completedLessons.${lessonId}`]: serverTimestamp(),
+      updatedAt: serverTimestamp(),
+    };
 
-      const progressRef = doc(firestore, `users/${user.uid}/progress`, courseId as string);
-      const newProgressPayload = {
-        [`completedLessons.${lessonId}`]: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      };
-      
-      try {
-        await updateDoc(progressRef, newProgressPayload);
+    try {
+      await updateDoc(progressRef, newProgressPayload);
+      toast({ title: "Aula Concluída!", description: `"${currentLesson?.title}" foi marcada como concluída.` });
+    } catch (error: any) {
+      if (error.code === 'not-found') {
+        const initialProgress = {
+          courseId: courseId,
+          updatedAt: serverTimestamp(),
+          completedLessons: {
+            [lessonId as string]: serverTimestamp(),
+          },
+        };
+        await setDoc(progressRef, initialProgress);
         toast({ title: "Aula Concluída!", description: `"${currentLesson?.title}" foi marcada como concluída.` });
-      } catch (error: any) {
-        // If the document doesn't exist, create it.
-        if (error.code === 'not-found') {
-          const initialProgress = {
-            courseId: courseId,
-            updatedAt: serverTimestamp(),
-            completedLessons: {
-              [lessonId as string]: serverTimestamp(),
-            },
-          };
-          await setDoc(progressRef, initialProgress);
-          toast({ title: "Aula Concluída!", description: `"${currentLesson?.title}" foi marcada como concluída.` });
-        } else {
-          console.error("Failed to update progress:", error);
-          setIsCurrentLessonCompleted(false); // Revert optimistic update on failure
-        }
+      } else {
+        console.error("Failed to update progress:", error);
+        setIsCurrentLessonCompleted(false);
       }
+    }
+ };
+
+ const handleProgress = async (played: number) => {
+    if (played > 0.9) {
+      markAsCompleted();
     }
   };
   
@@ -291,10 +295,18 @@ export default function LessonPage() {
                             ? "bg-primary/10 text-primary border-primary"
                             : "text-muted-foreground border-transparent hover:bg-secondary/50 hover:text-white"
                         )}>
-                          <span>{lesson.title}</span>
-                          {isLessonCompleted(lesson.id)
-                            ? <CheckCircle className="h-4 w-4 text-green-500" />
-                            : <Circle className="h-4 w-4 text-muted-foreground/50" />
+                          <div className='flex items-center gap-2'>
+                           {lesson.videoUrl ? (
+                              isLessonCompleted(lesson.id)
+                                ? <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
+                                : <Circle className="h-4 w-4 text-muted-foreground/50 flex-shrink-0" />
+                            ) : (
+                               <FileText className="h-4 w-4 text-muted-foreground/80 flex-shrink-0" />
+                            )}
+                            <span>{lesson.title}</span>
+                          </div>
+                          {isLessonCompleted(lesson.id) && !lesson.videoUrl &&
+                             <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0" />
                           }
                         </Link>
                       </li>
@@ -351,23 +363,41 @@ export default function LessonPage() {
         </header>
 
         <div className="p-4 md:p-8 overflow-y-auto flex-grow">
-            <div className="aspect-video w-full max-w-4xl mx-auto bg-black rounded-lg overflow-hidden">
-            <ReactPlayer
-                url={currentLesson.videoUrl}
-                width="100%"
-                height="100%"
-                controls
-                playing
-                onProgress={(progress) => handleProgress(progress.played)}
-                config={{
-                youtube: { playerVars: { showinfo: 0, rel: 0 } },
-                vimeo: { playerOptions: { byline: false, portrait: false } }
-                }}
-            />
-            </div>
+            {currentLesson.videoUrl ? (
+                <div className="aspect-video w-full max-w-4xl mx-auto bg-black rounded-lg overflow-hidden">
+                    <ReactPlayer
+                        url={currentLesson.videoUrl}
+                        width="100%"
+                        height="100%"
+                        controls
+                        playing
+                        onProgress={(progress) => handleProgress(progress.played)}
+                        config={{
+                        youtube: { playerVars: { showinfo: 0, rel: 0 } },
+                        vimeo: { playerOptions: { byline: false, portrait: false } }
+                        }}
+                    />
+                </div>
+             ) : (
+                <div className="max-w-4xl mx-auto p-8 bg-secondary/30 rounded-lg text-center">
+                    <FileText className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+                    <h2 className="text-xl font-semibold text-white">Aula em formato de texto</h2>
+                    <p className="text-muted-foreground">Esta aula não possui vídeo. Leia o conteúdo abaixo.</p>
+                </div>
+             )
+            }
+
 
             <div className="max-w-4xl mx-auto mt-8">
-                <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">{currentLesson.title}</h1>
+                <div className="flex justify-between items-center mb-4">
+                  <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">{currentLesson.title}</h1>
+                  {!currentLesson.videoUrl && !isCurrentLessonCompleted && (
+                     <Button onClick={markAsCompleted}>
+                         <Check className="mr-2 h-4 w-4" /> Marcar como concluída
+                     </Button>
+                  )}
+                </div>
+                
                 
                 {currentLesson.description && (
                     <div className="prose prose-invert max-w-none text-muted-foreground" dangerouslySetInnerHTML={{ __html: processedDescription }}></div>
@@ -414,5 +444,3 @@ export default function LessonPage() {
     </div>
   );
 }
-
-    

@@ -218,6 +218,7 @@ function EditCoursePageContent() {
         lessons: rest.lessons.map(({ ...lessonRest }) => ({
             ...lessonRest,
             description: lessonRest.description || '',
+            videoUrl: lessonRest.videoUrl || '',
             releaseDelayDays: Number(lessonRest.releaseDelayDays || 0)
         }))
       }));
@@ -364,28 +365,12 @@ function EditCoursePageContent() {
                         </div>
                          <div className='relative'>
                             <label htmlFor="course-description" className="text-sm font-medium text-white">Descrição</label>
-                            {activeEditor === 'course-description' && (
-                                <ActionToolbar
-                                    className="absolute -top-12 z-10"
-                                    buttons={[
-                                        { label: 'Negrito', icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
-                                        { label: 'Itálico', icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
-                                        { label: 'Sublinhado', icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
-                                        { label: 'Cor', icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor', 'yellow') },
-                                    ]}
-                                />
-                            )}
-                            <div
+                            <Textarea
                                 id="course-description"
-                                ref={descriptionRef}
-                                contentEditable
-                                suppressContentEditableWarning
-                                onFocus={() => setActiveEditor('course-description')}
-                                onBlur={(e) => {
-                                    setActiveEditor(null);
-                                    setTempDescription(e.currentTarget.innerHTML);
-                                }}
-                                className="mt-1 min-h-[120px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 prose prose-invert max-w-none"
+                                placeholder="Descreva seu curso..."
+                                value={tempDescription}
+                                onChange={e => setTempDescription(e.target.value)}
+                                className="mt-1 min-h-[120px]"
                             />
                         </div>
                     </CardContent>
@@ -806,7 +791,7 @@ function LessonEditor({ lesson, moduleId, onUpdate, onRemove, applyFormat }: Les
 
             {/* Main Video Section */}
             <div className="space-y-2 pt-2">
-                <h5 className="text-sm font-semibold text-white flex items-center gap-2"><FileVideo className="h-4 w-4 text-primary" />Vídeo Principal</h5>
+                <h5 className="text-sm font-semibold text-white flex items-center gap-2"><FileVideo className="h-4 w-4 text-primary" />Vídeo Principal (Opcional)</h5>
                 {lesson.videoUrl && !isDriveLink && (
                     <div className="aspect-video w-full rounded-md overflow-hidden bg-muted my-2">
                         <ReactPlayer
