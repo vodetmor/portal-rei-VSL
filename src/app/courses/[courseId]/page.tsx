@@ -317,7 +317,7 @@ export default function CoursePlayerPage() {
     const releaseDate = addDays(grantedDate, delay);
     const daysRemaining = differenceInDays(releaseDate, new Date());
     
-    return daysRemaining > 0 ? daysRemaining : null;
+    return daysRemaining >= 0 ? daysRemaining : null; // Return null if date has passed
   };
 
 
@@ -538,7 +538,7 @@ export default function CoursePlayerPage() {
                               <p className="text-white font-semibold">Bloqueado</p>
                               <p className="text-xs text-muted-foreground">
                                   {daysRemaining !== null 
-                                      ? `Libera em ${daysRemaining} ${daysRemaining > 1 ? 'dias' : 'dia'}`
+                                      ? `Libera em ${daysRemaining} ${daysRemaining === 1 ? 'dia' : 'dias'}`
                                       : 'Em breve'}
                               </p>
                           </div>

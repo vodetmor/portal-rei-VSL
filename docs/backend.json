@@ -23,12 +23,41 @@
         "id": { "type": "string", "description": "Unique identifier for the Course entity." },
         "title": { "type": "string", "description": "Title of the course." },
         "subtitle": { "type": "string", "description": "Subtitle of the course, displayed below the main title." },
-        "description": { "type": "string", "description": "Description of the course." }
+        "description": { "type": "string", "description": "Description of the course." },
+        "modules": {
+          "type": "array",
+          "description": "An array of modules belonging to the course.",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "title": { "type": "string" },
+              "thumbnailUrl": { "type": "string", "format": "uri" },
+              "imageHint": { "type": "string" },
+              "releaseDelayDays": { "type": "number", "description": "Number of days after enrollment to release this module." },
+              "lessons": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "id": { "type": "string" },
+                    "title": { "type": "string" },
+                    "videoUrl": { "type": "string", "format": "uri" },
+                    "description": { "type": "string" },
+                    "releaseDelayDays": { "type": "number", "description": "Number of days after enrollment to release this lesson." }
+                  },
+                  "required": ["id", "title"]
+                }
+              }
+            },
+            "required": ["id", "title"]
+          }
+        }
       },
       "required": ["id", "title", "description"]
     },
     "CourseAccess": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
+      "$schema": "http://json-schema.org/draft-07-schema#",
       "title": "CourseAccess",
       "type": "object",
       "description": "Represents a user's access grant to a specific course.",
@@ -125,7 +154,7 @@
         "required": ["id", "adminId", "adminEmail", "action", "entityType", "entityId", "timestamp"]
     },
     "Progress": {
-        "$schema": "http://json-schema.org/draft-07-schema#",
+        "$schema": "http://json-schema.org/draft-07/schema#",
         "title": "Progress",
         "type": "object",
         "description": "Tracks a user's progress in a specific course.",
@@ -246,5 +275,3 @@
     "reasoning": "The Firestore structure is designed to store data for the 'Portfólio Hades' application, focusing on separation of concerns, security, and scalability. User management has been added with a specific subcollection for course access to allow granular control. The `premiumLinks` collection has been added to manage the new premium access system, linking tokens to course bundles.\n\n**Users:** Stored in the `/users` collection.\n**Course Access:** A subcollection `/users/{userId}/courseAccess` explicitly grants users access to courses.\n**Premium Links:** A new collection `/premiumLinks` stores the generated tokens and the course IDs they grant access to.\n**Audit Logs:** A new collection `/auditLogs` has been added to track all administrative actions for security and monitoring purposes.\n**Progress:** A new subcollection `/users/{userId}/progress` tracks user completion of lessons within each course, enabling progress bars and detailed admin views."
   }
 }
-
-    
