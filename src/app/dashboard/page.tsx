@@ -1,7 +1,7 @@
 'use client';
 import { useUser, useFirestore, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { CourseCard } from '@/components/course-card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { doc, getDoc, collection, getDocs, setDoc, deleteDoc, type DocumentData, updateDoc } from 'firebase/firestore';
@@ -65,6 +65,9 @@ function DashboardClientPage() {
   const [tempHeroImageUrlInput, setTempHeroImageUrlInput] = useState('');
 
   const [openCollapsible, setOpenCollapsible] = useState<string | null>(null);
+  
+  const titleRef = useRef<HTMLDivElement>(null);
+  const subtitleRef = useRef<HTMLDivElement>(null);
 
 
   const applyFormat = (command: string) => {
@@ -121,6 +124,9 @@ function DashboardClientPage() {
     setIsEditMode(false);
     setActiveEditor(null);
     setOpenCollapsible(null);
+     // Reset the innerHTML of the editable divs to their original state
+    if (titleRef.current) titleRef.current.innerHTML = layoutData.heroTitle;
+    if (subtitleRef.current) subtitleRef.current.innerHTML = layoutData.heroSubtitle;
   };
 
   // Hero Image Handlers
@@ -327,6 +333,13 @@ function DashboardClientPage() {
       checkAdminAndFetchData();
     }
   }, [user, firestore, fetchCourses]);
+  
+  // Effect to set initial content of contentEditable divs
+  useEffect(() => {
+    if (titleRef.current) titleRef.current.innerHTML = layoutData.heroTitle;
+    if (subtitleRef.current) subtitleRef.current.innerHTML = layoutData.heroSubtitle;
+  }, [layoutData.heroTitle, layoutData.heroSubtitle]);
+
 
   if (userLoading || !user || layoutData.isLoading) {
     return (
@@ -361,8 +374,9 @@ function DashboardClientPage() {
 
           <div className={heroContainerClasses}>
               <div className="relative w-full">
-                 <div 
+                 <div
                   id="hero-title-editor"
+                  ref={titleRef}
                   contentEditable={isEditMode}
                   suppressContentEditableWarning={true}
                   onFocus={() => setActiveEditor('hero-title-editor')}
@@ -370,9 +384,9 @@ function DashboardClientPage() {
                   onInput={(e) => setTempHeroTitle(e.currentTarget.innerHTML)}
                   className={cn(
                     "text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl",
-                    isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
+                    isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2",
+                     "text-left"
                   )}
-                  dangerouslySetInnerHTML={{ __html: isEditMode ? tempHeroTitle : layoutData.heroTitle }}
                 />
                 {isEditMode && activeEditor === 'hero-title-editor' && (
                   <ActionToolbar
@@ -387,19 +401,20 @@ function DashboardClientPage() {
                 )}
               </div>
 
-              <div className="relative w-full">
-                <div 
+              <div className="relative w-full mt-4">
+                <div
                   id="hero-subtitle-editor"
+                  ref={subtitleRef}
                   contentEditable={isEditMode}
                   suppressContentEditableWarning={true}
                   onFocus={() => setActiveEditor('hero-subtitle-editor')}
                   onBlur={() => setActiveEditor(null)}
                   onInput={(e) => setTempHeroSubtitle(e.currentTarget.innerHTML)}
                   className={cn(
-                    "mt-4 max-w-2xl text-lg text-muted-foreground md:text-xl",
-                    isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
+                    "max-w-2xl text-lg text-muted-foreground md:text-xl",
+                    isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2",
+                     "text-left"
                   )}
-                  dangerouslySetInnerHTML={{ __html: isEditMode ? tempHeroSubtitle : layoutData.heroSubtitle }}
                 />
                  {isEditMode && activeEditor === 'hero-subtitle-editor' && (
                     <ActionToolbar
