@@ -4,7 +4,7 @@ import { useRouter } from 'next/navigation';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { CourseCard } from '@/components/course-card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { doc, getDoc, collection, getDocs, setDoc, deleteDoc, type DocumentData, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, setDoc, deleteDoc, type DocumentData, updateDoc, addDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { useLayout } from '@/context/layout-context';
 import { ActionToolbar } from '@/components/ui/action-toolbar';
@@ -292,6 +292,33 @@ function DashboardClientPage() {
     }
   };
 
+  const handleAddCourse = async () => {
+    if (!firestore) return;
+    try {
+      const newCourseData = {
+        title: "Novo Curso (Rascunho)",
+        description: "Adicione uma descrição incrível para o seu novo curso.",
+        thumbnailUrl: "https://picsum.photos/seed/new-course/400/600",
+        imageHint: 'placeholder',
+        createdAt: new Date(),
+        modules: [],
+      };
+      const docRef = await addDoc(collection(firestore, 'courses'), newCourseData);
+      toast({
+        title: "Rascunho Criado!",
+        description: "Seu novo curso foi iniciado. Agora edite os detalhes.",
+      });
+      router.push(`/admin/edit-course/${docRef.id}`);
+    } catch (error) {
+       console.error("Error creating new course draft: ", error);
+       toast({
+        variant: "destructive",
+        title: "Erro ao Criar Rascunho",
+        description: "Não foi possível criar o rascunho do curso."
+      });
+    }
+  };
+
 
   useEffect(() => {
     if (!userLoading && !user) {
@@ -565,10 +592,8 @@ useEffect(() => {
             <div className="flex justify-between items-center mb-4 pt-20">
                 <h2 className="text-2xl font-bold text-white">Todos os Cursos</h2>
                  {isAdmin && (
-                    <Button asChild variant="outline" size="sm">
-                        <Link href="/admin/add-course">
-                            <Plus className="mr-2 h-4 w-4" /> Adicionar Curso
-                        </Link>
+                    <Button onClick={handleAddCourse} variant="outline" size="sm">
+                        <Plus className="mr-2 h-4 w-4" /> Adicionar Curso
                     </Button>
                 )}
             </div>

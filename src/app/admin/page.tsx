@@ -64,7 +64,7 @@ function AdminDashboard() {
     if (firestore) {
       fetchData();
     }
-  }, [firestore]);
+  }, [firestore, toast]);
   
   const handleAddCourse = async () => {
     if (!firestore) return;
@@ -72,7 +72,7 @@ function AdminDashboard() {
       const newCourseData = {
         title: "Novo Curso (Rascunho)",
         description: "Adicione uma descrição incrível para o seu novo curso.",
-        thumbnailUrl: "https://placehold.co/400x600/0f0f0f/b3b3b3?text=400x600",
+        thumbnailUrl: "https://picsum.photos/seed/new-course/400/600",
         imageHint: 'placeholder',
         createdAt: new Date(),
         modules: [],
