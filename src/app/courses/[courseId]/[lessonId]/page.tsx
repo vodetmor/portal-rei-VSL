@@ -72,10 +72,12 @@ export default function LessonPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   const [nextLesson, setNextLesson] = useState<{ courseId: string; lessonId: string } | null>(null);
+  const [isCurrentLessonCompleted, setIsCurrentLessonCompleted] = useState(false);
 
   const fetchLessonData = useCallback(async () => {
     if (!user || !firestore) return;
     setLoading(true);
+    setIsCurrentLessonCompleted(false);
 
     try {
       // 1. Check admin status
@@ -141,7 +143,11 @@ export default function LessonPage() {
       // 6. Fetch user progress
       const progressDocSnap = await getDoc(doc(firestore, `users/${user.uid}/progress`, courseId as string));
       if (progressDocSnap.exists()) {
-        setUserProgress(progressDocSnap.data() as UserProgress);
+        const progressData = progressDocSnap.data() as UserProgress;
+        setUserProgress(progressData);
+        if (progressData.completedLessons[lessonId as string]) {
+          setIsCurrentLessonCompleted(true);
+        }
       } else {
         setUserProgress({ completedLessons: {} });
       }
@@ -179,8 +185,8 @@ export default function LessonPage() {
   }, [user, userLoading, fetchLessonData, router]);
 
   const handleProgress = async (played: number) => {
-    const isCompleted = userProgress?.completedLessons[lessonId as string];
-    if (played > 0.9 && !isCompleted && user && firestore) {
+    const isAlreadyCompleted = userProgress?.completedLessons[lessonId as string];
+    if (played > 0.9 && !isAlreadyCompleted && user && firestore) {
         const progressRef = doc(firestore, `users/${user.uid}/progress`, courseId as string);
         const newProgressData = {
             ...userProgress,
@@ -200,14 +206,8 @@ export default function LessonPage() {
                     [lessonId as string]: new Date().toISOString()
                 }
             }));
+            setIsCurrentLessonCompleted(true);
             toast({ title: "Aula Concluída!", description: `"${currentLesson?.title}" foi marcada como concluída.` });
-            
-            // Auto-advance
-            if (nextLesson) {
-                setTimeout(() => {
-                    router.push(`/courses/${nextLesson.courseId}/${nextLesson.lessonId}`);
-                }, 2000); // 2-second delay before moving to the next lesson
-            }
 
         } catch (error) {
             console.error("Failed to update progress:", error);
@@ -290,7 +290,7 @@ export default function LessonPage() {
 
       {/* Main Content */}
       <main className="flex-1 flex flex-col h-screen overflow-y-auto">
-        <header className="flex items-center justify-between p-4 bg-background/80 backdrop-blur-sm z-10 sticky top-0">
+        <header className="flex items-center justify-between p-4 bg-background/80 backdrop-blur-sm z-10 sticky top-0 border-b border-border">
            <div className="flex items-center gap-4">
                 <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -310,13 +310,13 @@ export default function LessonPage() {
                 <span className="text-xs text-muted-foreground">{completedLessonsCount} de {totalLessons} ({Math.round(courseProgressPercentage)}%)</span>
             </div>
             {nextLesson ? (
-                 <Button asChild variant="outline">
+                 <Button asChild variant={isCurrentLessonCompleted ? 'default' : 'outline'}>
                     <Link href={`/courses/${nextLesson.courseId}/${nextLesson.lessonId}`}>
                         Próxima <ArrowRight className="ml-2 h-4 w-4" />
                     </Link>
                  </Button>
             ) : (
-                <Button variant="default" className="bg-green-600 hover:bg-green-700">
+                <Button variant={isCurrentLessonCompleted ? 'default' : 'outline'} className="bg-green-600 hover:bg-green-700">
                     <CheckCircle className="mr-2 h-4 w-4"/> Curso Concluído
                 </Button>
             )}
@@ -377,3 +377,5 @@ export default function LessonPage() {
   );
 }
 
+
+    
