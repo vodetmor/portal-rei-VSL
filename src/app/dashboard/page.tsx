@@ -5,10 +5,12 @@ import { useEffect, useState, useCallback } from 'react';
 import { CourseCard } from '@/components/course-card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { doc, getDoc, collection, getDocs, setDoc, deleteDoc, type DocumentData } from 'firebase/firestore';
+import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+
 import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { Plus, Pencil, Save, X, Trophy, Gem, Crown, Star, type LucideIcon } from 'lucide-react';
+import { Plus, Pencil, Save, X, Trophy, Gem, Crown, Star, type LucideIcon, Upload } from 'lucide-react';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -24,6 +26,8 @@ import {
 } from "@/components/ui/alert-dialog"
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Progress } from '@/components/ui/progress';
+
 
 interface Course extends DocumentData {
   id: string;
@@ -78,6 +82,10 @@ export default function DashboardPage() {
   const [tempMembersSubtitle, setTempMembersSubtitle] = useState(membersSubtitle);
   const [tempMembersIcon, setTempMembersIcon] = useState(membersIcon);
   
+  const [heroImageFile, setHeroImageFile] = useState<File | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+
+  
   const SelectedIcon = iconMap[isEditMode ? tempMembersIcon : membersIcon] || Trophy;
 
 
@@ -125,6 +133,8 @@ export default function DashboardPage() {
     setTempMembersTitle(membersTitle);
     setTempMembersSubtitle(membersSubtitle);
     setTempMembersIcon(membersIcon);
+    setHeroImageFile(null);
+    setUploadProgress(null);
     setIsEditMode(true);
   };
 
@@ -132,25 +142,63 @@ export default function DashboardPage() {
     setIsEditMode(false);
   };
 
+  const handleFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setHeroImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setTempHeroImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSaveChanges = async () => {
     if (!firestore) return;
     setIsSaving(true);
+    let finalImageUrl = tempHeroImage;
+    
+    if (heroImageFile) {
+        const storage = getStorage();
+        const storageRef = ref(storage, `layout/dashboard-hero/${Date.now()}-${heroImageFile.name}`);
+        const uploadTask = uploadBytesResumable(storageRef, heroImageFile);
+
+        finalImageUrl = await new Promise((resolve, reject) => {
+            uploadTask.on('state_changed',
+                (snapshot) => {
+                    const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+                    setUploadProgress(progress);
+                },
+                (error) => {
+                    console.error("Upload failed:", error);
+                    toast({ variant: "destructive", title: "Erro de Upload", description: "Não foi possível enviar a imagem." });
+                    reject(error);
+                },
+                () => {
+                    getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
+                        resolve(downloadURL);
+                    }).catch(reject);
+                }
+            );
+        });
+    }
+
     const layoutRef = doc(firestore, 'layout', 'dashboard-hero');
     try {
       const dataToSave = {
         title: tempHeroTitle,
         subtitle: tempHeroSubtitle,
-        imageUrl: tempHeroImage,
+        imageUrl: finalImageUrl,
         membersTitle: tempMembersTitle,
         membersSubtitle: tempMembersSubtitle,
         membersIcon: tempMembersIcon,
       };
       await setDoc(layoutRef, dataToSave, { merge: true });
       
-      // Update live state with temp state
       setHeroTitle(tempHeroTitle);
       setHeroSubtitle(tempHeroSubtitle);
-      setHeroImage(tempHeroImage);
+      setHeroImage(finalImageUrl);
       setMembersTitle(tempMembersTitle);
       setMembersSubtitle(tempMembersSubtitle);
       setMembersIcon(tempMembersIcon);
@@ -169,6 +217,8 @@ export default function DashboardPage() {
       });
     } finally {
       setIsSaving(false);
+      setUploadProgress(null);
+      setHeroImageFile(null);
     }
   };
 
@@ -300,13 +350,22 @@ export default function DashboardPage() {
                         onChange={(e) => setTempHeroSubtitle(e.target.value)}
                         className="mt-4 max-w-2xl text-lg md:text-xl bg-transparent border-dashed"
                       />
-                       <Input
-                        data-editable="true"
-                        value={tempHeroImage}
-                        onChange={(e) => setTempHeroImage(e.target.value)}
-                        className="mt-2 w-full text-xs bg-transparent border-dashed"
-                        placeholder='URL da imagem de fundo'
-                      />
+                      <div className="mt-2 w-full">
+                        <label htmlFor="hero-image-upload" className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground hover:text-white border border-dashed rounded-md p-2 justify-center bg-transparent">
+                            <Upload className="h-4 w-4" />
+                            <span>{heroImageFile ? heroImageFile.name : 'Alterar imagem de fundo'}</span>
+                        </label>
+                        <Input
+                            id="hero-image-upload"
+                            type="file"
+                            accept="image/*"
+                            onChange={handleFileChange}
+                            className="hidden"
+                        />
+                         {uploadProgress !== null && (
+                            <Progress value={uploadProgress} className="w-full h-2 mt-2" />
+                        )}
+                      </div>
                   </div>
               ) : (
                 <>
@@ -483,5 +542,3 @@ export default function DashboardPage() {
     </AlertDialog>
   );
 }
-
-    
