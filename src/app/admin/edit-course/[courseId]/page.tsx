@@ -185,20 +185,25 @@ function ModuleEditor({ module, onUpdate, onRemove }: ModuleEditorProps) {
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [uploadProgress, setUploadProgress] = useState<number | null>(null);
     const [imageInputMode, setImageInputMode] = useState<'upload' | 'url'>('upload');
+    const { toast } = useToast();
 
     const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (file) {
             setImageFile(file);
-            setUploadProgress(0); // Start progress
-            // Simulate upload and get URL
+            setUploadProgress(0);
+            
             const storage = getStorage();
             const storageRef = ref(storage, `courses/modules/${module.id}/${Date.now()}-${file.name}`);
             const uploadTask = uploadBytesResumable(storageRef, file);
 
             uploadTask.on('state_changed',
                 (snapshot) => setUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
-                (error) => { console.error(error); setUploadProgress(null); },
+                (error) => { 
+                    console.error(error); 
+                    toast({ variant: "destructive", title: "Erro de Upload", description: "Não foi possível enviar a imagem da capa."});
+                    setUploadProgress(null); 
+                },
                 () => {
                     getDownloadURL(uploadTask.snapshot.ref).then((downloadURL) => {
                         onUpdate(module.id, 'thumbnailUrl', downloadURL);
@@ -234,12 +239,12 @@ function ModuleEditor({ module, onUpdate, onRemove }: ModuleEditorProps) {
 
                 <Tabs value={imageInputMode} onValueChange={(v) => setImageInputMode(v as 'upload' | 'url')} className="w-full">
                     <TabsList className="grid w-full grid-cols-2 h-9">
-                        <TabsTrigger value="upload" className="text-xs">Enviar</TabsTrigger>
-                        <TabsTrigger value="url" className="text-xs">URL</TabsTrigger>
+                        <TabsTrigger value="upload" className="text-xs">Enviar Capa</TabsTrigger>
+                        <TabsTrigger value="url" className="text-xs">Usar URL</TabsTrigger>
                     </TabsList>
                     <TabsContent value="upload" className="mt-2">
                         <label htmlFor={`module-img-${module.id}`} className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground hover:text-white border border-dashed rounded-md p-2 justify-center bg-background/50">
-                            <Upload className="h-3 w-3" /><span>{imageFile ? imageFile.name : 'Selecionar'}</span>
+                            <Upload className="h-3 w-3" /><span>{imageFile ? imageFile.name : 'Selecionar imagem'}</span>
                         </label>
                         <Input id={`module-img-${module.id}`} type="file" accept="image/*" onChange={handleFileChange} className="hidden" />
                         {uploadProgress !== null && (<Progress value={uploadProgress} className="w-full h-1 mt-2" />)}
@@ -247,7 +252,7 @@ function ModuleEditor({ module, onUpdate, onRemove }: ModuleEditorProps) {
                     <TabsContent value="url" className="mt-2">
                         <div className="relative">
                             <Link2 className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-                            <Input type="text" placeholder="https://..." value={module.thumbnailUrl} onChange={handleUrlChange} className="w-full bg-background/50 pl-6 text-xs h-9"/>
+                            <Input type="text" placeholder="https://exemplo.com/capa.png" value={module.thumbnailUrl === DEFAULT_MODULE_IMAGE ? '' : module.thumbnailUrl} onChange={handleUrlChange} className="w-full bg-background/50 pl-6 text-xs h-9"/>
                         </div>
                     </TabsContent>
                 </Tabs>
