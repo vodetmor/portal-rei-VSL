@@ -343,7 +343,7 @@ function DashboardClientPage() {
   }
   
   const heroContainerClasses = cn(
-    "relative z-10 mx-auto flex max-w-4xl flex-col px-4",
+    "relative z-10 mx-auto flex max-w-4xl flex-col px-4 pt-24",
     {
       'items-start text-left': heroAlignment === 'left',
       'items-center text-center': heroAlignment === 'center',
@@ -355,7 +355,7 @@ function DashboardClientPage() {
       <div className="w-full">
         {/* Hero Section */}
         <section className={cn(
-          "relative flex h-[60vh] min-h-[450px] w-full flex-col items-center justify-center py-12",
+          "relative flex h-[60vh] min-h-[500px] w-full flex-col items-center justify-center -mt-16",
           isEditMode && "border-2 border-dashed border-primary/50"
         )}>
           {layoutData.isLoading ? <Skeleton className="absolute inset-0 z-0" /> : (
@@ -551,3 +551,5 @@ export default function DashboardPage() {
     <DashboardClientPage />
   )
 }
+
+    
