@@ -61,25 +61,33 @@ service cloud.firestore {
 
         // Comments Subcollection
         match /comments/{commentId} {
+          // Permite list e read para admins ou usuários com acesso ao curso
           allow list, read: if isAdmin() || hasCourseAccess(courseId);
+          
+          // Criação permitida apenas para usuários com acesso ou admins
           allow create: if (request.auth != null && hasCourseAccess(courseId)) || isAdmin();
-          allow update: if (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isPinned'])) || (request.auth.uid == resource.data.userId && hasCourseAccess(courseId));
-          allow delete: if (request.auth.uid == resource.data.userId && hasCourseAccess(courseId)) || isAdmin();
+          
+          // Atualização: admins podem modificar apenas o campo isPinned, usuário pode editar o próprio comentário se tiver acesso
+          allow update: if (isAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isPinned']))
+                        || (request.auth != null && request.auth.uid == resource.data.userId && hasCourseAccess(courseId));
+          
+          // Exclusão: usuário pode deletar próprio comentário se tiver acesso ou admin pode deletar qualquer
+          allow delete: if (request.auth != null && request.auth.uid == resource.data.userId && hasCourseAccess(courseId))
+                        || isAdmin();
 
-            // Replies Sub-subcollection
-            match /replies/{replyId} {
-                allow list, read: if isAdmin() || hasCourseAccess(courseId);
-                allow create: if (request.auth != null && hasCourseAccess(courseId)) || isAdmin();
-                allow update: if (request.auth.uid == resource.data.userId && hasCourseAccess(courseId)) || isAdmin();
-                allow delete: if (request.auth.uid == resource.data.userId && hasCourseAccess(courseId)) || isAdmin();
-            }
+          // --- Replies Subcollection ---
+          match /replies/{replyId} {
+            allow list, read: if isAdmin() || hasCourseAccess(courseId);
+            allow create: if (request.auth != null && hasCourseAccess(courseId)) || isAdmin();
+            allow update: if (request.auth != null && request.auth.uid == resource.data.userId && hasCourseAccess(courseId)) || isAdmin();
+            allow delete: if (request.auth != null && request.auth.uid == resource.data.userId && hasCourseAccess(courseId)) || isAdmin();
+          }
 
-            // Likes Sub-subcollection
-            match /likes/{userId} {
-                 allow read, list: if isAdmin() || hasCourseAccess(courseId);
-                 // User can only like/unlike as themselves
-                 allow create, delete: if request.auth.uid == userId && hasCourseAccess(courseId);
-            }
+          // --- Likes Subcollection ---
+          match /likes/{userId} {
+            allow list, read: if isAdmin() || hasCourseAccess(courseId);
+            allow create, delete: if request.auth != null && request.auth.uid == userId && hasCourseAccess(courseId);
+          }
         }
 
         // Reactions Subcollection

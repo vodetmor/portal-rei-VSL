@@ -840,7 +840,3 @@ function ReplyForm({ courseId, lessonId, commentId }: ReplyFormProps) {
         </form>
     );
 }
-
-    
-
-    
