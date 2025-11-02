@@ -583,12 +583,18 @@ function CommentsSection({ courseId, lessonId, user, isAdmin }: CommentsSectionP
         if (!firestore) return null;
         return query(
             collection(firestore, `courses/${courseId}/lessons/${lessonId}/comments`), 
-            orderBy('isPinned', 'desc'), 
             orderBy('timestamp', 'desc')
         );
     }, [firestore, courseId, lessonId]);
 
-    const { data: comments, isLoading: commentsLoading, error: commentsError } = useCollection<LessonComment>(commentsQuery);
+    const { data: rawComments, isLoading: commentsLoading, error: commentsError } = useCollection<LessonComment>(commentsQuery);
+
+    const comments = useMemo(() => {
+        if (!rawComments) return [];
+        const pinned = rawComments.filter(c => c.isPinned);
+        const unpinned = rawComments.filter(c => !c.isPinned);
+        return [...pinned, ...unpinned];
+    }, [rawComments]);
 
     const handlePostComment = async () => {
         if (!firestore || !user || !commentText.trim()) return;
