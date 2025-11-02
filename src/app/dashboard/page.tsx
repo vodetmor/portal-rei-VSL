@@ -345,9 +345,9 @@ function DashboardClientPage() {
   const heroContainerClasses = cn(
     "relative z-10 mx-auto flex max-w-4xl flex-col px-4 pt-24",
     {
-      'items-start text-left': heroAlignment === 'left',
-      'items-center text-center': heroAlignment === 'center',
-      'items-end text-right': heroAlignment === 'right',
+      'items-start': heroAlignment === 'left',
+      'items-center': heroAlignment === 'center',
+      'items-end': heroAlignment === 'right',
     }
   );
 
@@ -373,7 +373,7 @@ function DashboardClientPage() {
           )}
 
           <div className={heroContainerClasses}>
-              <div className="relative">
+              <div className="relative w-full">
                  <div 
                   id="hero-title-editor"
                   contentEditable={isEditMode}
@@ -382,7 +382,7 @@ function DashboardClientPage() {
                   onBlur={() => setActiveEditor(null)}
                   onInput={(e) => setTempHeroTitle(e.currentTarget.innerHTML)}
                   className={cn(
-                    "text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl",
+                    "text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl text-left",
                     isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
                   )}
                   dangerouslySetInnerHTML={{ __html: isEditMode ? tempHeroTitle : layoutData.heroTitle }}
@@ -403,7 +403,11 @@ function DashboardClientPage() {
                 )}
               </div>
 
-              <div className="relative">
+              <div className={cn("relative w-full", {
+                  'text-left': heroAlignment === 'left',
+                  'text-center': heroAlignment === 'center',
+                  'text-right': heroAlignment === 'right',
+              })}>
                 <div 
                   id="hero-subtitle-editor"
                   contentEditable={isEditMode}
@@ -551,5 +555,3 @@ export default function DashboardPage() {
     <DashboardClientPage />
   )
 }
-
-    
