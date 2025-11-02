@@ -4,7 +4,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useFirestore, useUser, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, updateDoc, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { v4 as uuidv4 } from 'uuid';
 import ReactPlayer from 'react-player/lazy';
@@ -240,6 +240,40 @@ function EditCoursePageContent() {
       setIsSaving(false);
     }
   };
+
+  const handleDelete = async () => {
+    if (!firestore || !courseId || !adminUser || !course) return;
+
+    try {
+      const courseRef = doc(firestore, 'courses', courseId);
+      await deleteDoc(courseRef);
+
+      await logAdminAction(firestore, adminUser, 'course_deleted', {
+        type: 'Course',
+        id: courseId,
+        title: course.title,
+      });
+
+      toast({
+        title: 'Curso Excluído',
+        description: `O curso "${course.title}" foi excluído permanentemente.`,
+      });
+
+      router.push('/admin');
+    } catch (error) {
+      console.error('Error deleting course:', error);
+      const permissionError = new FirestorePermissionError({
+        path: `courses/${courseId}`,
+        operation: 'delete',
+      });
+      errorEmitter.emit('permission-error', permissionError);
+      toast({
+        variant: 'destructive',
+        title: 'Erro ao Excluir',
+        description: 'Não foi possível excluir o curso.',
+      });
+    }
+  };
   
   if (loading) {
     return (
@@ -363,34 +397,59 @@ function EditCoursePageContent() {
 
       {/* Floating Action Bar */}
       <div className="fixed bottom-0 left-0 right-0 z-50 p-4 bg-background/80 backdrop-blur-md border-t border-border">
-          <div className="container mx-auto flex justify-end items-center gap-4">
-               <Button asChild variant="outline">
-                    <Link href={`/courses/${courseId}`} target="_blank">
-                        <Eye className="mr-2 h-4 w-4" /> Visualizar
-                    </Link>
-                </Button>
-                <Button onClick={() => handleSave('draft')} disabled={isSaving} variant="secondary">
-                    <Save className="mr-2 h-4 w-4" />{isSaving ? "Salvando..." : "Salvar Rascunho"}
-                </Button>
+          <div className="container mx-auto flex justify-between items-center gap-4">
+              <div>
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button disabled={isSaving}>
-                      <Send className="mr-2 h-4 w-4" />{isSaving ? "Publicando..." : "Publicar"}
+                    <Button variant="destructive" disabled={isSaving}>
+                      <Trash2 className="mr-2 h-4 w-4" /> Excluir Curso
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Publicar o curso?</AlertDialogTitle>
+                      <AlertDialogTitle>Excluir este curso?</AlertDialogTitle>
                       <AlertDialogDescription>
-                        Esta ação tornará o curso e todas as suas alterações visíveis para os alunos com acesso.
+                        Esta ação é permanente e não pode ser desfeita. Todos os módulos, aulas e dados de progresso dos alunos associados a este curso serão excluídos.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                      <AlertDialogAction onClick={() => handleSave('published')}>Confirmar e Publicar</AlertDialogAction>
+                      <AlertDialogAction onClick={handleDelete} className="bg-destructive hover:bg-destructive/90">
+                        Confirmar Exclusão
+                      </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
+              </div>
+              <div className="flex items-center gap-4">
+                <Button asChild variant="outline">
+                      <Link href={`/courses/${courseId}`} target="_blank">
+                          <Eye className="mr-2 h-4 w-4" /> Visualizar
+                      </Link>
+                  </Button>
+                  <Button onClick={() => handleSave('draft')} disabled={isSaving} variant="secondary">
+                      <Save className="mr-2 h-4 w-4" />{isSaving ? "Salvando..." : "Salvar Rascunho"}
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button disabled={isSaving}>
+                        <Send className="mr-2 h-4 w-4" />{isSaving ? "Publicando..." : "Publicar"}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Publicar o curso?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Esta ação tornará o curso e todas as suas alterações visíveis para os alunos com acesso.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => handleSave('published')}>Confirmar e Publicar</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+              </div>
           </div>
       </div>
     </div>
