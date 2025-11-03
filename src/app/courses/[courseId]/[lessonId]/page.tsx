@@ -334,6 +334,19 @@ export default function LessonPage() {
     }
   };
 
+  const youtubeEmbedUrl = useMemo(() => {
+    if (!currentLesson || !currentLesson.videoUrl || !currentLesson.videoUrl.includes('youtube.com')) {
+      return currentLesson?.videoUrl;
+    }
+    const videoIdMatch = currentLesson.videoUrl.match(/(?:v=|\/embed\/|\.be\/)([\w-]+)/);
+    if (!videoIdMatch) {
+      return currentLesson.videoUrl; // fallback to original if ID not found
+    }
+    const videoId = videoIdMatch[1];
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    return `https://www.youtube.com/embed/${videoId}?origin=${origin}`;
+  }, [currentLesson]);
+
   if (loading || userLoading || !course || !currentLesson || !currentModule || !isClient) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
@@ -353,19 +366,6 @@ export default function LessonPage() {
   };
   
   const processedDescription = makeLinksClickable(currentLesson.description || '');
-  
-  const youtubeEmbedUrl = useMemo(() => {
-    if (!currentLesson.videoUrl || !currentLesson.videoUrl.includes('youtube.com')) {
-      return currentLesson.videoUrl;
-    }
-    const videoIdMatch = currentLesson.videoUrl.match(/(?:v=|\/embed\/|\.be\/)([\w-]+)/);
-    if (!videoIdMatch) {
-      return currentLesson.videoUrl; // fallback to original if ID not found
-    }
-    const videoId = videoIdMatch[1];
-    const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    return `https://www.youtube.com/embed/${videoId}?origin=${origin}`;
-  }, [currentLesson.videoUrl]);
 
   return (
     <div className="flex min-h-screen bg-black text-white pt-20">
