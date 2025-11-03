@@ -3,7 +3,7 @@ import { Poppins } from "next/font/google";
 import "./globals.css";
 import { FirebaseClientProvider } from "@/firebase/client-provider";
 import { Toaster } from "@/components/ui/toaster";
-import { Header } from "@/components/ui/header-2";
+import { Header } from "@/components/ui/header";
 import { LayoutProvider } from "@/context/layout-context";
 
 
