@@ -54,6 +54,7 @@
                     "title": { "type": "string" },
                     "videoUrl": { "type": "string", "format": "uri", "description": "URL for the main lesson video." },
                     "description": { "type": "string" },
+                    "isDemo": { "type": "boolean", "description": "Whether this lesson is part of the public demo." },
                     "releaseDelayDays": { "type": "number", "description": "Number of days after enrollment to release this lesson." },
                     "complementaryMaterials": {
                       "type": "array",
@@ -408,3 +409,5 @@
     "reasoning": "The Firestore structure is designed to store data for the 'Portfólio Hades' application, focusing on separation of concerns, security, and scalability. User management has been added with a specific subcollection for course access to allow granular control. The `premiumLinks` collection has been added to manage the new premium access system, linking tokens to course bundles.\n\n**Users:** Stored in the `/users` collection.\n**Course Access:** A subcollection `/users/{userId}/courseAccess` explicitly grants users access to courses.\n**Premium Links:** A new collection `/premiumLinks` stores the generated tokens and the course IDs they grant access to.\n**Audit Logs:** A new collection `/auditLogs` has been added to track all administrative actions for security and monitoring purposes.\n**Progress:** A new subcollection `/users/{userId}/progress` tracks user completion of lessons within each course, enabling progress bars and detailed admin views."
   }
 }
+
+    

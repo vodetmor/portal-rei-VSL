@@ -39,6 +39,7 @@ interface Lesson {
   title: string;
   description: string;
   videoUrl: string;
+  isDemo?: boolean;
   releaseDelayDays?: number;
   complementaryMaterials?: ComplementaryMaterial[];
 }
@@ -182,20 +183,16 @@ export default function LessonPage() {
       // Find current lesson and module
       let foundLesson: Lesson | null = null;
       let foundModule: Module | null = null;
-      let isFirstLesson = false;
-
+      
       for (const module of courseData.modules) {
         const lesson = module.lessons.find(l => l.id === lessonId);
         if (lesson) {
           foundLesson = lesson;
           foundModule = module;
-          if (courseData.modules.indexOf(module) === 0 && module.lessons.indexOf(lesson) === 0) {
-            isFirstLesson = true;
-          }
           break;
         }
       }
-
+      
       if (!foundLesson || !foundModule) {
         toast({ variant: 'destructive', title: 'Erro', description: 'Aula não encontrada.' });
         router.push(`/courses/${courseId}`);
@@ -203,7 +200,7 @@ export default function LessonPage() {
       }
       
       // Permission Checks
-      const isDemoAllowed = courseData.isDemoEnabled && isFirstLesson;
+      const isDemoAllowed = courseData.isDemoEnabled && foundLesson.isDemo;
       const hasDripAccess = hasFullAccess && (accessTimestamp && (addDays(accessTimestamp, (foundModule.releaseDelayDays || 0) + (foundLesson.releaseDelayDays || 0)) <= new Date()));
       const isUnlocked = hasFullAccess && (isAdminUser || hasDripAccess);
 
@@ -383,9 +380,11 @@ export default function LessonPage() {
         isSidebarOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
       )}>
         <div className="flex items-center justify-between p-4 border-b border-r border-border h-20">
-          <Link href={`/courses/${courseId}`} className="text-sm font-semibold hover:text-primary">
-            <ArrowLeft className="inline-block mr-2 h-4 w-4" /> Voltar ao Curso
-          </Link>
+          <Button asChild variant="ghost" size="sm" className="text-sm font-semibold hover:bg-transparent hover:text-primary">
+            <Link href={`/courses/${courseId}`}>
+                <ArrowLeft className="inline-block mr-2 h-4 w-4" /> Voltar ao Curso
+            </Link>
+          </Button>
           <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(false)} className="md:hidden">
               <X className="h-5 w-5" />
           </Button>
@@ -990,3 +989,5 @@ function RepliesSection({ courseId, lessonId, commentId, currentUser, isAdmin }:
         </div>
     )
 }
+
+    

@@ -44,6 +44,7 @@ interface Lesson {
   title: string;
   description?: string;
   videoUrl: string;
+  isDemo?: boolean;
   releaseDelayDays?: number;
   complementaryMaterials?: ComplementaryMaterial[];
 }
@@ -145,7 +146,7 @@ function EditCoursePageContent() {
           ...m,
           id: m.id || uuidv4(),
           releaseDelayDays: m.releaseDelayDays || 0,
-          lessons: (m.lessons || []).map(l => ({ ...l, id: l.id || uuidv4(), description: l.description || '', videoUrl: l.videoUrl || '', releaseDelayDays: l.releaseDelayDays || 0, complementaryMaterials: (l.complementaryMaterials || []).map(cm => ({...cm, id: cm.id || uuidv4()})) }))
+          lessons: (m.lessons || []).map(l => ({ ...l, id: l.id || uuidv4(), description: l.description || '', videoUrl: l.videoUrl || '', isDemo: l.isDemo || false, releaseDelayDays: l.releaseDelayDays || 0, complementaryMaterials: (l.complementaryMaterials || []).map(cm => ({...cm, id: cm.id || uuidv4()})) }))
         })));
       } else {
         toast({ variant: "destructive", title: "Erro", description: "Curso não encontrado." });
@@ -206,7 +207,7 @@ function EditCoursePageContent() {
   const addLesson = (moduleId: string) => {
     setModules(modules.map(m => 
       m.id === moduleId 
-        ? { ...m, lessons: [...m.lessons, { id: uuidv4(), title: `Nova Aula ${m.lessons.length + 1}`, description: '', videoUrl: '', releaseDelayDays: 0, complementaryMaterials: [] }] }
+        ? { ...m, lessons: [...m.lessons, { id: uuidv4(), title: `Nova Aula ${m.lessons.length + 1}`, description: '', videoUrl: '', isDemo: false, releaseDelayDays: 0, complementaryMaterials: [] }] }
         : m
     ));
   };
@@ -312,6 +313,7 @@ function EditCoursePageContent() {
             ...lessonRest,
             description: lessonRest.description || '',
             videoUrl: lessonRest.videoUrl || '',
+            isDemo: lessonRest.isDemo || false,
             releaseDelayDays: Number(lessonRest.releaseDelayDays || 0)
         }))
       }));
@@ -521,7 +523,7 @@ function EditCoursePageContent() {
                            <div className="flex items-center justify-between space-x-2 rounded-lg border p-4 bg-secondary/30">
                                 <div className="space-y-0.5">
                                     <Label htmlFor="is-demo" className="text-base font-medium text-white">Modo Demo</Label>
-                                    <p className="text-xs text-muted-foreground">Libera a primeira aula para não-inscritos.</p>
+                                    <p className="text-xs text-muted-foreground">Libera aulas selecionadas para não-inscritos.</p>
                                 </div>
                                 <Switch id="is-demo" checked={tempIsDemoEnabled} onCheckedChange={setTempIsDemoEnabled} />
                             </div>
@@ -639,6 +641,7 @@ function EditCoursePageContent() {
                                 onRemoveLesson={removeLesson}
                                 onReorderLessons={reorderLessons}
                                 applyFormat={applyFormat}
+                                isDemoEnabled={tempIsDemoEnabled}
                             />
                             ))}
                         </Reorder.Group>
@@ -728,9 +731,10 @@ interface ModuleEditorProps {
     onRemoveLesson: (moduleId: string, lessonId: string, lessonTitle: string) => void;
     onReorderLessons: (moduleId: string, reorderedLessons: Lesson[]) => void;
     applyFormat: (command: string, value?: string) => void;
+    isDemoEnabled: boolean;
 }
 
-function ModuleEditor({ module, onUpdate, onRemove, onAddLesson, onUpdateLesson, onRemoveLesson, onReorderLessons, applyFormat }: ModuleEditorProps) {
+function ModuleEditor({ module, onUpdate, onRemove, onAddLesson, onUpdateLesson, onRemoveLesson, onReorderLessons, applyFormat, isDemoEnabled }: ModuleEditorProps) {
     const [imageFile, setImageFile] = useState<File | null>(null);
     const [uploadProgress, setUploadProgress] = useState<number | null>(null);
     const [imageInputMode, setImageInputMode] = useState<'upload' | 'url'>('upload');
@@ -873,6 +877,7 @@ function ModuleEditor({ module, onUpdate, onRemove, onAddLesson, onUpdateLesson,
                                   onUpdate={onUpdateLesson}
                                   onRemove={onRemoveLesson}
                                   applyFormat={applyFormat}
+                                  isDemoEnabled={isDemoEnabled}
                                />
                             ))}
                         </Reorder.Group>
@@ -894,9 +899,10 @@ interface LessonEditorProps {
   onUpdate: (moduleId: string, lessonId: string, field: keyof Lesson, value: any) => void;
   onRemove: (moduleId: string, lessonId: string, lessonTitle: string) => void;
   applyFormat: (command: string, value?:string) => void;
+  isDemoEnabled: boolean;
 }
 
-function LessonEditor({ lesson, moduleId, onUpdate, onRemove, applyFormat }: LessonEditorProps) {
+function LessonEditor({ lesson, moduleId, onUpdate, onRemove, applyFormat, isDemoEnabled }: LessonEditorProps) {
     const [videoFile, setVideoFile] = useState<File | null>(null);
     const [videoUploadProgress, setVideoUploadProgress] = useState<number | null>(null);
     const { toast } = useToast();
@@ -961,6 +967,10 @@ function LessonEditor({ lesson, moduleId, onUpdate, onRemove, applyFormat }: Les
         const updatedMaterials = (lesson.complementaryMaterials || []).filter(m => m.id !== materialId);
         onUpdate(moduleId, lesson.id, 'complementaryMaterials', updatedMaterials);
     };
+    
+    const toggleIsDemo = () => {
+        onUpdate(moduleId, lesson.id, 'isDemo', !lesson.isDemo);
+    }
 
     return (
         <Reorder.Item
@@ -996,6 +1006,11 @@ function LessonEditor({ lesson, moduleId, onUpdate, onRemove, applyFormat }: Les
                         min={0}
                     />
                 </div>
+                 {isDemoEnabled && (
+                    <Button type="button" variant="ghost" size="icon" onClick={toggleIsDemo} title={lesson.isDemo ? "Remover da demo" : "Adicionar à demo"}>
+                        {lesson.isDemo ? <Eye className="h-4 w-4 text-primary" /> : <EyeOff className="h-4 w-4 text-muted-foreground/70" />}
+                    </Button>
+                )}
                 <Button type="button" variant="ghost" size="icon" onClick={() => onRemove(moduleId, lesson.id, lesson.title)}>
                     <Trash2 className="h-4 w-4 text-destructive/70" />
                 </Button>
@@ -1191,3 +1206,5 @@ export default function EditCoursePage() {
         </AdminGuard>
     )
 }
+
+    
