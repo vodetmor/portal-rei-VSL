@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
@@ -578,7 +577,7 @@ export default function LessonPage() {
             <Tabs defaultValue="description" className="mt-8">
               <TabsList>
                 <TabsTrigger value="description"><BookOpen className="mr-2 h-4 w-4" />Descrição</TabsTrigger>
-                <TabsTrigger value="comments" disabled={!hasFullAccess}>
+                <TabsTrigger value="comments">
                   <MessagesSquare className="mr-2 h-4 w-4" />
                   Comentários
                    {!hasFullAccess && <Lock className="ml-2 h-3 w-3" />}
@@ -596,14 +595,17 @@ export default function LessonPage() {
                             <div className="mt-8 pt-6 border-t border-border">
                                 <h3 className="text-lg font-semibold text-white mb-4">Materiais Complementares</h3>
                                 <ul className="space-y-3">
-                                {currentLesson.complementaryMaterials.map(material => (
+                                {currentLesson.complementaryMaterials.map(material => {
+                                  const isDriveLink = material.url && material.url.includes('drive.google.com');
+                                  return(
                                     <li key={material.id}>
                                         <a href={material.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 rounded-md bg-secondary/50 p-3 hover:bg-secondary transition-colors no-underline">
-                                            <Download className="h-5 w-5 text-primary" />
+                                            {isDriveLink ? <GoogleDriveIcon className="h-5 w-5 text-primary" /> : <Download className="h-5 w-5 text-primary" />}
                                             <span className="font-medium text-white">{material.title}</span>
                                         </a>
                                     </li>
-                                ))}
+                                  )
+                                })}
                                 </ul>
                             </div>
                         )}
@@ -675,12 +677,24 @@ function CommentsSection({ firestore, user, courseId, lessonId, isAdmin }: Comme
     if (!firestore || !courseId || !lessonId) return null;
     return query(
       collection(firestore, `courses/${courseId}/lessons/${lessonId}/comments`),
-      orderBy('isPinned', 'desc'),
       orderBy('timestamp', 'desc')
     );
   }, [firestore, courseId, lessonId]);
 
   const { data: comments, isLoading: commentsLoading } = useCollection<LessonComment>(commentsQuery);
+  
+  const sortedComments = useMemo(() => {
+    if (!comments) return [];
+    return [...comments].sort((a, b) => {
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+      if (a.timestamp && b.timestamp) {
+        return b.timestamp.toMillis() - a.timestamp.toMillis();
+      }
+      return 0;
+    });
+  }, [comments]);
+
 
   const handlePostComment = async () => {
     if (!newComment.trim() || !user) return;
@@ -726,7 +740,7 @@ function CommentsSection({ firestore, user, courseId, lessonId, isAdmin }: Comme
       
       {/* Comments List */}
       <div className="space-y-6">
-        {comments && comments.length > 0 ? comments.map(comment => (
+        {sortedComments && sortedComments.length > 0 ? sortedComments.map(comment => (
           <CommentItem 
             key={comment.id}
             comment={comment}
@@ -802,10 +816,10 @@ function CommentItem({ comment, firestore, user, courseId, lessonId, isAdmin }: 
       <div className="w-full">
         <div className="flex items-center justify-between">
           <div>
-            <p className="font-semibold text-white">
+            <div className="font-semibold text-white">
                 {comment.userDisplayName}
                 {comment.userId === user.uid && <Badge variant="secondary" className="ml-2">Você</Badge>}
-            </p>
+            </div>
             <p className="text-xs text-muted-foreground">
               {comment.timestamp ? formatDistanceToNow(comment.timestamp.toDate(), { addSuffix: true, locale: ptBR }) : 'agora'}
             </p>
