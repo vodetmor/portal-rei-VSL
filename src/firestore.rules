@@ -19,6 +19,12 @@ service cloud.firestore {
         let course = get(/databases/$(database)/documents/courses/$(courseId));
         return course.data.isFree == true;
     }
+
+    // Helper function to check if a course is a published demo
+    function isPublishedDemo(courseId) {
+      let course = get(/databases/$(database)/documents/courses/$(courseId));
+      return course.data.status == 'published' && course.data.isDemoEnabled == true;
+    }
     
     // User documents can be read by their owner or an admin.
     // Admins can list all users.
@@ -51,35 +57,34 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Course documents can be listed by any authenticated user if published.
-    // A single course document can be read if it's published and the user is authenticated,
-    // or if the user is an admin or has specific access.
+    // Course documents can be listed by admins, or by authenticated users if published.
+    // A single course can be read if the user is an admin, has access, it's free, or it's a published demo.
     // Write access is restricted to admins.
     match /courses/{courseId} {
       allow list: if (request.auth != null && resource.data.status == 'published') || isAdmin();
-      allow read: if isAdmin() || hasCourseAccess(courseId) || isCourseFree(courseId) || resource.data.status == 'published';
+      allow read: if isAdmin() || hasCourseAccess(courseId) || isCourseFree(courseId) || isPublishedDemo(courseId);
       allow write: if isAdmin();
     }
     
     // --- Lesson Engagement Features ---
+    // Engagement features are only available to users with full course access or admins.
+    // Demos do not show comments/reactions to keep the experience focused.
     match /courses/{courseId}/lessons/{lessonId} {
       
-      // Comments, Replies, and Likes can be managed by any user with course access or an admin.
       match /comments/{commentId} {
-        allow list, read, create, update, delete: if isAdmin() || hasCourseAccess(courseId) || isCourseFree(courseId);
+        allow read, write: if hasCourseAccess(courseId) || isAdmin() || isCourseFree(courseId);
 
         match /replies/{replyId} {
-          allow list, read, create, update, delete: if isAdmin() || hasCourseAccess(courseId) || isCourseFree(courseId);
+          allow read, write: if hasCourseAccess(courseId) || isAdmin() || isCourseFree(courseId);
         }
 
         match /likes/{userId} {
-          allow list, read, create, delete: if isAdmin() || hasCourseAccess(courseId) || isCourseFree(courseId);
+          allow read, write: if hasCourseAccess(courseId) || isAdmin() || isCourseFree(courseId);
         }
       }
 
-      // Reactions Subcollection
       match /reactions/{reactionId} {
-        allow read, list, write: if isAdmin() || hasCourseAccess(courseId) || isCourseFree(courseId);
+        allow read, write: if hasCourseAccess(courseId) || isAdmin() || isCourseFree(courseId);
       }
     }
 
