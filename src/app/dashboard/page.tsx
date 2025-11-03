@@ -321,8 +321,8 @@ function DashboardClientPage() {
     setLoading(true);
 
     try {
-        // Step 1: Fetch all courses based on role
         let coursesQuery;
+        // Admins get all courses, users get only published ones.
         if (isAdmin) {
             coursesQuery = query(collection(firestore, 'courses'));
         } else {
@@ -332,37 +332,25 @@ function DashboardClientPage() {
         const coursesSnapshot = await getDocs(coursesQuery);
         const allFetchedCourses = coursesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
         
-        // Step 2: Determine which courses to display and what access rights the user has.
-        let coursesToShow: Course[];
+        // Admins have access to everything. For users, fetch their specific access records.
         const newCourseAccess: CourseAccess = {};
-
         if (isAdmin) {
-            coursesToShow = allFetchedCourses;
-            // Admins have access to all courses.
-            allFetchedCourses.forEach(course => {
-                newCourseAccess[course.id] = true;
-            });
+            allFetchedCourses.forEach(course => newCourseAccess[course.id] = true);
         } else {
-            // For regular users, find their access records.
             const accessQuery = query(collection(firestore, `users/${user.uid}/courseAccess`));
             const accessSnapshot = await getDocs(accessQuery);
-            const accessibleCourseIds = new Set(accessSnapshot.docs.map(doc => doc.id));
-            
-            accessibleCourseIds.forEach(id => {
-                newCourseAccess[id] = true;
+            accessSnapshot.docs.forEach(doc => {
+                newCourseAccess[doc.id] = true;
             });
-
-            // Regular users only see published courses they have access to.
-            coursesToShow = allFetchedCourses.filter(course => accessibleCourseIds.has(course.id));
         }
-
-        setCourses(coursesToShow);
+        
+        setCourses(allFetchedCourses);
         setCourseAccess(newCourseAccess);
         
-        // Step 3: Fetch progress for the courses that will be displayed.
-        if (coursesToShow.length > 0) {
-            const courseIdsToShow = coursesToShow.map(c => c.id);
-            const progressPromises = courseIdsToShow.map(id => getDoc(doc(firestore, `users/${user.uid}/progress`, id)));
+        // Fetch progress for all visible courses
+        if (allFetchedCourses.length > 0) {
+            const courseIds = allFetchedCourses.map(c => c.id);
+            const progressPromises = courseIds.map(id => getDoc(doc(firestore, `users/${user.uid}/progress`, id)));
             const progressSnaps = await Promise.all(progressPromises);
             
             const progressData: UserProgress = {};
@@ -379,7 +367,7 @@ function DashboardClientPage() {
     } catch (error) {
         console.error("Error fetching courses and progress: ", error);
         toast({ variant: "destructive", title: "Erro ao Carregar", description: "Não foi possível carregar os cursos."});
-        setCourses([]);
+        setCourses([]); // Clear courses on error
     } finally {
         setLoading(false);
     }
@@ -476,11 +464,8 @@ function DashboardClientPage() {
                 setIsAdmin(false);
             }
         }
-        // Fetch data after admin status is confirmed
-        // This is now done in a separate effect that depends on isAdmin
       } else {
         setIsAdmin(false);
-        setLoading(false);
       }
     };
 
@@ -490,7 +475,6 @@ function DashboardClientPage() {
   }, [user, firestore]);
 
    useEffect(() => {
-    // This effect runs once isAdmin state is settled
     if (user && firestore) {
       fetchCoursesAndProgress();
     }

@@ -46,8 +46,10 @@ service cloud.firestore {
     }
 
     // Courses can be read if the user is an admin or has a specific access record.
+    // Published courses can be listed by any authenticated user. Admins can list all.
     // Write access is restricted to admins.
     match /courses/{courseId} {
+      allow list: if isAdmin() || (request.auth != null && query.filters.find(f => f.field == 'status' && f.value == 'published'));
       allow read: if isAdmin() || hasCourseAccess(courseId);
       allow write: if isAdmin();
     }
