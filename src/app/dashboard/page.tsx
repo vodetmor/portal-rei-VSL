@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { doc, getDoc, collection, getDocs, setDoc, deleteDoc, type DocumentData, updateDoc, addDoc, query, where } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { useLayout } from '@/context/layout-context';
-import { ActionToolbar } from '@/components/admin/action-toolbar';
+import { ActionToolbar } from '@/components/ui/action-toolbar';
 import { PageEditActions } from '@/components/admin/page-edit-actions';
 
 import Image from 'next/image';
