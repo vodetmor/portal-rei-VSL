@@ -26,6 +26,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
+import Image from 'next/image';
 
 
 // --- Type Definitions ---
@@ -117,11 +118,15 @@ function makeLinksClickable(text: string) {
     });
 }
 
-function GoogleDriveIcon(props: React.ComponentProps<'svg'>) {
+function GoogleDriveIcon(props: Omit<React.ComponentProps<typeof Image>, 'src' | 'alt'>) {
     return (
-        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" {...props}>
-            <path d="M18.88 9.94l-3.32-5.4A2 2 0 0 0 13.88 4H10.1a2 2 0 0 0-1.7 1.52l-3.3 5.44a2 2 0 0 0 .34 2.2l5.88 8.64a2 2 0 0 0 3.36 0l5.88-8.64a2 2 0 0 0 .32-2.22Z"/>
-        </svg>
+        <Image 
+            src="https://i.imgur.com/IKiXRlX.png" 
+            alt="Google Drive"
+            width={20}
+            height={20}
+            className={cn('h-5 w-5', props.className)}
+        />
     )
 }
 
@@ -600,7 +605,7 @@ export default function LessonPage() {
                                   return(
                                     <li key={material.id}>
                                         <a href={material.url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 rounded-md bg-secondary/50 p-3 hover:bg-secondary transition-colors no-underline">
-                                            {isDriveLink ? <GoogleDriveIcon className="h-5 w-5 text-primary" /> : <Download className="h-5 w-5 text-primary" />}
+                                            {isDriveLink ? <GoogleDriveIcon /> : <Download className="h-5 w-5 text-primary" />}
                                             <span className="font-medium text-white">{material.title}</span>
                                         </a>
                                     </li>
@@ -685,9 +690,11 @@ function CommentsSection({ firestore, user, courseId, lessonId, isAdmin }: Comme
   
   const sortedComments = useMemo(() => {
     if (!comments) return [];
+    // Sort pinned comments to the top, then by timestamp
     return [...comments].sort((a, b) => {
       if (a.isPinned && !b.isPinned) return -1;
       if (!a.isPinned && b.isPinned) return 1;
+      // Fallback to timestamp if both have same pinned status
       if (a.timestamp && b.timestamp) {
         return b.timestamp.toMillis() - a.timestamp.toMillis();
       }
@@ -1002,3 +1009,5 @@ function LessonPageSkeleton() {
     </div>
   )
 }
+
+    
