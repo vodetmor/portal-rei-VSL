@@ -1206,5 +1206,3 @@ export default function EditCoursePage() {
         </AdminGuard>
     )
 }
-
-    
