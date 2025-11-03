@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
@@ -156,7 +157,6 @@ export default function LessonPage() {
   }, [currentLesson]);
 
   const reactionsQuery = useMemoFirebase(() => {
-    // Only fetch reactions if user has full access
     if (!firestore || !courseId || !lessonId || !hasFullAccess) return null;
     return collection(firestore, `courses/${courseId}/lessons/${lessonId}/reactions`);
   }, [firestore, courseId, lessonId, hasFullAccess]);
@@ -165,8 +165,10 @@ export default function LessonPage() {
 
   const fetchLessonData = useCallback(async () => {
     if (!firestore || !user) {
-        if (!userLoading) router.push('/login');
-        setLoading(false);
+        if (!userLoading) {
+             setHasAccess(false);
+             setLoading(false);
+        }
         return;
     };
     
@@ -174,8 +176,8 @@ export default function LessonPage() {
     setIsCurrentLessonCompleted(false);
 
     try {
-      // Get Course and User Admin status first
-      const courseDocSnap = await getDoc(doc(firestore, 'courses', courseId as string));
+      const courseDocRef = doc(firestore, 'courses', courseId as string);
+      const courseDocSnap = await getDoc(courseDocRef);
       if (!courseDocSnap.exists()) {
         router.push('/dashboard');
         return;
@@ -183,12 +185,12 @@ export default function LessonPage() {
       const courseData = { id: courseDocSnap.id, ...courseDocSnap.data() } as Course;
       setCourse(courseData);
       
-      const userDocSnap = await getDoc(doc(firestore, 'users', user.uid));
+      const userDocRef = doc(firestore, 'users', user.uid);
+      const userDocSnap = await getDoc(userDocRef);
       const userRole = userDocSnap.data()?.role;
       const isAdminUser = userRole === 'admin' || user.email === 'admin@reidavsl.com';
       setIsAdmin(isAdminUser);
       
-      // Find current lesson and module first to check for demo access
       let foundLesson: Lesson | null = null;
       let foundModule: Module | null = null;
       for (const module of courseData.modules) {
@@ -204,10 +206,11 @@ export default function LessonPage() {
         return;
       }
       
-      // Check Access Rights
       const isDemoAllowed = courseData.isDemoEnabled && (foundLesson.isDemo || foundModule.isDemo);
       const isFreeCourse = courseData.isFree === true;
-      const accessDocSnap = await getDoc(doc(firestore, `users/${user.uid}/courseAccess`, courseId as string));
+
+      const accessDocRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId as string);
+      const accessDocSnap = await getDoc(accessDocRef);
       const userHasFullAccess = accessDocSnap.exists() || isAdminUser || isFreeCourse;
       setHasFullAccess(userHasFullAccess);
       
@@ -216,7 +219,7 @@ export default function LessonPage() {
         return;
       }
 
-      setHasAccess(true); // User has some form of access (full or demo)
+      setHasAccess(true);
 
       const accessTimestamp = accessDocSnap.data()?.grantedAt?.toDate();
       const grantedAtDate = accessTimestamp || (isAdminUser ? new Date() : null);
@@ -224,7 +227,6 @@ export default function LessonPage() {
         setCourseAccessInfo({ grantedAt: grantedAtDate.toISOString() });
       }
       
-      // Check Drip Content if user doesn't have admin rights
       if (!isAdminUser && userHasFullAccess) {
         const isModuleUnlocked = () => {
           if (!grantedAtDate) return false;
@@ -250,9 +252,9 @@ export default function LessonPage() {
       setCurrentLesson(foundLesson);
       setCurrentModule(foundModule);
 
-      // Fetch Progress only for users with full access
       if (userHasFullAccess) {
-        const progressDocSnap = await getDoc(doc(firestore, `users/${user.uid}/progress`, courseId as string));
+        const progressDocRef = doc(firestore, `users/${user.uid}/progress`, courseId as string);
+        const progressDocSnap = await getDoc(progressDocRef);
         if (progressDocSnap.exists()) {
           const progressData = progressDocSnap.data() as UserProgress;
           setUserProgress(progressData);
@@ -264,7 +266,6 @@ export default function LessonPage() {
         }
       }
 
-      // Determine Next Lesson
       const moduleIndex = courseData.modules.findIndex(m => m.id === foundModule!.id);
       const lessonIndex = foundModule!.lessons.findIndex(l => l.id === foundLesson!.id);
 
@@ -279,8 +280,12 @@ export default function LessonPage() {
         setNextLesson(null);
       }
 
-    } catch (error) {
-      console.error("Error fetching lesson data:", error);
+    } catch (error: any) {
+        const permissionError = new FirestorePermissionError({
+            path: `courses/${courseId} or related user data`,
+            operation: 'get',
+        });
+        errorEmitter.emit('permission-error', permissionError);
     } finally {
       setLoading(false);
     }
@@ -292,9 +297,7 @@ export default function LessonPage() {
   }, []);
   
   useEffect(() => {
-    if (!userLoading) {
-        fetchLessonData();
-    }
+    fetchLessonData();
   }, [user, userLoading, fetchLessonData]);
 
  const markAsCompleted = async () => {
@@ -397,7 +400,7 @@ export default function LessonPage() {
 
   const isLessonCompleted = (lessonId: string) => hasFullAccess && !!userProgress?.completedLessons[lessonId];
   const isModuleUnlocked = (module: Module) => {
-      if (isAdmin || !isClient || !hasFullAccess) return false; // Demos are not subject to drip
+      if (isAdmin || !hasFullAccess) return false;
       if (!courseAccessInfo) return false;
 
       const delay = module.releaseDelayDays || 0;
@@ -546,25 +549,23 @@ export default function LessonPage() {
             <div className="max-w-4xl mx-auto mt-8">
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
                   <h1 className="text-2xl md:text-3xl font-bold text-white">{currentLesson.title}</h1>
-                  <div className="flex items-center gap-2 shrink-0">
-                      {hasFullAccess && (
-                          <>
-                            <div className="flex items-center gap-1 p-1 rounded-full bg-secondary/50">
-                                <Button size="sm" variant="ghost" onClick={() => handleReaction('like')} className={cn("rounded-full h-8 px-3", userReaction === 'like' && 'bg-primary/20 text-primary')}>
-                                    <ThumbsUp className="mr-2 h-4 w-4" /> {likes}
-                                </Button>
-                                <Button size="sm" variant="ghost" onClick={() => handleReaction('dislike')} className={cn("rounded-full h-8 px-3", userReaction === 'dislike' && 'bg-destructive/20 text-destructive')}>
-                                   <ThumbsDown className="h-4 w-4" />
-                                </Button>
-                            </div>
-                            {!currentLesson.videoUrl && !isCurrentLessonCompleted && (
-                                <Button onClick={markAsCompleted}>
-                                    <Check className="mr-2 h-4 w-4" /> Marcar concluída
-                                </Button>
-                            )}
-                          </>
-                      )}
-                  </div>
+                  {hasFullAccess && (
+                      <div className="flex items-center gap-2 shrink-0">
+                          <div className="flex items-center gap-1 p-1 rounded-full bg-secondary/50">
+                              <Button size="sm" variant="ghost" onClick={() => handleReaction('like')} className={cn("rounded-full h-8 px-3", userReaction === 'like' && 'bg-primary/20 text-primary')}>
+                                  <ThumbsUp className="mr-2 h-4 w-4" /> {likes}
+                              </Button>
+                              <Button size="sm" variant="ghost" onClick={() => handleReaction('dislike')} className={cn("rounded-full h-8 px-3", userReaction === 'dislike' && 'bg-destructive/20 text-destructive')}>
+                                 <ThumbsDown className="h-4 w-4" />
+                              </Button>
+                          </div>
+                          {!currentLesson.videoUrl && !isCurrentLessonCompleted && (
+                              <Button onClick={markAsCompleted}>
+                                  <Check className="mr-2 h-4 w-4" /> Marcar concluída
+                              </Button>
+                          )}
+                      </div>
+                  )}
                 </div>
                 
                 <Tabs defaultValue="description" className="w-full">
