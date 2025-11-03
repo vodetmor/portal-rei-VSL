@@ -179,6 +179,16 @@ export default function LessonPage() {
     setIsCurrentLessonCompleted(false);
 
     try {
+      // Step 1: Fetch user role first, as it determines other fetches
+      let userIsAdmin = false;
+      if (user) {
+        const userDocRef = doc(firestore, 'users', user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        userIsAdmin = userDocSnap.exists() && userDocSnap.data().role === 'admin';
+      }
+      setIsAdmin(userIsAdmin);
+
+      // Step 2: Fetch course data
       const courseDocRef = doc(firestore, 'courses', courseId as string);
       const courseDocSnap = await getDoc(courseDocRef);
 
@@ -188,8 +198,17 @@ export default function LessonPage() {
         return;
       }
       const courseData = { id: courseDocSnap.id, ...courseDocSnap.data() } as Course;
+      
+      // Step 2.1: If course is a draft, only admins can see it
+      if (courseData.status === 'draft' && !userIsAdmin) {
+        toast({ variant: 'destructive', title: 'Curso em Breve', description: 'Este curso ainda não foi publicado.' });
+        router.push('/dashboard');
+        return;
+      }
 
-      // Find the current lesson and module
+      setCourse(courseData);
+
+      // Step 3: Find the current lesson and module
       let foundLesson: Lesson | null = null;
       let foundModule: Module | null = null;
       for (const module of courseData.modules) {
@@ -209,52 +228,36 @@ export default function LessonPage() {
       
       setCurrentLesson(foundLesson);
       setCurrentModule(foundModule);
-      setCourse(courseData);
 
-      // Determine user access
-      let userIsAdmin = false;
-      let userHasPurchased = false;
-      
-      if (user) {
-        const userDocRef = doc(firestore, 'users', user.uid);
-        const userDocSnap = await getDoc(userDocRef);
-        if (userDocSnap.exists() && userDocSnap.data().role === 'admin') {
-            userIsAdmin = true;
-        }
-
-        if (!userIsAdmin) {
-            const accessDocRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId as string);
-            const accessDocSnap = await getDoc(accessDocRef);
-            if(accessDocSnap.exists()) {
-              userHasPurchased = true;
-              const accessTimestamp = accessDocSnap.data().grantedAt?.toDate();
-              if (accessTimestamp) {
-                setCourseAccessInfo({ grantedAt: accessTimestamp.toISOString() });
-              }
-            }
-        } else {
-             setCourseAccessInfo({ grantedAt: new Date().toISOString() });
+      // Step 4: Determine final access level
+      let fullAccess = false;
+      if (userIsAdmin) {
+        fullAccess = true;
+        setCourseAccessInfo({ grantedAt: new Date().toISOString() });
+      } else if (courseData.isFree) {
+        fullAccess = true;
+      } else if (user) {
+        const accessDocRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId as string);
+        const accessDocSnap = await getDoc(accessDocRef);
+        if (accessDocSnap.exists()) {
+          fullAccess = true;
+          const accessTimestamp = accessDocSnap.data().grantedAt?.toDate();
+          if (accessTimestamp) {
+            setCourseAccessInfo({ grantedAt: accessTimestamp.toISOString() });
+          }
         }
       }
-
-      setIsAdmin(userIsAdmin);
-      const fullAccess = userIsAdmin || courseData.isFree || userHasPurchased;
       setHasFullAccess(fullAccess);
-      
-      if (courseData.status === 'draft' && !userIsAdmin) {
-        toast({ variant: 'destructive', title: 'Curso em Breve', description: 'Este curso ainda não foi publicado.' });
-        router.push('/dashboard');
-        return;
-      }
 
+      // Step 5: Check if the specific lesson is viewable
       const canViewDemo = courseData.isDemoEnabled && (foundLesson.isDemo || foundModule.isDemo);
-      
       if (!fullAccess && !canViewDemo) {
         toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você não tem permissão para ver esta aula.' });
         router.push(`/courses/${courseId}`);
         return;
       }
       
+      // Step 6: Fetch progress if the user has full access
       if(fullAccess && user) {
         const progressDocRef = doc(firestore, `users/${user.uid}/progress`, courseId as string);
         const progressDocSnap = await getDoc(progressDocRef);
@@ -269,7 +272,7 @@ export default function LessonPage() {
         }
       }
 
-      // Next lesson logic
+      // Step 7: Determine next lesson
       const moduleIndex = courseData.modules.findIndex(m => m.id === foundModule!.id);
       const lessonIndex = foundModule!.lessons.findIndex(l => l.id === foundLesson!.id);
       if (lessonIndex < foundModule!.lessons.length - 1) {
@@ -293,7 +296,6 @@ export default function LessonPage() {
       setLoading(false);
     }
   }, [courseId, lessonId, user, userLoading, firestore, router, toast]);
-
 
   useEffect(() => {
     setIsClient(true);
@@ -387,7 +389,7 @@ export default function LessonPage() {
 
 
   const isModuleUnlocked = useCallback((module: Module) => {
-    if (isAdmin || !isClient || !hasFullAccess) return false;
+    if (isAdmin || !isClient || course?.isFree) return true;
     if (!courseAccessInfo) return false;
     
     const delay = module.releaseDelayDays || 0;
@@ -400,7 +402,7 @@ export default function LessonPage() {
     } catch (e) {
       return false;
     }
-  }, [isAdmin, isClient, hasFullAccess, courseAccessInfo]);
+  }, [isAdmin, isClient, course?.isFree, courseAccessInfo]);
 
   if (loading || userLoading) {
     return <LessonPageSkeleton />;
@@ -438,19 +440,19 @@ export default function LessonPage() {
         <div className="h-[calc(100vh-5rem)] overflow-y-auto">
           <Accordion type="single" collapsible defaultValue={currentModule?.id} className="w-full">
             {course.modules.map(module => {
-              const unlocked = hasFullAccess ? isModuleUnlocked(module) : (module.isDemo || course.isDemoEnabled);
+              const unlocked = isModuleUnlocked(module);
               return (
-                <AccordionItem key={module.id} value={module.id} disabled={!unlocked}>
+                <AccordionItem key={module.id} value={module.id} disabled={!unlocked && !isAdmin && !module.isDemo}>
                   <AccordionTrigger className="px-4 text-left font-semibold text-white disabled:text-muted-foreground disabled:cursor-not-allowed">
                     {module.title}
-                    {!unlocked && <Lock className="ml-2 h-3 w-3 shrink-0 text-muted-foreground" />}
+                    {!unlocked && !isAdmin && !module.isDemo && <Lock className="ml-2 h-3 w-3 shrink-0 text-muted-foreground" />}
                   </AccordionTrigger>
                   <AccordionContent className="border-t border-border/50">
                     <ul className="py-1">
                       {module.lessons.map(lesson => {
                         const isCompleted = userProgress?.completedLessons[lesson.id];
                         const isActive = lesson.id === lessonId;
-                        const isLessonLocked = hasFullAccess ? !unlocked : !(lesson.isDemo || module.isDemo);
+                        const isLessonLocked = !unlocked && !isAdmin && !lesson.isDemo && !module.isDemo;
                         const isTextLesson = !lesson.videoUrl;
                         
                         return (
@@ -998,7 +1000,7 @@ function LessonPageSkeleton() {
       </aside>
       <div className="flex-1 min-w-0 flex flex-col">
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto pt-20">
           {/* Header */}
           <header className="flex h-20 items-center justify-between border-b border-border px-4 sticky top-0 bg-background/80 backdrop-blur-sm z-10">
             <Skeleton className="h-6 w-1/2" />
