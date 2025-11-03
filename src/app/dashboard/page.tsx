@@ -321,7 +321,7 @@ function DashboardClientPage() {
     setLoading(true);
 
     try {
-        // Step 1: Fetch all published courses (or all courses if admin)
+        // Step 1: Fetch all courses based on role
         let coursesQuery;
         if (isAdmin) {
             coursesQuery = query(collection(firestore, 'courses'));
@@ -331,28 +331,26 @@ function DashboardClientPage() {
         
         const coursesSnapshot = await getDocs(coursesQuery);
         const coursesData = coursesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
-        setCourses(coursesData);
         
-        const courseIds = coursesData.map(c => c.id);
-
-        if (courseIds.length === 0) {
+        // Step 2: For non-admins, filter to only show courses they have access to
+        if (!isAdmin) {
+            const accessQuery = query(collection(firestore, `users/${user.uid}/courseAccess`));
+            const accessSnapshot = await getDocs(accessQuery);
+            const accessibleCourseIds = new Set(accessSnapshot.docs.map(doc => doc.id));
+            const viewableCourses = coursesData.filter(course => accessibleCourseIds.has(course.id));
+            setCourses(viewableCourses);
+        } else {
+            setCourses(coursesData);
+        }
+        
+        const accessibleCourseIds = new Set(courses.map(c => c.id));
+        if (accessibleCourseIds.size === 0) {
             setLoading(false);
             return;
         }
 
-        // Step 2: Fetch user's access records for these courses
-        const accessPromises = courseIds.map(id => getDoc(doc(firestore, `users/${user.uid}/courseAccess`, id)));
-        const accessSnaps = await Promise.all(accessPromises);
-        const accessData: CourseAccess = {};
-        accessSnaps.forEach(snap => {
-            if (snap.exists()) {
-                accessData[snap.id] = true;
-            }
-        });
-        setCourseAccess(accessData);
-
-        // Step 3: Fetch user's progress for these courses
-        const progressPromises = courseIds.map(id => getDoc(doc(firestore, `users/${user.uid}/progress`, id)));
+        // Step 3: Fetch user's progress for accessible courses
+        const progressPromises = Array.from(accessibleCourseIds).map(id => getDoc(doc(firestore, `users/${user.uid}/progress`, id)));
         const progressSnaps = await Promise.all(progressPromises);
         const progressData: UserProgress = {};
         progressSnaps.forEach(snap => {
@@ -369,7 +367,7 @@ function DashboardClientPage() {
     } finally {
         setLoading(false);
     }
-  }, [firestore, user, isAdmin, toast]);
+  }, [firestore, user, isAdmin, toast, courses]);
   
   const handleConfirmDelete = (courseId: string) => {
     if (!firestore) return;
@@ -745,8 +743,8 @@ useEffect(() => {
                     <CourseCard
                         key={course.id}
                         course={course}
-                        progress={courseAccess[course.id] ? calculateProgress(course.id) : null}
-                        isLocked={!courseAccess[course.id] && !isAdmin}
+                        progress={isAdmin || courseAccess[course.id] ? calculateProgress(course.id) : null}
+                        isLocked={!isAdmin && !courseAccess[course.id]}
                         priority={index < 4}
                         isAdmin={isAdmin}
                         isEditing={isEditMode}

@@ -45,26 +45,27 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Courses can be read if the user is an admin or has a specific access record.
+    // Course documents can be listed if they are published.
+    // A single course document can be read if the user is an admin or has specific access.
     // Write access is restricted to admins.
     match /courses/{courseId} {
+      allow list: if request.auth != null && resource.data.status == 'published';
       allow read: if isAdmin() || hasCourseAccess(courseId);
       allow write: if isAdmin();
     }
     
     // --- Lesson Engagement Features ---
+    // These rules are now more permissive, relying on the parent course access.
     match /courses/{courseId}/lessons/{lessonId} {
       
-      // Comments Subcollection
+      // Comments, Replies, and Likes can be managed by any user with course access or an admin.
       match /comments/{commentId} {
         allow list, read, create, update, delete: if hasCourseAccess(courseId) || isAdmin();
 
-        // Replies Subcollection
         match /replies/{replyId} {
           allow list, read, create, update, delete: if hasCourseAccess(courseId) || isAdmin();
         }
 
-        // Likes Subcollection
         match /likes/{userId} {
           allow list, read, create, delete: if hasCourseAccess(courseId) || isAdmin();
         }
