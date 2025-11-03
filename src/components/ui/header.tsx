@@ -15,18 +15,21 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { LayoutGrid, UserCircle, LogOut, ShieldCheck, Users, BookOpen } from 'lucide-react';
+import { LayoutGrid, UserCircle, LogOut, ShieldCheck, Users } from 'lucide-react';
 import { useLayout } from '@/context/layout-context';
 import Image from 'next/image';
 import { doc, getDoc } from 'firebase/firestore';
+import { useScroll } from './use-scroll';
 
 
 export function Header() {
 	const { user, loading } = useUser();
 	const auth = useAuth();
 	const firestore = useFirestore();
-	const { layoutData, isEditMode } = useLayout();
+	const { layoutData } = useLayout();
 	const [isAdmin, setIsAdmin] = React.useState(false);
+	const scrolled = useScroll(50);
+    const pathname = usePathname();
 
 	const links = [
 		{
@@ -71,16 +74,21 @@ export function Header() {
 		  auth.signOut();
 		}
 	};
+
+    const isLessonPage = /^\/courses\/[^/]+\/[^/]+/.test(pathname);
 	
 	return (
 		<header
 			className={cn(
-				'fixed top-0 left-0 right-0 z-[100] transition-all ease-out duration-300 bg-background/80 border-b border-border backdrop-blur-md'
+				'fixed top-0 left-0 right-0 z-[100] transition-all ease-out duration-300',
+                scrolled || isLessonPage
+                ? 'h-16 bg-background/80 border-b border-border backdrop-blur-md'
+                : 'h-20 bg-transparent border-b border-transparent'
 			)}
 		>
 			<nav
 				className={cn(
-					'flex h-20 w-full items-center justify-between px-4 max-w-5xl mx-auto transition-all duration-300'
+					'flex h-full w-full items-center justify-between px-4 max-w-5xl mx-auto transition-all duration-300'
 				)}
 			>
 				<Link href="/dashboard" className="relative h-10 w-40">

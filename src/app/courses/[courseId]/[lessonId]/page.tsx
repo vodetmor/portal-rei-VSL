@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useFirestore, useUser, useAuth, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { doc, getDoc, updateDoc, serverTimestamp, setDoc, addDoc, collection, query, orderBy, deleteDoc, writeBatch, runTransaction, increment } from 'firebase/firestore';
@@ -151,8 +151,7 @@ export default function LessonPage() {
   const [nextLesson, setNextLesson] = useState<{ courseId: string; lessonId: string } | null>(null);
   const [isCurrentLessonCompleted, setIsCurrentLessonCompleted] = useState(false);
   const [isClient, setIsClient] = useState(false);
-  const [hasAccess, setHasAccess] = useState(false);
-  const [hasFullAccess, setHasFullAccess] = useState(false); // Differentiates full access from demo access
+  const [hasFullAccess, setHasFullAccess] = useState(false); 
   
   const youtubeEmbedUrl = useMemo(() => {
     if (!currentLesson || !currentLesson.videoUrl || !currentLesson.videoUrl.includes('youtube.com')) {
@@ -176,45 +175,21 @@ export default function LessonPage() {
 
   const fetchLessonData = useCallback(async () => {
     if (!firestore) return;
-    
     setLoading(true);
     setIsCurrentLessonCompleted(false);
 
     try {
       const courseDocRef = doc(firestore, 'courses', courseId as string);
       const courseDocSnap = await getDoc(courseDocRef);
+
       if (!courseDocSnap.exists()) {
-          toast({ variant: 'destructive', title: 'Curso não encontrado.'})
-          router.push('/dashboard');
-          return;
+        toast({ variant: 'destructive', title: 'Curso não encontrado.' });
+        router.push('/dashboard');
+        return;
       }
       const courseData = { id: courseDocSnap.id, ...courseDocSnap.data() } as Course;
-      
-      let userIsAdmin = false;
-      let userHasFullAccess = false;
-      let isDemoLesson = false;
-      
-      if (user) {
-        const userDocRef = doc(firestore, 'users', user.uid);
-        const userDocSnap = await getDoc(userDocRef);
-        if (userDocSnap.exists() && userDocSnap.data().role === 'admin') {
-            userIsAdmin = true;
-        }
-      }
-      setIsAdmin(userIsAdmin);
 
-      if (userIsAdmin) {
-        userHasFullAccess = true;
-      } else if (courseData.isFree) {
-        userHasFullAccess = true;
-      } else if (user) {
-        const accessDocRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId as string);
-        const accessDocSnap = await getDoc(accessDocRef);
-        if (accessDocSnap.exists()) {
-            userHasFullAccess = true;
-        }
-      }
-      
+      // Find the current lesson and module
       let foundLesson: Lesson | null = null;
       let foundModule: Module | null = null;
       for (const module of courseData.modules) {
@@ -225,70 +200,62 @@ export default function LessonPage() {
           break;
         }
       }
+
       if (!foundLesson || !foundModule) {
-        toast({ variant: 'destructive', title: 'Aula não encontrada.'})
+        toast({ variant: 'destructive', title: 'Aula não encontrada.' });
         router.push(`/courses/${courseId}`);
         return;
       }
       
-      isDemoLesson = !!(courseData.isDemoEnabled && (foundLesson.isDemo || foundModule.isDemo));
+      setCurrentLesson(foundLesson);
+      setCurrentModule(foundModule);
+      setCourse(courseData);
+
+      // Determine user access
+      let userIsAdmin = false;
+      let userHasPurchased = false;
+      
+      if (user) {
+        const userDocRef = doc(firestore, 'users', user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists() && userDocSnap.data().role === 'admin') {
+            userIsAdmin = true;
+        }
+
+        if (!userIsAdmin) {
+            const accessDocRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId as string);
+            const accessDocSnap = await getDoc(accessDocRef);
+            if(accessDocSnap.exists()) {
+              userHasPurchased = true;
+              const accessTimestamp = accessDocSnap.data().grantedAt?.toDate();
+              if (accessTimestamp) {
+                setCourseAccessInfo({ grantedAt: accessTimestamp.toISOString() });
+              }
+            }
+        } else {
+             setCourseAccessInfo({ grantedAt: new Date().toISOString() });
+        }
+      }
+
+      setIsAdmin(userIsAdmin);
+      const fullAccess = userIsAdmin || courseData.isFree || userHasPurchased;
+      setHasFullAccess(fullAccess);
       
       if (courseData.status === 'draft' && !userIsAdmin) {
         toast({ variant: 'destructive', title: 'Curso em Breve', description: 'Este curso ainda não foi publicado.' });
         router.push('/dashboard');
         return;
       }
+
+      const canViewDemo = courseData.isDemoEnabled && (foundLesson.isDemo || foundModule.isDemo);
       
-      const canView = userHasFullAccess || isDemoLesson;
-      
-      if (!canView) {
-          toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você não tem permissão para ver esta aula.' });
-          router.push(`/courses/${courseId}`);
-          return;
+      if (!fullAccess && !canViewDemo) {
+        toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você não tem permissão para ver esta aula.' });
+        router.push(`/courses/${courseId}`);
+        return;
       }
-
-      setCourse(courseData);
-      setHasAccess(true);
-      setHasFullAccess(userHasFullAccess);
-
-      if (userHasFullAccess && user) {
-        const accessDocRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId as string);
-        const accessDocSnap = await getDoc(accessDocRef);
-        const accessTimestamp = accessDocSnap.data()?.grantedAt?.toDate();
-        const grantedAtDate = accessTimestamp || (isAdmin ? new Date() : null);
-        if (grantedAtDate) {
-          setCourseAccessInfo({ grantedAt: grantedAtDate.toISOString() });
-        }
       
-        if (!isAdmin) {
-          const isModuleUnlocked = () => {
-            if (!grantedAtDate) return false;
-            const delay = foundModule?.releaseDelayDays || 0;
-            const releaseDate = addDays(grantedAtDate, delay);
-            return new Date() >= releaseDate;
-          }
-          
-          const isLessonUnlocked = () => {
-            if (!grantedAtDate) return false;
-            const moduleDelay = foundModule?.releaseDelayDays || 0;
-            const lessonDelay = foundLesson?.releaseDelayDays || 0;
-            const releaseDate = addDays(grantedAtDate, moduleDelay + lessonDelay);
-            return new Date() >= releaseDate;
-          }
-
-          if (!isModuleUnlocked() || !isLessonUnlocked()) {
-              toast({ variant: 'destructive', title: 'Conteúdo Bloqueado', description: 'Esta aula ainda não foi liberada para você.' });
-              router.push(`/courses/${courseId}`);
-              return;
-          }
-        }
-      }
-
-
-      setCurrentLesson(foundLesson);
-      setCurrentModule(foundModule);
-
-      if (userHasFullAccess && user) {
+      if(fullAccess && user) {
         const progressDocRef = doc(firestore, `users/${user.uid}/progress`, courseId as string);
         const progressDocSnap = await getDoc(progressDocRef);
         if (progressDocSnap.exists()) {
@@ -302,15 +269,15 @@ export default function LessonPage() {
         }
       }
 
+      // Next lesson logic
       const moduleIndex = courseData.modules.findIndex(m => m.id === foundModule!.id);
       const lessonIndex = foundModule!.lessons.findIndex(l => l.id === foundLesson!.id);
-
       if (lessonIndex < foundModule!.lessons.length - 1) {
         setNextLesson({ courseId: courseId as string, lessonId: foundModule!.lessons[lessonIndex + 1].id });
       } else if (moduleIndex < courseData.modules.length - 1) {
         const nextModule = courseData.modules[moduleIndex + 1];
         if (nextModule && nextModule.lessons.length > 0) {
-            setNextLesson({ courseId: courseId as string, lessonId: nextModule.lessons[0].id });
+          setNextLesson({ courseId: courseId as string, lessonId: nextModule.lessons[0].id });
         }
       } else {
         setNextLesson(null);
@@ -334,7 +301,7 @@ export default function LessonPage() {
   
   useEffect(() => {
     fetchLessonData();
-  }, [user, userLoading, fetchLessonData]);
+  }, [fetchLessonData]);
 
  const markAsCompleted = async () => {
     if (!firestore || !user || !courseId || !lessonId || !hasFullAccess) return;
@@ -420,8 +387,8 @@ export default function LessonPage() {
 
 
   const isModuleUnlocked = useCallback((module: Module) => {
-    if (isAdmin || !isClient) return true;
-    if (!hasFullAccess || !courseAccessInfo) return false;
+    if (isAdmin || !isClient || !hasFullAccess) return false;
+    if (!courseAccessInfo) return false;
     
     const delay = module.releaseDelayDays || 0;
     if (delay === 0) return true;
@@ -452,7 +419,7 @@ export default function LessonPage() {
 
 
   return (
-    <div className="flex h-screen bg-background">
+    <div className="flex flex-col md:flex-row h-screen bg-background">
       {/* Sidebar */}
       <aside
         className={cn(
@@ -516,9 +483,9 @@ export default function LessonPage() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto pt-20">
           {/* Header */}
-          <header className="flex h-20 items-center justify-between border-b border-border bg-background/80 backdrop-blur-sm px-4 sticky top-0 z-30">
+          <header className="flex h-20 items-center justify-between border-b border-border bg-background/80 backdrop-blur-sm px-4 fixed top-0 left-0 md:left-80 right-0 z-30">
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setIsSidebarOpen(true)}>
                   <Menu className="h-5 w-5" />
@@ -1050,5 +1017,3 @@ function LessonPageSkeleton() {
     </div>
   )
 }
-
-    
