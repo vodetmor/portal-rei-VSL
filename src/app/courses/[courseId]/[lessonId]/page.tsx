@@ -47,6 +47,7 @@ interface Lesson {
 interface Module {
   id: string;
   title: string;
+  isDemo?: boolean;
   releaseDelayDays?: number;
   lessons: Lesson[];
 }
@@ -134,13 +135,7 @@ export default function LessonPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-
-  const reactionsQuery = useMemoFirebase(() => {
-    if (!firestore || !courseId || !lessonId) return null;
-    return collection(firestore, `courses/${courseId}/lessons/${lessonId}/reactions`);
-  }, [firestore, courseId, lessonId]);
-  const { data: reactions, isLoading: reactionsLoading } = useCollection<LessonReaction>(reactionsQuery);
-
+  
   const [nextLesson, setNextLesson] = useState<{ courseId: string; lessonId: string } | null>(null);
   const [isCurrentLessonCompleted, setIsCurrentLessonCompleted] = useState(false);
   const [isClient, setIsClient] = useState(false);
@@ -162,6 +157,12 @@ export default function LessonPage() {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
     return `https://www.youtube.com/embed/${videoId}?origin=${origin}`;
   }, [currentLesson]);
+
+  const reactionsQuery = useMemoFirebase(() => {
+    if (!firestore || !courseId || !lessonId) return null;
+    return collection(firestore, `courses/${courseId}/lessons/${lessonId}/reactions`);
+  }, [firestore, courseId, lessonId]);
+  const { data: reactions, isLoading: reactionsLoading } = useCollection<LessonReaction>(reactionsQuery);
 
   const fetchLessonData = useCallback(async () => {
     if (!user || !firestore) return;
@@ -189,7 +190,11 @@ export default function LessonPage() {
       setHasAccess(hasFullAccess);
       
       const accessTimestamp = accessDocSnap.data()?.grantedAt?.toDate();
-      setCourseAccessInfo({ grantedAt: accessTimestamp ? accessTimestamp.toISOString() : new Date().toISOString() });
+      // Admins might not have an access document, so we can use the current date as a baseline for drip content
+      const grantedAtDate = accessTimestamp || (isAdminUser ? new Date() : null);
+      if (grantedAtDate) {
+        setCourseAccessInfo({ grantedAt: grantedAtDate.toISOString() });
+      }
 
       // Find current lesson and module
       let foundLesson: Lesson | null = null;
@@ -210,11 +215,26 @@ export default function LessonPage() {
       }
       
       // Permission Checks
-      const isDemoAllowed = courseData.isDemoEnabled && foundLesson.isDemo;
-      const hasDripAccess = hasFullAccess && (accessTimestamp && (addDays(accessTimestamp, (foundModule.releaseDelayDays || 0) + (foundLesson.releaseDelayDays || 0)) <= new Date()));
-      const isUnlocked = hasFullAccess && (isAdminUser || hasDripAccess);
+      const isDemoAllowed = courseData.isDemoEnabled && (foundLesson.isDemo || foundModule.isDemo);
 
-      if (!isUnlocked && !isDemoAllowed) {
+      const isModuleUnlocked = () => {
+          if (!grantedAtDate) return false; // No access date, no drip
+          const delay = foundModule?.releaseDelayDays || 0;
+          const releaseDate = addDays(grantedAtDate, delay);
+          return new Date() >= releaseDate;
+      }
+      
+      const isLessonUnlocked = () => {
+        if (!grantedAtDate) return false;
+        const moduleDelay = foundModule?.releaseDelayDays || 0;
+        const lessonDelay = foundLesson?.releaseDelayDays || 0;
+        const releaseDate = addDays(grantedAtDate, moduleDelay + lessonDelay);
+        return new Date() >= releaseDate;
+      }
+
+      const hasDripAccess = hasFullAccess && isModuleUnlocked() && isLessonUnlocked();
+      
+      if (!isAdminUser && !hasDripAccess && !isDemoAllowed) {
         router.push(`/courses/${courseId}`);
         return;
       }
@@ -223,15 +243,17 @@ export default function LessonPage() {
       setCurrentModule(foundModule);
 
       // Fetch Progress
-      const progressDocSnap = await getDoc(doc(firestore, `users/${user.uid}/progress`, courseId as string));
-      if (progressDocSnap.exists()) {
-        const progressData = progressDocSnap.data() as UserProgress;
-        setUserProgress(progressData);
-        if (progressData.completedLessons[lessonId as string]) {
-          setIsCurrentLessonCompleted(true);
+      if (hasFullAccess) {
+        const progressDocSnap = await getDoc(doc(firestore, `users/${user.uid}/progress`, courseId as string));
+        if (progressDocSnap.exists()) {
+          const progressData = progressDocSnap.data() as UserProgress;
+          setUserProgress(progressData);
+          if (progressData.completedLessons[lessonId as string]) {
+            setIsCurrentLessonCompleted(true);
+          }
+        } else {
+          setUserProgress({ completedLessons: {} });
         }
-      } else {
-        setUserProgress({ completedLessons: {} });
       }
 
       // Determine Next Lesson
@@ -265,7 +287,7 @@ export default function LessonPage() {
   }, [user, userLoading, fetchLessonData, router]);
 
  const markAsCompleted = async () => {
-    if (isCurrentLessonCompleted || !user || !firestore) return;
+    if (isCurrentLessonCompleted || !user || !firestore || !hasAccess) return;
     
     setIsCurrentLessonCompleted(true);
 
@@ -313,7 +335,7 @@ export default function LessonPage() {
   }, [reactions, user]);
 
   const handleReaction = (type: 'like' | 'dislike') => {
-    if (!user || !firestore || !courseId || !lessonId) return;
+    if (!user || !firestore || !courseId || !lessonId || !hasAccess) return;
 
     const reactionRef = doc(firestore, `courses/${courseId}/lessons/${lessonId}/reactions`, user.uid);
     const reactionData = { userId: user.uid, type };
@@ -348,7 +370,7 @@ export default function LessonPage() {
     );
   }
 
-  const isLessonCompleted = (lessonId: string) => !!userProgress?.completedLessons[lessonId];
+  const isLessonCompleted = (lessonId: string) => hasAccess && !!userProgress?.completedLessons[lessonId];
   const isModuleUnlocked = (module: Module) => {
       if (isAdmin || !courseAccessInfo || !isClient) return true;
       const delay = module.releaseDelayDays || 0;
@@ -385,7 +407,7 @@ export default function LessonPage() {
         <div className="flex-grow overflow-y-auto border-r border-border">
           <Accordion type="single" collapsible defaultValue={currentModule.id} className="w-full">
             {course.modules.map(module => (
-              <AccordionItem key={module.id} value={module.id} disabled={!isModuleUnlocked(module)}>
+              <AccordionItem key={module.id} value={module.id} disabled={!isModuleUnlocked(module) && !(course.isDemoEnabled && module.isDemo)}>
                 <AccordionTrigger className="px-4 py-3 text-sm font-semibold hover:bg-secondary/50 disabled:opacity-50 disabled:hover:bg-transparent">
                   <div className="text-left">
                     {module.title}
@@ -443,21 +465,23 @@ export default function LessonPage() {
                 </div>
             </div>
           <div className="flex items-center gap-4">
-            <div className="w-40 hidden md:block">
-                <Progress value={courseProgressPercentage} className="h-2" />
-                <span className="text-xs text-muted-foreground">{completedLessonsCount} de {totalLessons} ({Math.round(courseProgressPercentage)}%)</span>
-            </div>
+            {hasAccess && (
+              <div className="w-40 hidden md:block">
+                  <Progress value={courseProgressPercentage} className="h-2" />
+                  <span className="text-xs text-muted-foreground">{completedLessonsCount} de {totalLessons} ({Math.round(courseProgressPercentage)}%)</span>
+              </div>
+            )}
             {nextLesson ? (
                  <Button asChild variant={isCurrentLessonCompleted ? 'default' : 'outline'}>
                     <Link href={`/courses/${nextLesson.courseId}/${nextLesson.lessonId}`}>
                         Próxima <ArrowRight className="ml-2 h-4 w-4" />
                     </Link>
                  </Button>
-            ) : (
+            ) : hasAccess ? (
                 <Button variant={isCurrentLessonCompleted ? 'default' : 'outline'} className="bg-green-600 hover:bg-green-700">
                     <CheckCircle className="mr-2 h-4 w-4"/> Curso Concluído
                 </Button>
-            )}
+            ) : null}
              <Button asChild variant="ghost" size="icon">
                 <Link href={`/courses/${courseId}`}>
                     <X className="h-5 w-5"/>
@@ -496,18 +520,22 @@ export default function LessonPage() {
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
                   <h1 className="text-2xl md:text-3xl font-bold text-white">{currentLesson.title}</h1>
                   <div className="flex items-center gap-2 shrink-0">
-                      <div className="flex items-center gap-1 p-1 rounded-full bg-secondary/50">
-                        <Button size="sm" variant="ghost" onClick={() => handleReaction('like')} className={cn("rounded-full h-8 px-3", userReaction === 'like' && 'bg-primary/20 text-primary')}>
-                            <ThumbsUp className="mr-2 h-4 w-4" /> {likes}
-                        </Button>
-                        <Button size="sm" variant="ghost" onClick={() => handleReaction('dislike')} className={cn("rounded-full h-8 px-3", userReaction === 'dislike' && 'bg-destructive/20 text-destructive')}>
-                           <ThumbsDown className="h-4 w-4" />
-                        </Button>
-                      </div>
-                      {!currentLesson.videoUrl && !isCurrentLessonCompleted && (
-                         <Button onClick={markAsCompleted}>
-                             <Check className="mr-2 h-4 w-4" /> Marcar concluída
-                         </Button>
+                      {hasAccess && (
+                          <>
+                            <div className="flex items-center gap-1 p-1 rounded-full bg-secondary/50">
+                                <Button size="sm" variant="ghost" onClick={() => handleReaction('like')} className={cn("rounded-full h-8 px-3", userReaction === 'like' && 'bg-primary/20 text-primary')}>
+                                    <ThumbsUp className="mr-2 h-4 w-4" /> {likes}
+                                </Button>
+                                <Button size="sm" variant="ghost" onClick={() => handleReaction('dislike')} className={cn("rounded-full h-8 px-3", userReaction === 'dislike' && 'bg-destructive/20 text-destructive')}>
+                                   <ThumbsDown className="h-4 w-4" />
+                                </Button>
+                            </div>
+                            {!currentLesson.videoUrl && !isCurrentLessonCompleted && (
+                                <Button onClick={markAsCompleted}>
+                                    <Check className="mr-2 h-4 w-4" /> Marcar concluída
+                                </Button>
+                            )}
+                          </>
                       )}
                   </div>
                 </div>
@@ -982,3 +1010,5 @@ function RepliesSection({ courseId, lessonId, commentId, currentUser, isAdmin }:
         </div>
     )
 }
+
+    

@@ -166,33 +166,24 @@ function AdminDashboard() {
 
         const originalCourseData = originalCourseSnap.data();
         
-        // Deep copy modules and lessons, regenerating IDs
-        const newModules = (originalCourseData.modules || []).map((module: any) => ({
-            ...module,
-            id: uuidv4(),
-            lessons: (module.lessons || []).map((lesson: any) => ({
-                ...lesson,
-                id: uuidv4(),
-                complementaryMaterials: (lesson.complementaryMaterials || []).map((material: any) => ({
-                    ...material,
-                    id: uuidv4(),
-                })),
-            })),
-        }));
-
         const newCourseData = {
             ...originalCourseData,
             title: `Cópia de ${originalCourseData.title}`,
             status: 'draft',
             createdAt: serverTimestamp(),
             updatedAt: serverTimestamp(),
-            modules: newModules,
         };
         
-        // Remove original ID from data
         delete newCourseData.id; 
 
         const newCourseRef = await addDoc(collection(firestore, 'courses'), newCourseData);
+
+        // Grant access to the admin who duplicated it
+        const accessRef = doc(firestore, `users/${user.uid}/courseAccess`, newCourseRef.id);
+        await setDoc(accessRef, {
+            grantedAt: serverTimestamp(),
+            courseId: newCourseRef.id,
+        });
 
         await logAdminAction(firestore, user, 'course_duplicated', {
             type: 'Course',
@@ -478,3 +469,5 @@ export default function AdminPage() {
         </AdminGuard>
     )
 }
+
+    

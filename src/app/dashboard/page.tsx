@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { doc, getDoc, collection, getDocs, setDoc, deleteDoc, type DocumentData, updateDoc, addDoc, query, where } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { useLayout } from '@/context/layout-context';
-import { ActionToolbar } from '@/components/ui/action-toolbar';
+import { ActionToolbar } from '@/components/admin/action-toolbar';
 import { PageEditActions } from '@/components/admin/page-edit-actions';
 
 import Image from 'next/image';
@@ -326,15 +326,11 @@ function DashboardClientPage() {
     setLoading(true);
 
     try {
-        let coursesQuery;
-        if (isAdmin) {
-            coursesQuery = query(collection(firestore, 'courses'));
-        } else {
-            coursesQuery = query(collection(firestore, 'courses'), where('status', '==', 'published'));
-        }
-        
+        const coursesQuery = collection(firestore, 'courses');
         const coursesSnapshot = await getDocs(coursesQuery);
-        const allFetchedCourses = coursesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
+        const allFetchedCourses = coursesSnapshot.docs
+            .map(doc => ({ id: doc.id, ...doc.data() } as Course))
+            .filter(course => isAdmin || course.status === 'published'); // Admins see all, users see published
         
         const newCourseAccess: CourseAccess = {};
         if (isAdmin) {
@@ -356,9 +352,9 @@ function DashboardClientPage() {
         setCourses(allFetchedCourses);
         setCourseAccess(newCourseAccess);
         
-        if (allFetchedCourses.length > 0) {
-            const courseIds = allFetchedCourses.map(c => c.id);
-            const progressPromises = courseIds.map(id => getDoc(doc(firestore, `users/${user.uid}/progress`, id)));
+        const accessibleCourseIds = allFetchedCourses.filter(c => newCourseAccess[c.id]).map(c => c.id);
+        if (accessibleCourseIds.length > 0) {
+            const progressPromises = accessibleCourseIds.map(id => getDoc(doc(firestore, `users/${user.uid}/progress`, id)));
             const progressSnaps = await Promise.all(progressPromises);
             
             const progressData: UserProgress = {};
@@ -833,3 +829,5 @@ export default function DashboardPage() {
     <DashboardClientPage />
   )
 }
+
+    

@@ -195,7 +195,7 @@
         "required": ["courseId", "completedLessons", "updatedAt"]
     },
     "LessonComment": {
-        "$schema_": "http://json-schema.org/draft-07/schema#",
+        "$schema": "http://json-schema.org/draft-07/schema#",
         "title": "LessonComment",
         "type": "object",
         "description": "Represents a comment made by a user on a specific lesson.",
@@ -411,4 +411,5 @@
   }
 }
 
+    
     
