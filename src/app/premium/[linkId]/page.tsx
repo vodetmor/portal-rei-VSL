@@ -65,7 +65,9 @@ export default function PremiumAccessPage() {
       const link = linkSnap.data();
       const coursePromises = link.courseIds.map((id: string) => getDoc(doc(firestore, 'courses', id)));
       const courseSnaps = await Promise.all(coursePromises);
-      const courses = courseSnaps.map(snap => ({ id: snap.id, title: snap.data()?.title || 'Curso Desconhecido' }));
+      const courses = courseSnaps
+        .filter(snap => snap.exists() && snap.data()?.status === 'published')
+        .map(snap => ({ id: snap.id, title: snap.data()?.title || 'Curso Desconhecido' }));
 
       setLinkData({
         name: link.name,
@@ -85,36 +87,13 @@ export default function PremiumAccessPage() {
     fetchLinkData();
   }, [fetchLinkData]);
   
-  const grantAccessAndRedirect = async (userId: string) => {
-    if (!firestore || !linkData) return;
-
-    try {
-        const batch = writeBatch(firestore);
-        linkData.courseIds.forEach(courseId => {
-            const accessRef = doc(firestore, `users/${userId}/courseAccess`, courseId);
-            batch.set(accessRef, { grantedAt: serverTimestamp(), courseId: courseId });
-        });
-        await batch.commit();
-        toast({ title: "Acesso Liberado!", description: "Seus cursos estão disponíveis no painel." });
-        router.push('/dashboard');
-    } catch (e) {
-        console.error("Failed to grant course access:", e);
-        const permissionError = new FirestorePermissionError({
-            path: `/users/${userId}/courseAccess`,
-            operation: 'write',
-            requestResourceData: { courses: linkData.courseIds }
-        });
-        errorEmitter.emit('permission-error', permissionError);
-        toast({ variant: 'destructive', title: "Erro Crítico", description: "Não foi possível liberar seu acesso. Contate o suporte." });
-    }
-  };
-
-  // If user is already logged in, grant access immediately
+  // If user is already logged in, redirect to dashboard.
   useEffect(() => {
-    if (user && !userLoading && linkData) {
-      grantAccessAndRedirect(user.uid);
+    if (user && !userLoading) {
+      toast({ title: "Acesso Premium", description: "Seus novos cursos estão sendo adicionados à sua conta." });
+      router.push('/dashboard');
     }
-  }, [user, userLoading, linkData]);
+  }, [user, userLoading, router, toast]);
 
 
   const mapFirebaseError = (code: string) => {
@@ -141,11 +120,10 @@ export default function PremiumAccessPage() {
     setAuthError(null);
 
     try {
-        let userCredential;
         if (formMode === 'login') {
-            userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
+            await signInWithEmailAndPassword(auth, data.email, data.password);
         } else {
-            userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+            const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
             const userDocRef = doc(firestore, 'users', userCredential.user.uid);
             const userDocData = {
                 email: userCredential.user.email,
@@ -158,7 +136,9 @@ export default function PremiumAccessPage() {
                 errorEmitter.emit('permission-error', permissionError);
             });
         }
-        // Grant access is handled by the useEffect watching the user state
+        // Redirect is handled by the useEffect watching the user state
+        toast({ title: "Login bem-sucedido!", description: "Redirecionando para o painel..." });
+        router.push('/dashboard');
     } catch (error: any) {
         const message = mapFirebaseError(error.code);
         setAuthError(message);
@@ -176,7 +156,7 @@ export default function PremiumAccessPage() {
 
   if (user) {
     // This view is shown briefly while the useEffect redirects
-    return <div className="flex min-h-screen items-center justify-center text-center px-4"><h1>Concedendo acesso e redirecionando...</h1></div>;
+    return <div className="flex min-h-screen items-center justify-center text-center px-4"><h1>Login bem-sucedido. Redirecionando...</h1></div>;
   }
 
   return (
