@@ -16,16 +16,19 @@ service cloud.firestore {
     
     // Helper function to check if a course is free
     function isCourseFree(courseId) {
-        return get(/databases/$(database)/documents/courses/$(courseId)).data.isFree == true;
+        let courseDoc = get(/databases/$(database)/documents/courses/$(courseId));
+        return courseDoc.data.isFree == true;
     }
     
     // Helper function to check if a course demo is enabled and the lesson is a demo lesson
     function isDemoLesson(courseId, lessonId) {
         let course = get(/databases/$(database)/documents/courses/$(courseId)).data;
-        let lesson = course.modules.flatMap(m => m.lessons).find(l => l.id == lessonId);
-        let module = course.modules.find(m => m.lessons.find(l => l.id == lessonId) != null);
+        // This is expensive, but necessary for this rule structure.
+        // Consider denormalizing `isDemo` status to the lesson document itself if performance becomes an issue.
+        let isLessonInDemoModule = course.modules.filter(m => m.isDemo == true && m.lessons.find(l => l.id == lessonId) != null).size() > 0;
+        let isDemoLessonItself = course.modules.flatMap(m => m.lessons).find(l => l.id == lessonId && l.isDemo == true) != null;
         
-        return course.isDemoEnabled == true && (lesson.isDemo == true || module.isDemo == true);
+        return course.isDemoEnabled == true && (isLessonInDemoModule || isDemoLessonItself);
     }
 
     // User documents can be read by their owner or an admin.
@@ -130,5 +133,3 @@ service cloud.firestore {
     }
   }
 }
-
-    
