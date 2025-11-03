@@ -42,11 +42,11 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Course access records can be read by their owner or managed by admins.
+    // Course access records can be read by their owner.
+    // They can be written by the owner (for premium links) or managed by admins.
     match /users/{userId}/courseAccess/{courseId} {
-        allow read: if (request.auth != null && request.auth.uid == userId) || isAdmin();
-        allow write: if isAdmin();
-        allow list: if isAdmin();
+        allow read, list: if (request.auth != null && request.auth.uid == userId) || isAdmin();
+        allow write: if (request.auth != null && request.auth.uid == userId) || isAdmin();
     }
 
     // User progress can be read by the owner or an admin.
@@ -63,8 +63,7 @@ service cloud.firestore {
     }
 
     // Course documents can be listed by any authenticated user.
-    // A single course document can be read if it's published and the user is authenticated,
-    // or if the user is an admin or has specific access.
+    // A single course document can be read if it's published.
     // Write access is restricted to admins.
     match /courses/{courseId} {
       allow list: if request.auth != null;
