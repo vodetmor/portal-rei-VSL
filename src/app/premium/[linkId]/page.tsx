@@ -87,13 +87,16 @@ export default function PremiumAccessPage() {
     fetchLinkData();
   }, [fetchLinkData]);
   
-  // If user is already logged in, redirect to dashboard.
-  useEffect(() => {
+  const redirectIfLoggedIn = useCallback(() => {
     if (user && !userLoading) {
-      toast({ title: "Acesso Premium", description: "Seus novos cursos estão sendo adicionados à sua conta." });
+      toast({ title: "Acesso Premium", description: "Bem-vindo(a) de volta! Redirecionando..." });
       router.push('/dashboard');
     }
   }, [user, userLoading, router, toast]);
+
+  useEffect(() => {
+    redirectIfLoggedIn();
+  }, [redirectIfLoggedIn]);
 
 
   const mapFirebaseError = (code: string) => {
@@ -116,14 +119,15 @@ export default function PremiumAccessPage() {
   };
 
   const onSubmit = async (data: AuthFormValues) => {
-    if (!auth || !firestore) return;
+    if (!auth || !firestore || !linkData) return;
     setAuthError(null);
 
     try {
+        let userCredential;
         if (formMode === 'login') {
-            await signInWithEmailAndPassword(auth, data.email, data.password);
+            userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
         } else {
-            const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+            userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
             const userDocRef = doc(firestore, 'users', userCredential.user.uid);
             const userDocData = {
                 email: userCredential.user.email,
@@ -131,14 +135,29 @@ export default function PremiumAccessPage() {
                 photoURL: '',
                 role: 'user',
             };
-             setDoc(userDocRef, userDocData).catch(err => {
+            // Non-blocking write
+            setDoc(userDocRef, userDocData).catch(err => {
                 const permissionError = new FirestorePermissionError({ path: userDocRef.path, operation: 'create', requestResourceData: userDocData });
                 errorEmitter.emit('permission-error', permissionError);
             });
         }
-        // Redirect is handled by the useEffect watching the user state
-        toast({ title: "Login bem-sucedido!", description: "Redirecionando para o painel..." });
+        
+        const loggedInUser = userCredential.user;
+        const batch = writeBatch(firestore);
+
+        linkData.courseIds.forEach(courseId => {
+            const accessRef = doc(firestore, `users/${loggedInUser.uid}/courseAccess`, courseId);
+            batch.set(accessRef, {
+                grantedAt: serverTimestamp(),
+                courseId: courseId
+            });
+        });
+
+        await batch.commit();
+
+        toast({ title: "Acesso Liberado!", description: "Seus cursos foram adicionados. Bem-vindo(a)!" });
         router.push('/dashboard');
+
     } catch (error: any) {
         const message = mapFirebaseError(error.code);
         setAuthError(message);
@@ -154,9 +173,9 @@ export default function PremiumAccessPage() {
     return <div className="flex min-h-screen items-center justify-center text-center text-destructive px-4"><h1>{error}</h1></div>;
   }
 
+  // This prevents the form from flashing for already logged-in users while redirecting
   if (user) {
-    // This view is shown briefly while the useEffect redirects
-    return <div className="flex min-h-screen items-center justify-center text-center px-4"><h1>Login bem-sucedido. Redirecionando...</h1></div>;
+    return <div className="flex min-h-screen items-center justify-center"><div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
   }
 
   return (
