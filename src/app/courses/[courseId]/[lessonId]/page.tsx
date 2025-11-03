@@ -161,7 +161,6 @@ export default function LessonPage() {
   }, [currentLesson]);
 
   const reactionsQuery = useMemoFirebase(() => {
-    // Only fetch reactions if user has full access
     if (!firestore || !courseId || !lessonId || !hasFullAccess) return null;
     return collection(firestore, `courses/${courseId}/lessons/${lessonId}/reactions`);
   }, [firestore, courseId, lessonId, hasFullAccess]);
@@ -177,17 +176,10 @@ export default function LessonPage() {
     try {
       const courseDocRef = doc(firestore, 'courses', courseId as string);
       const courseDocSnap = await getDoc(courseDocRef);
-      if (!courseDocSnap.exists() || courseDocSnap.data().status !== 'published') {
-          if(!user) {
-            router.push('/dashboard');
-            return;
-          }
-          const userDocRef = doc(firestore, 'users', user.uid);
-          const userDocSnap = await getDoc(userDocRef);
-          if(userDocSnap.data()?.role !== 'admin') {
-            router.push('/dashboard');
-            return;
-          }
+      if (!courseDocSnap.exists()) {
+          toast({ variant: 'destructive', title: 'Curso não encontrado.'})
+          router.push('/dashboard');
+          return;
       }
       const courseData = { id: courseDocSnap.id, ...courseDocSnap.data() } as Course;
       setCourse(courseData);
@@ -218,21 +210,24 @@ export default function LessonPage() {
         }
       }
       if (!foundLesson || !foundModule) {
+        toast({ variant: 'destructive', title: 'Aula não encontrada.'})
         router.push(`/courses/${courseId}`);
         return;
       }
       
-      const isDemoAllowed = courseData.isDemoEnabled && (foundLesson.isDemo || foundModule.isDemo);
+      const isDemoLesson = courseData.isDemoEnabled && (foundLesson.isDemo || foundModule.isDemo);
+      const canView = userHasFullAccess || isDemoLesson;
       
-      if (!user && !isDemoAllowed) {
-        router.push('/login');
+      if (!canView) {
+        if (!user) {
+          router.push(`/login?redirect=/courses/${courseId}/${lessonId}`);
+        } else {
+          toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você não tem permissão para ver esta aula.' });
+          router.push(`/courses/${courseId}`);
+        }
         return;
       }
-      
-      if (!userHasFullAccess && !isDemoAllowed) {
-        router.push(`/courses/${courseId}`);
-        return;
-      }
+
 
       setHasAccess(true);
       setHasFullAccess(userHasFullAccess);
@@ -263,12 +258,11 @@ export default function LessonPage() {
           }
 
           if (!isModuleUnlocked() || !isLessonUnlocked()) {
+              toast({ variant: 'destructive', title: 'Conteúdo Bloqueado', description: 'Esta aula ainda não foi liberada para você.' });
               router.push(`/courses/${courseId}`);
               return;
           }
         }
-      } else if (user && isDemoAllowed && !userHasFullAccess) {
-        setHasFullAccess(false)
       }
 
 
@@ -312,7 +306,7 @@ export default function LessonPage() {
     } finally {
       setLoading(false);
     }
-  }, [courseId, lessonId, user, userLoading, firestore, router]);
+  }, [courseId, lessonId, user, userLoading, firestore, router, toast]);
 
 
   useEffect(() => {
@@ -472,6 +466,8 @@ export default function LessonPage() {
                         const isCompleted = userProgress?.completedLessons[lesson.id];
                         const isActive = lesson.id === lessonId;
                         const isLessonLocked = hasFullAccess ? !unlocked : !(lesson.isDemo || module.isDemo);
+                        const isTextLesson = !lesson.videoUrl;
+                        
                         return (
                           <li key={lesson.id}>
                             <Link
@@ -482,11 +478,10 @@ export default function LessonPage() {
                                 isLessonLocked && 'pointer-events-none text-muted-foreground/50'
                               )}
                             >
-                              {isLessonLocked ? <Lock className="h-4 w-4 shrink-0 text-muted-foreground" /> : isCompleted ? (
-                                <CheckCircle className="h-4 w-4 shrink-0 text-primary" />
-                              ) : (
-                                <Circle className="h-4 w-4 shrink-0 text-muted-foreground" />
-                              )}
+                              {isLessonLocked ? <Lock className="h-4 w-4 shrink-0 text-muted-foreground" /> 
+                               : isTextLesson ? <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                               : isCompleted ? <CheckCircle className="h-4 w-4 shrink-0 text-primary" />
+                               : <Circle className="h-4 w-4 shrink-0 text-muted-foreground" />}
                               <span className="flex-grow">{lesson.title}</span>
                             </Link>
                           </li>
@@ -582,7 +577,7 @@ export default function LessonPage() {
             <Tabs defaultValue="description" className="mt-8">
               <TabsList>
                 <TabsTrigger value="description"><BookOpen className="mr-2 h-4 w-4" />Descrição</TabsTrigger>
-                <TabsTrigger value="comments">
+                <TabsTrigger value="comments" disabled={!hasFullAccess}>
                   <MessagesSquare className="mr-2 h-4 w-4" />
                   Comentários
                    {!hasFullAccess && <Lock className="ml-2 h-3 w-3" />}
@@ -679,24 +674,12 @@ function CommentsSection({ firestore, user, courseId, lessonId, isAdmin }: Comme
     if (!firestore || !courseId || !lessonId) return null;
     return query(
       collection(firestore, `courses/${courseId}/lessons/${lessonId}/comments`),
+      orderBy('isPinned', 'desc'),
       orderBy('timestamp', 'desc')
     );
   }, [firestore, courseId, lessonId]);
 
   const { data: comments, isLoading: commentsLoading } = useCollection<LessonComment>(commentsQuery);
-
-  const sortedComments = useMemo(() => {
-    if (!comments) return [];
-    return [...comments].sort((a, b) => {
-        if (a.isPinned && !b.isPinned) return -1;
-        if (!a.isPinned && b.isPinned) return 1;
-        if (a.timestamp?.toDate && b.timestamp?.toDate) {
-             return b.timestamp.toDate() - a.timestamp.toDate();
-        }
-        return 0;
-    });
-  }, [comments]);
-
 
   const handlePostComment = async () => {
     if (!newComment.trim() || !user) return;
@@ -742,7 +725,7 @@ function CommentsSection({ firestore, user, courseId, lessonId, isAdmin }: Comme
       
       {/* Comments List */}
       <div className="space-y-6">
-        {sortedComments && sortedComments.length > 0 ? sortedComments.map(comment => (
+        {comments && comments.length > 0 ? comments.map(comment => (
           <CommentItem 
             key={comment.id}
             comment={comment}
@@ -818,10 +801,10 @@ function CommentItem({ comment, firestore, user, courseId, lessonId, isAdmin }: 
       <div className="w-full">
         <div className="flex items-center justify-between">
           <div>
-            <div className="font-semibold text-white flex items-center gap-2">
-              {comment.userDisplayName} 
-              {comment.userId === user.uid && <Badge variant="secondary">Você</Badge>}
-            </div>
+            <p className="font-semibold text-white">
+                {comment.userDisplayName}
+                {comment.userId === user.uid && <Badge variant="secondary" className="ml-2">Você</Badge>}
+            </p>
             <p className="text-xs text-muted-foreground">
               {comment.timestamp ? formatDistanceToNow(comment.timestamp.toDate(), { addSuffix: true, locale: ptBR }) : 'agora'}
             </p>
@@ -1004,3 +987,5 @@ function LessonPageSkeleton() {
     </div>
   )
 }
+
+    
