@@ -18,6 +18,12 @@ service cloud.firestore {
     function isCourseFree(courseId) {
         return get(/databases/$(database)/documents/courses/$(courseId)).data.isFree == true;
     }
+
+    // Helper function to check if the course is a published demo
+    function isPublishedDemo(courseId) {
+      let course = get(/databases/$(database)/documents/courses/$(courseId)).data;
+      return course.status == 'published' && course.isDemoEnabled == true;
+    }
     
     // Helper function to check if a course demo is enabled and the lesson is a demo lesson
     function isDemoLesson(courseId, lessonId) {
@@ -86,20 +92,24 @@ service cloud.firestore {
       
       // Comments, Replies, and Likes can be managed by any user with course access or an admin.
       match /comments/{commentId} {
-        allow list, read, create, update, delete: if hasCourseAccess(courseId) || isAdmin() || isCourseFree(courseId) || isDemoLesson(courseId, lessonId);
+        allow list, read: if isAdmin() || hasCourseAccess(courseId) || isCourseFree(courseId) || isPublishedDemo(courseId);
+        allow create, update, delete: if isAdmin() || hasCourseAccess(courseId) || isCourseFree(courseId);
 
         match /replies/{replyId} {
-          allow list, read, create, update, delete: if hasCourseAccess(courseId) || isAdmin() || isCourseFree(courseId) || isDemoLesson(courseId, lessonId);
+          allow list, read: if isAdmin() || hasCourseAccess(courseId) || isCourseFree(courseId) || isPublishedDemo(courseId);
+          allow create, update, delete: if isAdmin() || hasCourseAccess(courseId) || isCourseFree(courseId);
         }
 
         match /likes/{userId} {
-          allow list, read, create, delete: if hasCourseAccess(courseId) || isAdmin() || isCourseFree(courseId) || isDemoLesson(courseId, lessonId);
+          allow list, read: if isAdmin() || hasCourseAccess(courseId) || isCourseFree(courseId) || isPublishedDemo(courseId);
+          allow create, delete: if isAdmin() || hasCourseAccess(courseId) || isCourseFree(courseId);
         }
       }
 
       // Reactions Subcollection
       match /reactions/{reactionId} {
-        allow read, list, write: if hasCourseAccess(courseId) || isAdmin() || isCourseFree(courseId) || isDemoLesson(courseId, lessonId);
+        allow read, list: if isAdmin() || hasCourseAccess(courseId) || isCourseFree(courseId) || isPublishedDemo(courseId);
+        allow write: if isAdmin() || hasCourseAccess(courseId) || isCourseFree(courseId);
       }
     }
 
