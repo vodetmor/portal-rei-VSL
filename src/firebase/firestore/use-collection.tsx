@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -11,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { getAuth } from 'firebase/auth';
 
 /** Utility type to add an 'id' field to a given type T. */
 export type WithId<T> = T & { id: string };
@@ -87,6 +89,21 @@ export function useCollection<T = any>(
       (serverError: FirestoreError) => {
         // Log the original server error for more detailed debugging
         console.error("Firestore onSnapshot error caught in useCollection:", serverError);
+
+        // If user is not authenticated and gets a permission error, it's often an expected scenario.
+        // We can choose to handle this gracefully without throwing a global error.
+        try {
+            const auth = getAuth();
+            if (serverError.code === 'permission-denied' && !auth.currentUser) {
+                console.warn("Permission denied for unauthenticated user. This may be expected.");
+                setError(serverError); // Set local error state for component-level handling
+                setData(null);
+                setIsLoading(false);
+                return; // Stop further error propagation for this specific case
+            }
+        } catch (e) {
+             // If getAuth fails, Firebase might not be initialized. Treat as a permission error.
+        }
 
         if (serverError.code === 'permission-denied') {
           const path: string =

@@ -140,11 +140,7 @@ export default function LessonPage() {
   const [isCurrentLessonCompleted, setIsCurrentLessonCompleted] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const [hasAccess, setHasAccess] = useState(false);
-
-  useEffect(() => {
-    setIsClient(true);
-  }, []);
-
+  
   const youtubeEmbedUrl = useMemo(() => {
     if (!currentLesson || !currentLesson.videoUrl || !currentLesson.videoUrl.includes('youtube.com')) {
       return currentLesson?.videoUrl;
@@ -165,7 +161,13 @@ export default function LessonPage() {
   const { data: reactions, isLoading: reactionsLoading } = useCollection<LessonReaction>(reactionsQuery);
 
   const fetchLessonData = useCallback(async () => {
-    if (!user || !firestore) return;
+    if (!firestore) return;
+    // Do not fetch data if user is not logged in.
+    if (!user) {
+        setLoading(false);
+        return;
+    };
+    
     setLoading(true);
     setIsCurrentLessonCompleted(false);
 
@@ -184,22 +186,9 @@ export default function LessonPage() {
       const isAdminUser = userRole === 'admin' || user.email === 'admin@reidavsl.com';
       setIsAdmin(isAdminUser);
       
-      // Check Access
-      const accessDocSnap = await getDoc(doc(firestore, `users/${user.uid}/courseAccess`, courseId as string));
-      const hasFullAccess = accessDocSnap.exists() || isAdminUser;
-      setHasAccess(hasFullAccess);
-      
-      const accessTimestamp = accessDocSnap.data()?.grantedAt?.toDate();
-      // Admins might not have an access document, so we can use the current date as a baseline for drip content
-      const grantedAtDate = accessTimestamp || (isAdminUser ? new Date() : null);
-      if (grantedAtDate) {
-        setCourseAccessInfo({ grantedAt: grantedAtDate.toISOString() });
-      }
-
-      // Find current lesson and module
+      // Find current lesson and module first to check for demo access
       let foundLesson: Lesson | null = null;
       let foundModule: Module | null = null;
-      
       for (const module of courseData.modules) {
         const lesson = module.lessons.find(l => l.id === lessonId);
         if (lesson) {
@@ -208,41 +197,56 @@ export default function LessonPage() {
           break;
         }
       }
-      
       if (!foundLesson || !foundModule) {
         router.push(`/courses/${courseId}`);
         return;
       }
       
-      // Permission Checks
+      // Check Access Rights
       const isDemoAllowed = courseData.isDemoEnabled && (foundLesson.isDemo || foundModule.isDemo);
+      const accessDocSnap = await getDoc(doc(firestore, `users/${user.uid}/courseAccess`, courseId as string));
+      const hasFullAccess = accessDocSnap.exists() || isAdminUser;
+      
+      if (!hasFullAccess && !isDemoAllowed) {
+        router.push(`/courses/${courseId}`);
+        return;
+      }
 
-      const isModuleUnlocked = () => {
-          if (!grantedAtDate) return false; // No access date, no drip
+      setHasAccess(true); // User has some form of access (full or demo)
+
+      const accessTimestamp = accessDocSnap.data()?.grantedAt?.toDate();
+      const grantedAtDate = accessTimestamp || (isAdminUser ? new Date() : null);
+      if (grantedAtDate) {
+        setCourseAccessInfo({ grantedAt: grantedAtDate.toISOString() });
+      }
+      
+      // Check Drip Content if user doesn't have admin rights
+      if (!isAdminUser && hasFullAccess) {
+        const isModuleUnlocked = () => {
+          if (!grantedAtDate) return false;
           const delay = foundModule?.releaseDelayDays || 0;
           const releaseDate = addDays(grantedAtDate, delay);
           return new Date() >= releaseDate;
-      }
-      
-      const isLessonUnlocked = () => {
-        if (!grantedAtDate) return false;
-        const moduleDelay = foundModule?.releaseDelayDays || 0;
-        const lessonDelay = foundLesson?.releaseDelayDays || 0;
-        const releaseDate = addDays(grantedAtDate, moduleDelay + lessonDelay);
-        return new Date() >= releaseDate;
-      }
+        }
+        
+        const isLessonUnlocked = () => {
+          if (!grantedAtDate) return false;
+          const moduleDelay = foundModule?.releaseDelayDays || 0;
+          const lessonDelay = foundLesson?.releaseDelayDays || 0;
+          const releaseDate = addDays(grantedAtDate, moduleDelay + lessonDelay);
+          return new Date() >= releaseDate;
+        }
 
-      const hasDripAccess = hasFullAccess && isModuleUnlocked() && isLessonUnlocked();
-      
-      if (!isAdminUser && !hasDripAccess && !isDemoAllowed) {
-        router.push(`/courses/${courseId}`);
-        return;
+        if (!isModuleUnlocked() || !isLessonUnlocked()) {
+            router.push(`/courses/${courseId}`);
+            return;
+        }
       }
 
       setCurrentLesson(foundLesson);
       setCurrentModule(foundModule);
 
-      // Fetch Progress
+      // Fetch Progress only for users with full access
       if (hasFullAccess) {
         const progressDocSnap = await getDoc(doc(firestore, `users/${user.uid}/progress`, courseId as string));
         if (progressDocSnap.exists()) {
@@ -278,13 +282,16 @@ export default function LessonPage() {
     }
   }, [courseId, lessonId, user, firestore, router]);
 
+
   useEffect(() => {
-    if (user && !userLoading) {
-      fetchLessonData();
-    } else if (!user && !userLoading) {
-      router.push('/login');
+    setIsClient(true);
+  }, []);
+  
+  useEffect(() => {
+    if (!userLoading) {
+        fetchLessonData();
     }
-  }, [user, userLoading, fetchLessonData, router]);
+  }, [user, userLoading, fetchLessonData]);
 
  const markAsCompleted = async () => {
     if (isCurrentLessonCompleted || !user || !firestore || !hasAccess) return;
@@ -362,11 +369,25 @@ export default function LessonPage() {
     }
   };
 
-  if (loading || userLoading || !course || !currentLesson || !currentModule || !isClient) {
+  if (loading || userLoading || !isClient) {
     return (
       <div className="flex h-screen w-full items-center justify-center bg-background">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
       </div>
+    );
+  }
+
+  if (!hasAccess || !course || !currentLesson || !currentModule) {
+    return (
+        <div className="flex h-screen w-full items-center justify-center bg-background text-white p-4 text-center">
+            <div>
+                <h1 className="text-2xl font-bold">Acesso Negado</h1>
+                <p className="text-muted-foreground mt-2">Você não tem permissão para ver esta aula ou ela não existe.</p>
+                <Button asChild className="mt-6">
+                    <Link href="/dashboard">Voltar ao Painel</Link>
+                </Button>
+            </div>
+        </div>
     );
   }
 
@@ -823,7 +844,7 @@ function CommentItem({ comment, courseId, lessonId, currentUser, isAdmin }: Comm
                         <Heart className={cn("h-4 w-4", userHasLiked && "fill-current")} /> {comment.likeCount || 0}
                     </button>
                     <button onClick={() => setShowReplies(!showReplies)} className="flex items-center gap-1 hover:text-white">
-                        <CornerUpLeft className="h-4 w-4" /> <span>Respostas ({comment.replyCount || 0})</span>
+                        <CornerUpLeft className="h-4 w-4" /> <span>Respostas</span>
                     </button>
                 </div>
                 {showReplies && (
@@ -1010,5 +1031,3 @@ function RepliesSection({ courseId, lessonId, commentId, currentUser, isAdmin }:
         </div>
     )
 }
-
-    
