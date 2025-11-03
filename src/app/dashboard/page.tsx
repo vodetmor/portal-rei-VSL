@@ -478,17 +478,14 @@ function DashboardClientPage() {
       const batch = writeBatch(firestore);
       let grantedCount = 0;
       
-      // Directly set the access document. Firestore's set with merge is idempotent.
-      // This avoids a preliminary read (getDoc) which can cause permission issues if the doc doesn't exist.
       courseIdsToGrant.forEach((courseId: string) => {
-        // We check against locally available `courseAccess` to avoid unnecessary writes.
         if (!courseAccess[courseId]) {
-          const accessRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId);
-          batch.set(accessRef, {
-            courseId: courseId,
-            grantedAt: serverTimestamp()
-          });
-          grantedCount++;
+            const accessRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId);
+            batch.set(accessRef, {
+                courseId: courseId,
+                grantedAt: serverTimestamp()
+            });
+            grantedCount++;
         }
       });
 
@@ -496,7 +493,7 @@ function DashboardClientPage() {
       if (grantedCount > 0) {
         await batch.commit();
         toast({ title: "Acesso Liberado!", description: `${grantedCount} novo(s) curso(s) foram adicionados à sua conta.` });
-        fetchCoursesAndProgress(); // Re-fetch data to show new courses
+        fetchCoursesAndProgress(); 
       } else {
         toast({ title: "Tudo Certo!", description: "Você já tinha acesso a todos os cursos deste link." });
       }
@@ -505,14 +502,13 @@ function DashboardClientPage() {
       console.error("Error redeeming premium link: ", error);
        if (error.code === 'permission-denied') {
             const permissionError = new FirestorePermissionError({
-                path: `/users/${user.uid}/courseAccess/...`,
+                path: `users/${user.uid}/courseAccess/...`,
                 operation: 'write'
             });
             errorEmitter.emit('permission-error', permissionError);
        }
       toast({ variant: "destructive", title: "Erro", description: "Não foi possível resgatar o acesso premium." });
     } finally {
-        // Clean the URL to avoid re-triggering on refresh
         router.replace('/dashboard', { scroll: false });
     }
   }, [firestore, user, toast, router, fetchCoursesAndProgress, courseAccess]);
@@ -906,5 +902,3 @@ export default function DashboardPage() {
     <DashboardClientPage />
   )
 }
-
-    
