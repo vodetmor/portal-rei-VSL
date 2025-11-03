@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
@@ -644,7 +645,6 @@ function CommentsSection({ firestore, user, courseId, lessonId, isAdmin }: Comme
     if (!firestore || !courseId || !lessonId) return null;
     return query(
       collection(firestore, `courses/${courseId}/lessons/${lessonId}/comments`),
-      orderBy('isPinned', 'desc'),
       orderBy('timestamp', 'desc')
     );
   }, [firestore, courseId, lessonId]);
@@ -673,6 +673,18 @@ function CommentsSection({ firestore, user, courseId, lessonId, isAdmin }: Comme
       <Skeleton className="h-20 w-full" />
     </div>
   }
+
+  const sortedComments = useMemo(() => {
+    if (!comments) return [];
+    return [...comments].sort((a, b) => {
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
+        if (a.timestamp?.toDate && b.timestamp?.toDate) {
+             return b.timestamp.toDate() - a.timestamp.toDate();
+        }
+        return 0;
+    });
+  }, [comments]);
   
   return (
     <div className="space-y-6">
@@ -695,7 +707,7 @@ function CommentsSection({ firestore, user, courseId, lessonId, isAdmin }: Comme
       
       {/* Comments List */}
       <div className="space-y-6">
-        {comments && comments.length > 0 ? comments.map(comment => (
+        {sortedComments && sortedComments.length > 0 ? sortedComments.map(comment => (
           <CommentItem 
             key={comment.id}
             comment={comment}
@@ -954,3 +966,4 @@ function LessonPageSkeleton() {
     </div>
   )
 }
+
