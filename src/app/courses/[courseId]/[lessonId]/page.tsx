@@ -24,7 +24,7 @@ import { BookOpen, MessagesSquare } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import Image from 'next/image';
@@ -192,6 +192,7 @@ export default function LessonPage() {
       
       let userIsAdmin = false;
       let userHasFullAccess = false;
+      let isDemoLesson = false;
       
       if (user) {
         const userDocRef = doc(firestore, 'users', user.uid);
@@ -230,7 +231,7 @@ export default function LessonPage() {
         return;
       }
       
-      const isDemoLesson = courseData.isDemoEnabled && (foundLesson.isDemo || foundModule.isDemo);
+      isDemoLesson = !!(courseData.isDemoEnabled && (foundLesson.isDemo || foundModule.isDemo));
       
       if (courseData.status === 'draft' && !userIsAdmin) {
         toast({ variant: 'destructive', title: 'Curso em Breve', description: 'Este curso ainda não foi publicado.' });
@@ -633,7 +634,8 @@ export default function LessonPage() {
                         <h2 className="text-xl font-bold text-white">Comunidade</h2>
                     </CardHeader>
                     <CardContent>
-                        <CommentsSection
+                       {hasFullAccess ? (
+                          <CommentsSection
                             firestore={firestore}
                             auth={auth}
                             user={user}
@@ -641,6 +643,20 @@ export default function LessonPage() {
                             lessonId={lessonId as string}
                             isAdmin={isAdmin}
                         />
+                       ) : (
+                         <div className="text-center py-12">
+                            <Lock className="mx-auto h-12 w-12 text-primary" />
+                            <h3 className="mt-4 text-xl font-semibold text-white">Comunidade Exclusiva</h3>
+                            <p className="mt-2 text-muted-foreground">O acesso aos comentários é exclusivo para alunos do curso.</p>
+                            {course.checkoutUrl && (
+                                <Button asChild className="mt-6">
+                                    <Link href={course.checkoutUrl} target="_blank">
+                                        <ShoppingCart className="mr-2 h-4 w-4" /> Quero ter acesso
+                                    </Link>
+                                </Button>
+                            )}
+                         </div>
+                       )}
                     </CardContent>
                 </Card>
               </TabsContent>
@@ -1034,3 +1050,5 @@ function LessonPageSkeleton() {
     </div>
   )
 }
+
+    
