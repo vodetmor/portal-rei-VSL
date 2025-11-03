@@ -19,10 +19,10 @@ service cloud.firestore {
         return get(/databases/$(database)/documents/courses/$(courseId)).data.isFree == true;
     }
     
-    // Helper function to check if a lesson is part of a published demo
-    function isDemoLesson(courseId, lessonId) {
-      let course = get(/databases/$(database)/documents/courses/$(courseId)).data;
-      return course.isDemoEnabled == true;
+    // Helper function to check if a course is a published demo
+    function isPublishedDemo(courseId) {
+      let courseData = get(/databases/$(database)/documents/courses/$(courseId)).data;
+      return courseData.status == 'published' && courseData.isDemoEnabled == true;
     }
 
     // User documents can be read by their owner or an admin.
@@ -56,34 +56,38 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Course documents can be listed by any authenticated user.
-    // A single course document can be read if it's published and the user is authenticated,
-    // or if the user is an admin or has specific access.
+    // Course documents can be listed by any authenticated user if they are published.
+    // A single course document can be read if it's published, the user is an admin, has access, or it's a free/demo course.
     match /courses/{courseId} {
       allow list: if (request.auth != null && resource.data.status == 'published') || isAdmin();
-      allow read: if (request.auth != null && resource.data.status == 'published') || isAdmin() || hasCourseAccess(courseId) || isCourseFree(courseId);
+      allow read: if (request.auth != null && resource.data.status == 'published') || isAdmin() || hasCourseAccess(courseId) || isCourseFree(courseId) || isPublishedDemo(courseId);
       allow write: if isAdmin();
     }
     
     // --- Lesson Engagement Features ---
     match /courses/{courseId}/lessons/{lessonId} {
       
-      // Comments, Replies, and Likes can be managed by any user with course access or an admin.
+      // Allow engagement on demo lessons
+      function isDemoLesson() {
+        return isPublishedDemo(courseId);
+      }
+      
+      // Comments, Replies, and Likes can be managed by any user with course access or an admin or if it's a demo.
       match /comments/{commentId} {
-        allow read, write: if hasCourseAccess(courseId) || isAdmin() || isCourseFree(courseId) || isDemoLesson(courseId, lessonId);
+        allow read, write: if hasCourseAccess(courseId) || isAdmin() || isCourseFree(courseId) || isDemoLesson();
 
         match /replies/{replyId} {
-          allow read, write: if hasCourseAccess(courseId) || isAdmin() || isCourseFree(courseId) || isDemoLesson(courseId, lessonId);
+          allow read, write: if hasCourseAccess(courseId) || isAdmin() || isCourseFree(courseId) || isDemoLesson();
         }
 
         match /likes/{userId} {
-          allow read, write: if hasCourseAccess(courseId) || isAdmin() || isCourseFree(courseId) || isDemoLesson(courseId, lessonId);
+          allow read, write: if hasCourseAccess(courseId) || isAdmin() || isCourseFree(courseId) || isDemoLesson();
         }
       }
 
       // Reactions Subcollection
       match /reactions/{reactionId} {
-        allow read, write: if hasCourseAccess(courseId) || isAdmin() || isCourseFree(courseId) || isDemoLesson(courseId, lessonId);
+        allow read, write: if hasCourseAccess(courseId) || isAdmin() || isCourseFree(courseId) || isDemoLesson();
       }
     }
 
