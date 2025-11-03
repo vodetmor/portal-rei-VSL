@@ -13,7 +13,7 @@ import { ptBR } from 'date-fns/locale';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { CheckCircle, Circle, Lock, ArrowLeft, ArrowRight, X, Download, Link2, FileText, Check, ThumbsUp, ThumbsDown, MessageSquare, CornerUpLeft, Send, Heart, MoreVertical, Pin, Trash2, Menu, ShoppingCart, ChevronRight } from 'lucide-react';
+import { CheckCircle, Circle, Lock, ArrowRight, X, Download, Link2, FileText, Check, ThumbsUp, ThumbsDown, MessageSquare, CornerUpLeft, Send, Heart, MoreVertical, Pin, Trash2, Menu, ShoppingCart, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
@@ -177,9 +177,17 @@ export default function LessonPage() {
     try {
       const courseDocRef = doc(firestore, 'courses', courseId as string);
       const courseDocSnap = await getDoc(courseDocRef);
-      if (!courseDocSnap.exists()) {
-        router.push('/dashboard');
-        return;
+      if (!courseDocSnap.exists() || courseDocSnap.data().status !== 'published') {
+          if(!user) {
+            router.push('/dashboard');
+            return;
+          }
+          const userDocRef = doc(firestore, 'users', user.uid);
+          const userDocSnap = await getDoc(userDocRef);
+          if(userDocSnap.data()?.role !== 'admin') {
+            router.push('/dashboard');
+            return;
+          }
       }
       const courseData = { id: courseDocSnap.id, ...courseDocSnap.data() } as Course;
       setCourse(courseData);
@@ -216,6 +224,11 @@ export default function LessonPage() {
       
       const isDemoAllowed = courseData.isDemoEnabled && (foundLesson.isDemo || foundModule.isDemo);
       
+      if (!user && !isDemoAllowed) {
+        router.push('/login');
+        return;
+      }
+      
       if (!userHasFullAccess && !isDemoAllowed) {
         router.push(`/courses/${courseId}`);
         return;
@@ -224,7 +237,7 @@ export default function LessonPage() {
       setHasAccess(true);
       setHasFullAccess(userHasFullAccess);
 
-      if (userHasFullAccess) {
+      if (userHasFullAccess && user) {
         const accessDocRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId as string);
         const accessDocSnap = await getDoc(accessDocRef);
         const accessTimestamp = accessDocSnap.data()?.grantedAt?.toDate();
@@ -254,7 +267,10 @@ export default function LessonPage() {
               return;
           }
         }
+      } else if (user && isDemoAllowed && !userHasFullAccess) {
+        setHasFullAccess(false)
       }
+
 
       setCurrentLesson(foundLesson);
       setCurrentModule(foundModule);
@@ -342,7 +358,16 @@ export default function LessonPage() {
  };
  
  const toggleReaction = async (reactionType: 'like' | 'dislike') => {
-    if (!firestore || !user || !courseId || !lessonId || !hasFullAccess) return;
+    if (!firestore || !user || !courseId || !lessonId) return;
+
+    if (!hasFullAccess) {
+        toast({
+            variant: "destructive",
+            title: "Acesso Negado",
+            description: "Você precisa adquirir o curso para interagir.",
+        });
+        return;
+    }
 
     const reactionRef = doc(firestore, `courses/${courseId}/lessons/${lessonId}/reactions`, user.uid);
     
@@ -402,14 +427,11 @@ export default function LessonPage() {
     return <LessonPageSkeleton />;
   }
 
-  if (!hasAccess || !course || !currentLesson) {
+  if (!course || !currentLesson) {
     return (
         <div className="flex min-h-screen flex-col items-center justify-center bg-background text-center px-4">
-            <h1 className="text-2xl font-bold text-white">Acesso Negado</h1>
-            <p className="text-muted-foreground mt-2">Você não tem permissão para ver esta aula.</p>
-            <Button asChild className="mt-6">
-                <Link href="/dashboard">Voltar ao Painel</Link>
-            </Button>
+            <h1 className="text-2xl font-bold text-white">Carregando aula...</h1>
+            <p className="text-muted-foreground mt-2">Verificando permissões.</p>
         </div>
     );
   }
@@ -437,7 +459,7 @@ export default function LessonPage() {
         <div className="h-[calc(100vh-5rem)] overflow-y-auto">
           <Accordion type="single" collapsible defaultValue={currentModule?.id} className="w-full">
             {course.modules.map(module => {
-              const unlocked = isModuleUnlocked(module);
+              const unlocked = hasFullAccess ? isModuleUnlocked(module) : (module.isDemo || course.isDemoEnabled);
               return (
                 <AccordionItem key={module.id} value={module.id} disabled={!unlocked}>
                   <AccordionTrigger className="px-4 text-left font-semibold text-white disabled:text-muted-foreground disabled:cursor-not-allowed">
@@ -449,17 +471,18 @@ export default function LessonPage() {
                       {module.lessons.map(lesson => {
                         const isCompleted = userProgress?.completedLessons[lesson.id];
                         const isActive = lesson.id === lessonId;
+                        const isLessonLocked = hasFullAccess ? !unlocked : !(lesson.isDemo || module.isDemo);
                         return (
                           <li key={lesson.id}>
                             <Link
-                              href={`/courses/${courseId}/${lesson.id}`}
+                              href={isLessonLocked ? '#' : `/courses/${courseId}/${lesson.id}`}
                               className={cn(
                                 'flex items-center gap-3 px-4 py-3 text-sm transition-colors hover:bg-muted/50',
                                 isActive && 'bg-primary/10 text-primary',
-                                !unlocked && 'pointer-events-none text-muted-foreground/50'
+                                isLessonLocked && 'pointer-events-none text-muted-foreground/50'
                               )}
                             >
-                              {isCompleted ? (
+                              {isLessonLocked ? <Lock className="h-4 w-4 shrink-0 text-muted-foreground" /> : isCompleted ? (
                                 <CheckCircle className="h-4 w-4 shrink-0 text-primary" />
                               ) : (
                                 <Circle className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -545,7 +568,7 @@ export default function LessonPage() {
               )}
             </div>
             
-            {hasFullAccess && (
+            {user && (
               <div className="mt-6 flex items-center justify-end gap-2">
                 <Button variant={userReaction === 'like' ? 'default' : 'outline'} onClick={() => toggleReaction('like')}>
                   <ThumbsUp className="mr-2 h-4 w-4" /> {likeCount}
@@ -559,7 +582,7 @@ export default function LessonPage() {
             <Tabs defaultValue="description" className="mt-8">
               <TabsList>
                 <TabsTrigger value="description"><BookOpen className="mr-2 h-4 w-4" />Descrição</TabsTrigger>
-                <TabsTrigger value="comments" disabled={!hasFullAccess}>
+                <TabsTrigger value="comments">
                   <MessagesSquare className="mr-2 h-4 w-4" />
                   Comentários
                    {!hasFullAccess && <Lock className="ml-2 h-3 w-3" />}
@@ -598,24 +621,35 @@ export default function LessonPage() {
                         <h2 className="text-xl font-bold text-white">Comunidade</h2>
                     </CardHeader>
                     <CardContent>
-                       {hasFullAccess ? (
-                          <CommentsSection
-                            firestore={firestore}
-                            user={user}
-                            courseId={courseId as string}
-                            lessonId={lessonId as string}
-                            isAdmin={isAdmin}
-                          />
+                       {user ? (
+                           hasFullAccess ? (
+                              <CommentsSection
+                                firestore={firestore}
+                                user={user}
+                                courseId={courseId as string}
+                                lessonId={lessonId as string}
+                                isAdmin={isAdmin}
+                              />
+                           ) : (
+                                <div className="text-center py-12">
+                                  <Lock className="mx-auto h-12 w-12 text-muted-foreground" />
+                                  <h3 className="mt-4 text-lg font-semibold text-white">Comunidade Exclusiva</h3>
+                                  <p className="mt-2 text-sm text-muted-foreground">Adquira o curso para participar da discussão e tirar suas dúvidas.</p>
+                                  {course.checkoutUrl && (
+                                    <Button asChild className="mt-6">
+                                        <a href={course.checkoutUrl}><ShoppingCart className="mr-2 h-4 w-4" /> Comprar Agora</a>
+                                    </Button>
+                                  )}
+                              </div>
+                           )
                         ) : (
                           <div className="text-center py-12">
                               <Lock className="mx-auto h-12 w-12 text-muted-foreground" />
-                              <h3 className="mt-4 text-lg font-semibold text-white">Comunidade Exclusiva</h3>
-                              <p className="mt-2 text-sm text-muted-foreground">Adquira o curso para participar da discussão e tirar suas dúvidas.</p>
-                              {course.checkoutUrl && (
-                                <Button asChild className="mt-6">
-                                    <a href={course.checkoutUrl}><ShoppingCart className="mr-2 h-4 w-4" /> Comprar Agora</a>
-                                </Button>
-                              )}
+                              <h3 className="mt-4 text-lg font-semibold text-white">Faça login para participar</h3>
+                              <p className="mt-2 text-sm text-muted-foreground">Você precisa estar logado para ver e postar comentários.</p>
+                              <Button asChild className="mt-6">
+                                  <Link href={`/login?redirect=/courses/${courseId}/${lessonId}`}>Fazer Login</Link>
+                              </Button>
                           </div>
                         )}
                     </CardContent>
@@ -651,6 +685,25 @@ function CommentsSection({ firestore, user, courseId, lessonId, isAdmin }: Comme
 
   const { data: comments, isLoading: commentsLoading } = useCollection<LessonComment>(commentsQuery);
 
+  const sortedComments = useMemo(() => {
+    if (!comments) return [];
+    return [...comments].sort((a, b) => {
+        if (a.isPinned && !b.isPinned) return -1;
+        if (!a.isPinned && b.isPinned) return 1;
+        if (a.timestamp?.toDate && b.timestamp?.toDate) {
+             return b.timestamp.toDate() - a.timestamp.toDate();
+        }
+        return 0;
+    });
+  }, [comments]);
+
+  if (commentsLoading) {
+    return <div className="space-y-4">
+      <Skeleton className="h-20 w-full" />
+      <Skeleton className="h-20 w-full" />
+    </div>
+  }
+
   const handlePostComment = async () => {
     if (!newComment.trim() || !user) return;
     const commentData = {
@@ -667,24 +720,6 @@ function CommentsSection({ firestore, user, courseId, lessonId, isAdmin }: Comme
     setNewComment("");
   };
 
-  if (commentsLoading) {
-    return <div className="space-y-4">
-      <Skeleton className="h-20 w-full" />
-      <Skeleton className="h-20 w-full" />
-    </div>
-  }
-
-  const sortedComments = useMemo(() => {
-    if (!comments) return [];
-    return [...comments].sort((a, b) => {
-        if (a.isPinned && !b.isPinned) return -1;
-        if (!a.isPinned && b.isPinned) return 1;
-        if (a.timestamp?.toDate && b.timestamp?.toDate) {
-             return b.timestamp.toDate() - a.timestamp.toDate();
-        }
-        return 0;
-    });
-  }, [comments]);
   
   return (
     <div className="space-y-6">
@@ -966,4 +1001,3 @@ function LessonPageSkeleton() {
     </div>
   )
 }
-
