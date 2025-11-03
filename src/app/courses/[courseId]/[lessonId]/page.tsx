@@ -365,6 +365,9 @@ export default function LessonPage() {
           <Link href={`/courses/${courseId}`} className="text-sm font-semibold hover:text-primary">
             <ArrowLeft className="inline-block mr-2 h-4 w-4" /> Voltar ao Curso
           </Link>
+          <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(false)} className="md:hidden">
+              <X className="h-5 w-5" />
+          </Button>
         </div>
         <div className="flex-grow overflow-y-auto border-r border-border">
           <Accordion type="single" collapsible defaultValue={currentModule.id} className="w-full">
@@ -416,7 +419,7 @@ export default function LessonPage() {
         "flex-1 flex flex-col transition-all duration-300 ease-in-out",
         "md:ml-80"
       )}>
-        <header className={cn("flex items-center justify-between p-4 bg-background/80 backdrop-blur-sm z-10 border-b border-border h-20 shrink-0")}>
+        <header className="flex items-center justify-between p-4 bg-background/80 backdrop-blur-sm z-10 border-b border-border h-20 shrink-0">
            <div className="flex items-center gap-4">
                 <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="md:hidden">
                    <Menu className="h-5 w-5"/>
