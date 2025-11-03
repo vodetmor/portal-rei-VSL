@@ -1,3 +1,4 @@
+
 'use client';
 import React from 'react';
 import { usePathname } from 'next/navigation';
@@ -82,9 +83,14 @@ export function Header() {
 					'flex h-20 w-full items-center justify-between px-4 max-w-5xl mx-auto transition-all duration-300'
 				)}
 			>
-				<Link href="/dashboard" className="relative h-10 w-32 flex items-center gap-2 text-white font-bold text-lg">
-					<BookOpen className="h-6 w-6 text-primary" />
-					<span className="hidden sm:inline">Rei da VSL</span>
+				<Link href="/dashboard" className="relative h-10 w-40">
+					<Image 
+						src={layoutData.defaults.logoUrl}
+						alt="Rei da VSL Logo"
+						fill
+						className="object-contain"
+						priority
+					/>
         		</Link>
 				<div className="hidden items-center gap-2 md:flex">
 				{loading ? (
