@@ -319,62 +319,71 @@ function DashboardClientPage() {
   const fetchCoursesAndProgress = useCallback(async () => {
     if (!firestore || !user) return;
     setLoading(true);
-  
+
     try {
-      // Step 1: Fetch all courses based on role
-      let coursesQuery;
-      if (isAdmin) {
-        coursesQuery = query(collection(firestore, 'courses'));
-      } else {
-        coursesQuery = query(collection(firestore, 'courses'), where('status', '==', 'published'));
-      }
-      
-      const coursesSnapshot = await getDocs(coursesQuery);
-      let coursesData = coursesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
-      let finalCourses = coursesData;
-      
-      // Step 2: Fetch user's access and filter courses if not admin
-      const accessQuery = query(collection(firestore, `users/${user.uid}/courseAccess`));
-      const accessSnapshot = await getDocs(accessQuery);
-      const accessibleCourseIds = new Set(accessSnapshot.docs.map(doc => doc.id));
-      
-      const newCourseAccess: CourseAccess = {};
-      accessibleCourseIds.forEach(id => {
-        newCourseAccess[id] = true;
-      });
-      setCourseAccess(newCourseAccess);
-      
-      if (!isAdmin) {
-          finalCourses = coursesData.filter(course => accessibleCourseIds.has(course.id));
-      }
-      
-      setCourses(finalCourses);
-      
-      // Step 3: Fetch progress only for courses the user can see
-      const finalCourseIds = new Set(finalCourses.map(c => c.id));
-      if (finalCourseIds.size === 0) {
-        setLoading(false);
-        return;
-      }
-  
-      const progressPromises = Array.from(finalCourseIds).map(id => getDoc(doc(firestore, `users/${user.uid}/progress`, id)));
-      const progressSnaps = await Promise.all(progressPromises);
-      const progressData: UserProgress = {};
-      progressSnaps.forEach(snap => {
-        if (snap.exists()) {
-          progressData[snap.id] = snap.data() as UserProgress[string];
+        // Step 1: Fetch all courses based on role
+        let coursesQuery;
+        if (isAdmin) {
+            coursesQuery = query(collection(firestore, 'courses'));
+        } else {
+            coursesQuery = query(collection(firestore, 'courses'), where('status', '==', 'published'));
         }
-      });
-      setUserProgress(progressData);
-  
+        
+        const coursesSnapshot = await getDocs(coursesQuery);
+        const allFetchedCourses = coursesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
+        
+        // Step 2: Determine which courses to display and what access rights the user has.
+        let coursesToShow: Course[];
+        const newCourseAccess: CourseAccess = {};
+
+        if (isAdmin) {
+            coursesToShow = allFetchedCourses;
+            // Admins have access to all courses.
+            allFetchedCourses.forEach(course => {
+                newCourseAccess[course.id] = true;
+            });
+        } else {
+            // For regular users, find their access records.
+            const accessQuery = query(collection(firestore, `users/${user.uid}/courseAccess`));
+            const accessSnapshot = await getDocs(accessQuery);
+            const accessibleCourseIds = new Set(accessSnapshot.docs.map(doc => doc.id));
+            
+            accessibleCourseIds.forEach(id => {
+                newCourseAccess[id] = true;
+            });
+
+            // Regular users only see published courses they have access to.
+            coursesToShow = allFetchedCourses.filter(course => accessibleCourseIds.has(course.id));
+        }
+
+        setCourses(coursesToShow);
+        setCourseAccess(newCourseAccess);
+        
+        // Step 3: Fetch progress for the courses that will be displayed.
+        if (coursesToShow.length > 0) {
+            const courseIdsToShow = coursesToShow.map(c => c.id);
+            const progressPromises = courseIdsToShow.map(id => getDoc(doc(firestore, `users/${user.uid}/progress`, id)));
+            const progressSnaps = await Promise.all(progressPromises);
+            
+            const progressData: UserProgress = {};
+            progressSnaps.forEach(snap => {
+                if (snap.exists()) {
+                    progressData[snap.id] = snap.data() as UserProgress[string];
+                }
+            });
+            setUserProgress(progressData);
+        } else {
+            setUserProgress({});
+        }
+
     } catch (error) {
-      console.error("Error fetching courses and progress: ", error);
-      toast({ variant: "destructive", title: "Erro ao Carregar", description: "Não foi possível carregar os cursos."});
-      setCourses([]);
+        console.error("Error fetching courses and progress: ", error);
+        toast({ variant: "destructive", title: "Erro ao Carregar", description: "Não foi possível carregar os cursos."});
+        setCourses([]);
     } finally {
-      setLoading(false);
+        setLoading(false);
     }
-  }, [firestore, user, isAdmin, toast]);
+}, [firestore, user, isAdmin, toast]);
   
   const handleConfirmDelete = (courseId: string) => {
     if (!firestore) return;
@@ -832,5 +841,3 @@ export default function DashboardPage() {
     <DashboardClientPage />
   )
 }
-
-    
