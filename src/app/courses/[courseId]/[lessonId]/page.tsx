@@ -131,6 +131,7 @@ export default function LessonPage() {
   const router = useRouter();
   const { user, loading: userLoading } = useUser();
   const firestore = useFirestore();
+  const { toast } = useToast();
   
   const [course, setCourse] = useState<Course | null>(null);
   const [currentLesson, setCurrentLesson] = useState<Lesson | null>(null);
@@ -987,5 +988,3 @@ function LessonPageSkeleton() {
     </div>
   )
 }
-
-    
