@@ -697,12 +697,6 @@ function CommentsSection({ firestore, user, courseId, lessonId, isAdmin }: Comme
     });
   }, [comments]);
 
-  if (commentsLoading) {
-    return <div className="space-y-4">
-      <Skeleton className="h-20 w-full" />
-      <Skeleton className="h-20 w-full" />
-    </div>
-  }
 
   const handlePostComment = async () => {
     if (!newComment.trim() || !user) return;
@@ -720,6 +714,12 @@ function CommentsSection({ firestore, user, courseId, lessonId, isAdmin }: Comme
     setNewComment("");
   };
 
+  if (commentsLoading) {
+    return <div className="space-y-4">
+      <Skeleton className="h-20 w-full" />
+      <Skeleton className="h-20 w-full" />
+    </div>
+  }
   
   return (
     <div className="space-y-6">
@@ -818,7 +818,10 @@ function CommentItem({ comment, firestore, user, courseId, lessonId, isAdmin }: 
       <div className="w-full">
         <div className="flex items-center justify-between">
           <div>
-            <p className="font-semibold text-white">{comment.userDisplayName} {comment.userId === user.uid && <Badge variant="secondary" className="ml-2">Você</Badge>}</p>
+            <div className="font-semibold text-white flex items-center gap-2">
+              {comment.userDisplayName} 
+              {comment.userId === user.uid && <Badge variant="secondary">Você</Badge>}
+            </div>
             <p className="text-xs text-muted-foreground">
               {comment.timestamp ? formatDistanceToNow(comment.timestamp.toDate(), { addSuffix: true, locale: ptBR }) : 'agora'}
             </p>
