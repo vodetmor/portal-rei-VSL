@@ -171,10 +171,10 @@ export function Header() {
 				) : (
 					<>
 						<Button asChild variant="outline">
-							<Link href="/login">Sign In</Link>
+							<Link href="/login">Entrar</Link>
 						</Button>
 						<Button asChild>
-							<Link href="/register">Get Started</Link>
+							<Link href="/register">Cadastre-se</Link>
 						</Button>
 					</>
 				)}
@@ -231,10 +231,10 @@ export function Header() {
 					) : (
 						<>
 						<Button asChild variant="outline" className="w-full" size="lg">
-							<Link href="/login">Sign In</Link>
+							<Link href="/login">Entrar</Link>
 						</Button>
 						<Button asChild className="w-full" size="lg">
-							<Link href="/register">Get Started</Link>
+							<Link href="/register">Cadastre-se</Link>
 						</Button>
 						</>
 					)}
