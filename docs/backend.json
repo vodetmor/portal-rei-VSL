@@ -44,6 +44,7 @@
               "title": { "type": "string" },
               "thumbnailUrl": { "type": "string", "format": "uri" },
               "imageHint": { "type": "string" },
+              "isDemo": { "type": "boolean", "description": "Whether this entire module is part of the public demo." },
               "releaseDelayDays": { "type": "number", "description": "Number of days after enrollment to release this module." },
               "lessons": {
                 "type": "array",

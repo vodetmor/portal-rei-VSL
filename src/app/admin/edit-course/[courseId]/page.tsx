@@ -55,6 +55,7 @@ interface Module {
   subtitle: string;
   thumbnailUrl: string;
   imageHint: string;
+  isDemo?: boolean;
   lessons: Lesson[];
   releaseDelayDays?: number;
 }
@@ -145,6 +146,7 @@ function EditCoursePageContent() {
         setModules((courseData.modules || []).map(m => ({
           ...m,
           id: m.id || uuidv4(),
+          isDemo: m.isDemo || false,
           releaseDelayDays: m.releaseDelayDays || 0,
           lessons: (m.lessons || []).map(l => ({ ...l, id: l.id || uuidv4(), description: l.description || '', videoUrl: l.videoUrl || '', isDemo: l.isDemo || false, releaseDelayDays: l.releaseDelayDays || 0, complementaryMaterials: (l.complementaryMaterials || []).map(cm => ({...cm, id: cm.id || uuidv4()})) }))
         })));
@@ -183,6 +185,7 @@ function EditCoursePageContent() {
       subtitle: 'Rei da VSL®',
       thumbnailUrl: DEFAULT_MODULE_IMAGE,
       imageHint: 'abstract',
+      isDemo: false,
       lessons: [],
       releaseDelayDays: 0,
     };
@@ -523,7 +526,7 @@ function EditCoursePageContent() {
                            <div className="flex items-center justify-between space-x-2 rounded-lg border p-4 bg-secondary/30">
                                 <div className="space-y-0.5">
                                     <Label htmlFor="is-demo" className="text-base font-medium text-white">Modo Demo</Label>
-                                    <p className="text-xs text-muted-foreground">Libera aulas selecionadas para não-inscritos.</p>
+                                    <p className="text-xs text-muted-foreground">Libera acesso a módulos/aulas selecionados (clicando no ícone de 👁️) para não-inscritos.</p>
                                 </div>
                                 <Switch id="is-demo" checked={tempIsDemoEnabled} onCheckedChange={setTempIsDemoEnabled} />
                             </div>
@@ -773,6 +776,10 @@ function ModuleEditor({ module, onUpdate, onRemove, onAddLesson, onUpdateLesson,
         onUpdate(module.id, 'thumbnailUrl', newUrl);
     };
 
+    const toggleIsDemo = () => {
+        onUpdate(module.id, 'isDemo', !module.isDemo);
+    }
+
     return (
         <Reorder.Item
             value={module}
@@ -845,6 +852,11 @@ function ModuleEditor({ module, onUpdate, onRemove, onAddLesson, onUpdateLesson,
                     </div>
                     
                     <div className="flex flex-col gap-2">
+                        {isDemoEnabled && (
+                            <Button type="button" variant="ghost" size="icon" onClick={toggleIsDemo} title={module.isDemo ? "Remover módulo da demo" : "Adicionar módulo à demo"}>
+                                {module.isDemo ? <Eye className="h-4 w-4 text-primary" /> : <EyeOff className="h-4 w-4 text-muted-foreground/70" />}
+                            </Button>
+                        )}
                         <AlertDialog>
                             <AlertDialogTrigger asChild>
                                 <Button type="button" variant="ghost" size="icon"><Trash2 className="h-4 w-4 text-destructive" /></Button>
@@ -1206,3 +1218,5 @@ export default function EditCoursePage() {
         </AdminGuard>
     )
 }
+
+    
