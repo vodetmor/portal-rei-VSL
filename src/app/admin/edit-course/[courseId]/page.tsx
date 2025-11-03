@@ -526,7 +526,7 @@ function EditCoursePageContent() {
                            <div className="flex items-center justify-between space-x-2 rounded-lg border p-4 bg-secondary/30">
                                 <div className="space-y-0.5">
                                     <Label htmlFor="is-demo" className="text-base font-medium text-white">Modo Demo</Label>
-                                    <p className="text-xs text-muted-foreground">Libera acesso a módulos/aulas selecionados (clicando no ícone de 👁️) para não-inscritos.</p>
+                                    <p className="text-xs text-muted-foreground">Clique no ícone de 👁️ em módulos ou aulas para incluí-los na demo.</p>
                                 </div>
                                 <Switch id="is-demo" checked={tempIsDemoEnabled} onCheckedChange={setTempIsDemoEnabled} />
                             </div>
@@ -853,8 +853,9 @@ function ModuleEditor({ module, onUpdate, onRemove, onAddLesson, onUpdateLesson,
                     
                     <div className="flex flex-col gap-2">
                         {isDemoEnabled && (
-                            <Button type="button" variant="ghost" size="icon" onClick={toggleIsDemo} title={module.isDemo ? "Remover módulo da demo" : "Adicionar módulo à demo"}>
-                                {module.isDemo ? <Eye className="h-4 w-4 text-primary" /> : <EyeOff className="h-4 w-4 text-muted-foreground/70" />}
+                            <Button type="button" variant="ghost" size="sm" onClick={toggleIsDemo} title={module.isDemo ? "Remover módulo da demo" : "Adicionar módulo à demo"} className={cn("flex items-center gap-1.5", module.isDemo ? 'text-primary' : 'text-muted-foreground')}>
+                                {module.isDemo ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                                <span className="text-xs font-semibold">Demo</span>
                             </Button>
                         )}
                         <AlertDialog>
@@ -1019,8 +1020,9 @@ function LessonEditor({ lesson, moduleId, onUpdate, onRemove, applyFormat, isDem
                     />
                 </div>
                  {isDemoEnabled && (
-                    <Button type="button" variant="ghost" size="icon" onClick={toggleIsDemo} title={lesson.isDemo ? "Remover da demo" : "Adicionar à demo"}>
-                        {lesson.isDemo ? <Eye className="h-4 w-4 text-primary" /> : <EyeOff className="h-4 w-4 text-muted-foreground/70" />}
+                    <Button type="button" variant="ghost" size="sm" onClick={toggleIsDemo} title={lesson.isDemo ? "Remover da demo" : "Adicionar à demo"} className={cn("flex items-center gap-1.5", lesson.isDemo ? 'text-primary' : 'text-muted-foreground')}>
+                        {lesson.isDemo ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
+                        <span className="text-xs font-semibold">Demo</span>
                     </Button>
                 )}
                 <Button type="button" variant="ghost" size="icon" onClick={() => onRemove(moduleId, lesson.id, lesson.title)}>
@@ -1218,5 +1220,3 @@ export default function EditCoursePage() {
         </AdminGuard>
     )
 }
-
-    
