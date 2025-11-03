@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
@@ -9,7 +9,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Badge } from "@/components/ui/badge";
-import { ChevronDown, Save, X } from "lucide-react";
+import { ChevronDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 export interface ToolbarButton {
@@ -32,12 +32,8 @@ export function ActionToolbar({
     compact = false, 
     className = "",
 }: ActionToolbarProps) {
-  const [activeStates, setActiveStates] = useState<boolean[]>(
-    buttons.map((btn) => !!btn.active)
-  );
-
+  
   const handleButtonClick = (index: number, onClick?: () => void) => {
-    // For simple buttons, just call onClick. State for toggle buttons is not managed here.
     if (onClick) {
       onClick();
     }
@@ -51,11 +47,10 @@ export function ActionToolbar({
       )}
     >
       {buttons.map((btn, index) => {
-        const isActive = activeStates[index]; // Note: This state is currently not updated for non-toggle buttons
+        const isActive = btn.active || false;
 
         const buttonClasses = cn(
           "flex items-center gap-2 px-3 h-9 rounded-xl transition-all duration-200",
-           // Active state styling might need adjustment based on button type
           isActive
             ? "bg-primary text-primary-foreground shadow-sm"
             : "hover:bg-muted/80 hover:text-foreground text-muted-foreground"
