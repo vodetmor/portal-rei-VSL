@@ -125,8 +125,7 @@ export default function LessonPage() {
   const router = useRouter();
   const { user, loading: userLoading } = useUser();
   const firestore = useFirestore();
-  const { toast } = useToast();
-
+  
   const [course, setCourse] = useState<Course | null>(null);
   const [currentLesson, setCurrentLesson] = useState<Lesson | null>(null);
   const [currentModule, setCurrentModule] = useState<Module | null>(null);
@@ -151,6 +150,19 @@ export default function LessonPage() {
     setIsClient(true);
   }, []);
 
+  const youtubeEmbedUrl = useMemo(() => {
+    if (!currentLesson || !currentLesson.videoUrl || !currentLesson.videoUrl.includes('youtube.com')) {
+      return currentLesson?.videoUrl;
+    }
+    const videoIdMatch = currentLesson.videoUrl.match(/(?:v=|\/embed\/|\.be\/)([\w-]+)/);
+    if (!videoIdMatch) {
+      return currentLesson.videoUrl; // fallback to original if ID not found
+    }
+    const videoId = videoIdMatch[1];
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    return `https://www.youtube.com/embed/${videoId}?origin=${origin}`;
+  }, [currentLesson]);
+
   const fetchLessonData = useCallback(async () => {
     if (!user || !firestore) return;
     setLoading(true);
@@ -160,7 +172,6 @@ export default function LessonPage() {
       // Get Course and User Admin status first
       const courseDocSnap = await getDoc(doc(firestore, 'courses', courseId as string));
       if (!courseDocSnap.exists()) {
-        toast({ variant: 'destructive', title: 'Erro', description: 'Curso não encontrado.' });
         router.push('/dashboard');
         return;
       }
@@ -194,7 +205,6 @@ export default function LessonPage() {
       }
       
       if (!foundLesson || !foundModule) {
-        toast({ variant: 'destructive', title: 'Erro', description: 'Aula não encontrada.' });
         router.push(`/courses/${courseId}`);
         return;
       }
@@ -205,7 +215,6 @@ export default function LessonPage() {
       const isUnlocked = hasFullAccess && (isAdminUser || hasDripAccess);
 
       if (!isUnlocked && !isDemoAllowed) {
-        toast({ variant: 'destructive', title: 'Conteúdo Bloqueado', description: 'Esta aula ainda não foi liberada para você.' });
         router.push(`/courses/${courseId}`);
         return;
       }
@@ -242,11 +251,10 @@ export default function LessonPage() {
 
     } catch (error) {
       console.error("Error fetching lesson data:", error);
-      toast({ variant: 'destructive', title: 'Erro', description: 'Não foi possível carregar a aula.' });
     } finally {
       setLoading(false);
     }
-  }, [courseId, lessonId, user, firestore, router, toast]);
+  }, [courseId, lessonId, user, firestore, router]);
 
   useEffect(() => {
     if (user && !userLoading) {
@@ -269,7 +277,6 @@ export default function LessonPage() {
 
     try {
       await updateDoc(progressRef, newProgressPayload);
-      toast({ title: "Aula Concluída!", description: `"${currentLesson?.title}" foi marcada como concluída.` });
     } catch (error: any) {
       if (error.code === 'not-found') {
         const initialProgress = {
@@ -280,7 +287,6 @@ export default function LessonPage() {
           },
         };
         await setDoc(progressRef, initialProgress);
-        toast({ title: "Aula Concluída!", description: `"${currentLesson?.title}" foi marcada como concluída.` });
       } else {
         console.error("Failed to update progress:", error);
         setIsCurrentLessonCompleted(false);
@@ -333,19 +339,6 @@ export default function LessonPage() {
       });
     }
   };
-
-  const youtubeEmbedUrl = useMemo(() => {
-    if (!currentLesson || !currentLesson.videoUrl || !currentLesson.videoUrl.includes('youtube.com')) {
-      return currentLesson?.videoUrl;
-    }
-    const videoIdMatch = currentLesson.videoUrl.match(/(?:v=|\/embed\/|\.be\/)([\w-]+)/);
-    if (!videoIdMatch) {
-      return currentLesson.videoUrl; // fallback to original if ID not found
-    }
-    const videoId = videoIdMatch[1];
-    const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    return `https://www.youtube.com/embed/${videoId}?origin=${origin}`;
-  }, [currentLesson]);
 
   if (loading || userLoading || !course || !currentLesson || !currentModule || !isClient) {
     return (
@@ -802,7 +795,7 @@ function CommentItem({ comment, courseId, lessonId, currentUser, isAdmin }: Comm
                         <Heart className={cn("h-4 w-4", userHasLiked && "fill-current")} /> {comment.likeCount || 0}
                     </button>
                     <button onClick={() => setShowReplies(!showReplies)} className="flex items-center gap-1 hover:text-white">
-                        <CornerUpLeft className="h-4 w-4" /> {comment.replyCount || 0}
+                        <CornerUpLeft className="h-4 w-4" /> <span>Respostas ({comment.replyCount || 0})</span>
                     </button>
                 </div>
                 {showReplies && (
@@ -989,5 +982,3 @@ function RepliesSection({ courseId, lessonId, commentId, currentUser, isAdmin }:
         </div>
     )
 }
-
-    
