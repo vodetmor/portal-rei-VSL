@@ -24,7 +24,7 @@ import { BookOpen, MessagesSquare } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from '@/components/ui/badge';
 import { Card, CardHeader, CardContent } from '@/components/ui/card';
 import Image from 'next/image';
@@ -233,7 +233,6 @@ export default function LessonPage() {
       let fullAccess = false;
       if (userIsAdmin) {
         fullAccess = true;
-        setCourseAccessInfo({ grantedAt: new Date().toISOString() });
       } else if (courseData.isFree) {
         fullAccess = true;
       } else if (user) {
@@ -249,11 +248,18 @@ export default function LessonPage() {
       }
       setHasFullAccess(fullAccess);
 
+
       // Step 5: Check if the specific lesson is viewable
       const canViewDemo = courseData.isDemoEnabled && (foundLesson.isDemo || foundModule.isDemo);
       if (!fullAccess && !canViewDemo) {
-        toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você não tem permissão para ver esta aula.' });
-        router.push(`/courses/${courseId}`);
+        if (user) {
+          toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você não tem permissão para ver esta aula.' });
+          router.push(`/courses/${courseId}`);
+        } else {
+          // For non-logged in users, we can just silently stop here without a toast
+          // as they are expected to have limited access.
+          router.push(`/courses/${courseId}`);
+        }
         return;
       }
       
