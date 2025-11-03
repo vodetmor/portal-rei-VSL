@@ -3,8 +3,9 @@
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useFirestore, useUser, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useFirestore, useUser, useAuth, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { doc, getDoc, updateDoc, serverTimestamp, setDoc, addDoc, collection, query, orderBy, deleteDoc, writeBatch, runTransaction, increment } from 'firebase/firestore';
+import { signInAnonymously } from 'firebase/auth';
 import ReactPlayer from 'react-player/lazy';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -134,6 +135,7 @@ export default function LessonPage() {
   const { courseId, lessonId } = useParams();
   const router = useRouter();
   const { user, loading: userLoading } = useUser();
+  const auth = useAuth();
   const firestore = useFirestore();
   const { toast } = useToast();
   
@@ -166,9 +168,9 @@ export default function LessonPage() {
   }, [currentLesson]);
 
   const reactionsQuery = useMemoFirebase(() => {
-    if (!firestore || !courseId || !lessonId || !hasFullAccess) return null;
+    if (!firestore || !courseId || !lessonId) return null;
     return collection(firestore, `courses/${courseId}/lessons/${lessonId}/reactions`);
-  }, [firestore, courseId, lessonId, hasFullAccess]);
+  }, [firestore, courseId, lessonId]);
 
   const { data: reactions, isLoading: reactionsLoading } = useCollection<LessonReaction>(reactionsQuery);
 
@@ -187,21 +189,29 @@ export default function LessonPage() {
           return;
       }
       const courseData = { id: courseDocSnap.id, ...courseDocSnap.data() } as Course;
-      setCourse(courseData);
       
+      let userIsAdmin = false;
       let userHasFullAccess = false;
-      let isAdminUser = false;
-
-      if(user) {
+      
+      if (user) {
         const userDocRef = doc(firestore, 'users', user.uid);
         const userDocSnap = await getDoc(userDocRef);
-        const userRole = userDocSnap.data()?.role;
-        isAdminUser = userRole === 'admin' || user.email === 'admin@reidavsl.com';
-        setIsAdmin(isAdminUser);
+        if (userDocSnap.exists() && userDocSnap.data().role === 'admin') {
+            userIsAdmin = true;
+        }
+      }
+      setIsAdmin(userIsAdmin);
 
+      if (userIsAdmin) {
+        userHasFullAccess = true;
+      } else if (courseData.isFree) {
+        userHasFullAccess = true;
+      } else if (user) {
         const accessDocRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId as string);
         const accessDocSnap = await getDoc(accessDocRef);
-        userHasFullAccess = accessDocSnap.exists() || isAdminUser || courseData.isFree === true;
+        if (accessDocSnap.exists()) {
+            userHasFullAccess = true;
+        }
       }
       
       let foundLesson: Lesson | null = null;
@@ -221,19 +231,22 @@ export default function LessonPage() {
       }
       
       const isDemoLesson = courseData.isDemoEnabled && (foundLesson.isDemo || foundModule.isDemo);
+      
+      if (courseData.status === 'draft' && !userIsAdmin) {
+        toast({ variant: 'destructive', title: 'Curso em Breve', description: 'Este curso ainda não foi publicado.' });
+        router.push('/dashboard');
+        return;
+      }
+      
       const canView = userHasFullAccess || isDemoLesson;
       
       if (!canView) {
-        if (!user) {
-          router.push(`/login?redirect=/courses/${courseId}/${lessonId}`);
-        } else {
           toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você não tem permissão para ver esta aula.' });
           router.push(`/courses/${courseId}`);
-        }
-        return;
+          return;
       }
 
-
+      setCourse(courseData);
       setHasAccess(true);
       setHasFullAccess(userHasFullAccess);
 
@@ -241,12 +254,12 @@ export default function LessonPage() {
         const accessDocRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId as string);
         const accessDocSnap = await getDoc(accessDocRef);
         const accessTimestamp = accessDocSnap.data()?.grantedAt?.toDate();
-        const grantedAtDate = accessTimestamp || (isAdminUser ? new Date() : null);
+        const grantedAtDate = accessTimestamp || (isAdmin ? new Date() : null);
         if (grantedAtDate) {
           setCourseAccessInfo({ grantedAt: grantedAtDate.toISOString() });
         }
       
-        if (!isAdminUser) {
+        if (!isAdmin) {
           const isModuleUnlocked = () => {
             if (!grantedAtDate) return false;
             const delay = foundModule?.releaseDelayDays || 0;
@@ -357,18 +370,20 @@ export default function LessonPage() {
  };
  
  const toggleReaction = async (reactionType: 'like' | 'dislike') => {
-    if (!firestore || !user || !courseId || !lessonId) return;
+    if (!firestore || !auth || !courseId || !lessonId) return;
 
-    if (!hasFullAccess) {
-        toast({
-            variant: "destructive",
-            title: "Acesso Negado",
-            description: "Você precisa adquirir o curso para interagir.",
-        });
-        return;
+    let currentUser = auth.currentUser;
+    if (!currentUser) {
+        try {
+            const userCredential = await signInAnonymously(auth);
+            currentUser = userCredential.user;
+        } catch (error) {
+            toast({ variant: "destructive", title: "Erro", description: "Não foi possível registrar sua reação." });
+            return;
+        }
     }
 
-    const reactionRef = doc(firestore, `courses/${courseId}/lessons/${lessonId}/reactions`, user.uid);
+    const reactionRef = doc(firestore, `courses/${courseId}/lessons/${lessonId}/reactions`, currentUser.uid);
     
     try {
       await runTransaction(firestore, async (transaction) => {
@@ -377,15 +392,12 @@ export default function LessonPage() {
         if (reactionDoc.exists()) {
           const existingReaction = reactionDoc.data().type;
           if (existingReaction === reactionType) {
-            // User is clicking the same button again, so remove the reaction
             transaction.delete(reactionRef);
           } else {
-            // User is changing their reaction
             transaction.update(reactionRef, { type: reactionType });
           }
         } else {
-          // User is reacting for the first time
-          transaction.set(reactionRef, { userId: user.uid, type: reactionType });
+          transaction.set(reactionRef, { userId: currentUser!.uid, type: reactionType });
         }
       });
     } catch (error) {
@@ -407,8 +419,8 @@ export default function LessonPage() {
 
 
   const isModuleUnlocked = useCallback((module: Module) => {
-    if (!courseAccessInfo || !isClient) return false;
-    if (isAdmin) return true;
+    if (isAdmin || !isClient) return true;
+    if (!hasFullAccess || !courseAccessInfo) return false;
     
     const delay = module.releaseDelayDays || 0;
     if (delay === 0) return true;
@@ -420,7 +432,7 @@ export default function LessonPage() {
     } catch (e) {
       return false;
     }
-  }, [courseAccessInfo, isClient, isAdmin]);
+  }, [isAdmin, isClient, hasFullAccess, courseAccessInfo]);
 
   if (loading || userLoading) {
     return <LessonPageSkeleton />;
@@ -517,7 +529,7 @@ export default function LessonPage() {
               <h1 className="text-lg font-semibold text-white truncate">{currentLesson.title}</h1>
             </div>
             
-            {hasFullAccess && (
+            {user && hasFullAccess && (
               <Button onClick={markAsCompleted} disabled={isCurrentLessonCompleted}>
                 {isCurrentLessonCompleted ? (
                   <>
@@ -568,16 +580,14 @@ export default function LessonPage() {
               )}
             </div>
             
-            {user && (
-              <div className="mt-6 flex items-center justify-end gap-2">
+            <div className="mt-6 flex items-center justify-end gap-2">
                 <Button variant={userReaction === 'like' ? 'default' : 'outline'} onClick={() => toggleReaction('like')}>
                   <ThumbsUp className="mr-2 h-4 w-4" /> {likeCount}
                 </Button>
                 <Button variant={userReaction === 'dislike' ? 'destructive' : 'outline'} onClick={() => toggleReaction('dislike')}>
                   <ThumbsDown className="mr-2 h-4 w-4" /> {dislikeCount}
                 </Button>
-              </div>
-            )}
+            </div>
 
             <Tabs defaultValue="description" className="mt-8">
               <TabsList>
@@ -585,7 +595,6 @@ export default function LessonPage() {
                 <TabsTrigger value="comments">
                   <MessagesSquare className="mr-2 h-4 w-4" />
                   Comentários
-                   {!hasFullAccess && <Lock className="ml-2 h-3 w-3" />}
                 </TabsTrigger>
               </TabsList>
               
@@ -624,37 +633,14 @@ export default function LessonPage() {
                         <h2 className="text-xl font-bold text-white">Comunidade</h2>
                     </CardHeader>
                     <CardContent>
-                       {user ? (
-                           hasFullAccess ? (
-                              <CommentsSection
-                                firestore={firestore}
-                                user={user}
-                                courseId={courseId as string}
-                                lessonId={lessonId as string}
-                                isAdmin={isAdmin}
-                              />
-                           ) : (
-                                <div className="text-center py-12">
-                                  <Lock className="mx-auto h-12 w-12 text-muted-foreground" />
-                                  <h3 className="mt-4 text-lg font-semibold text-white">Comunidade Exclusiva</h3>
-                                  <p className="mt-2 text-sm text-muted-foreground">Adquira o curso para participar da discussão e tirar suas dúvidas.</p>
-                                  {course.checkoutUrl && (
-                                    <Button asChild className="mt-6">
-                                        <a href={course.checkoutUrl}><ShoppingCart className="mr-2 h-4 w-4" /> Comprar Agora</a>
-                                    </Button>
-                                  )}
-                              </div>
-                           )
-                        ) : (
-                          <div className="text-center py-12">
-                              <Lock className="mx-auto h-12 w-12 text-muted-foreground" />
-                              <h3 className="mt-4 text-lg font-semibold text-white">Faça login para participar</h3>
-                              <p className="mt-2 text-sm text-muted-foreground">Você precisa estar logado para ver e postar comentários.</p>
-                              <Button asChild className="mt-6">
-                                  <Link href={`/login?redirect=/courses/${courseId}/${lessonId}`}>Fazer Login</Link>
-                              </Button>
-                          </div>
-                        )}
+                        <CommentsSection
+                            firestore={firestore}
+                            auth={auth}
+                            user={user}
+                            courseId={courseId as string}
+                            lessonId={lessonId as string}
+                            isAdmin={isAdmin}
+                        />
                     </CardContent>
                 </Card>
               </TabsContent>
@@ -669,14 +655,16 @@ export default function LessonPage() {
 // --- Comments Section Component ---
 interface CommentsSectionProps {
   firestore: any;
+  auth: any;
   user: any;
   courseId: string;
   lessonId: string;
   isAdmin: boolean;
 }
 
-function CommentsSection({ firestore, user, courseId, lessonId, isAdmin }: CommentsSectionProps) {
+function CommentsSection({ firestore, auth, user, courseId, lessonId, isAdmin }: CommentsSectionProps) {
   const [newComment, setNewComment] = useState("");
+  const { toast } = useToast();
 
   const commentsQuery = useMemoFirebase(() => {
     if (!firestore || !courseId || !lessonId) return null;
@@ -690,11 +678,9 @@ function CommentsSection({ firestore, user, courseId, lessonId, isAdmin }: Comme
   
   const sortedComments = useMemo(() => {
     if (!comments) return [];
-    // Sort pinned comments to the top, then by timestamp
     return [...comments].sort((a, b) => {
       if (a.isPinned && !b.isPinned) return -1;
       if (!a.isPinned && b.isPinned) return 1;
-      // Fallback to timestamp if both have same pinned status
       if (a.timestamp && b.timestamp) {
         return b.timestamp.toMillis() - a.timestamp.toMillis();
       }
@@ -702,13 +688,24 @@ function CommentsSection({ firestore, user, courseId, lessonId, isAdmin }: Comme
     });
   }, [comments]);
 
-
   const handlePostComment = async () => {
-    if (!newComment.trim() || !user) return;
+    if (!newComment.trim() || !auth) return;
+
+    let currentUser = auth.currentUser;
+    if (!currentUser) {
+        try {
+            const userCredential = await signInAnonymously(auth);
+            currentUser = userCredential.user;
+        } catch (error) {
+            toast({ variant: "destructive", title: "Erro", description: "Não foi possível postar seu comentário." });
+            return;
+        }
+    }
+
     const commentData = {
-      userId: user.uid,
-      userDisplayName: user.displayName || 'Anônimo',
-      userPhotoURL: user.photoURL || '',
+      userId: currentUser.uid,
+      userDisplayName: currentUser.displayName || 'Anônimo',
+      userPhotoURL: currentUser.photoURL || '',
       text: newComment,
       timestamp: serverTimestamp(),
       isPinned: false,
@@ -728,11 +725,10 @@ function CommentsSection({ firestore, user, courseId, lessonId, isAdmin }: Comme
   
   return (
     <div className="space-y-6">
-      {/* Post a new comment */}
       <div className="flex items-start gap-4">
         <Avatar>
           <AvatarImage src={user?.photoURL || ''} />
-          <AvatarFallback>{user?.displayName?.charAt(0) || 'U'}</AvatarFallback>
+          <AvatarFallback>{user?.displayName?.charAt(0) || 'A'}</AvatarFallback>
         </Avatar>
         <div className="w-full">
           <Textarea 
@@ -745,13 +741,13 @@ function CommentsSection({ firestore, user, courseId, lessonId, isAdmin }: Comme
         </div>
       </div>
       
-      {/* Comments List */}
       <div className="space-y-6">
         {sortedComments && sortedComments.length > 0 ? sortedComments.map(comment => (
           <CommentItem 
             key={comment.id}
             comment={comment}
             firestore={firestore}
+            auth={auth}
             user={user}
             courseId={courseId}
             lessonId={lessonId}
@@ -772,7 +768,7 @@ interface CommentItemProps extends CommentsSectionProps {
     comment: LessonComment;
 }
 
-function CommentItem({ comment, firestore, user, courseId, lessonId, isAdmin }: CommentItemProps) {
+function CommentItem({ comment, firestore, auth, user, courseId, lessonId, isAdmin }: CommentItemProps) {
   const [showReplies, setShowReplies] = useState(false);
   
   const commentLikesQuery = useMemoFirebase(() => {
@@ -780,12 +776,24 @@ function CommentItem({ comment, firestore, user, courseId, lessonId, isAdmin }: 
   }, [firestore, courseId, lessonId, comment.id]);
 
   const { data: likes } = useCollection<CommentLike>(commentLikesQuery);
-  const isLiked = useMemo(() => likes?.some(like => like.userId === user.uid), [likes, user]);
+  const isLiked = useMemo(() => likes?.some(like => like.userId === user?.uid), [likes, user]);
   
   const { toast } = useToast();
 
   const toggleLike = async () => {
-    const likeRef = doc(firestore, `courses/${courseId}/lessons/${lessonId}/comments/${comment.id}/likes`, user.uid);
+    if (!auth) return;
+    let currentUser = auth.currentUser;
+    if (!currentUser) {
+        try {
+            const userCredential = await signInAnonymously(auth);
+            currentUser = userCredential.user;
+        } catch (error) {
+            toast({ variant: "destructive", title: "Erro", description: "Não foi possível curtir o comentário." });
+            return;
+        }
+    }
+
+    const likeRef = doc(firestore, `courses/${courseId}/lessons/${lessonId}/comments/${comment.id}/likes`, currentUser.uid);
     const commentRef = doc(firestore, `courses/${courseId}/lessons/${lessonId}/comments`, comment.id);
 
     try {
@@ -795,7 +803,7 @@ function CommentItem({ comment, firestore, user, courseId, lessonId, isAdmin }: 
           transaction.delete(likeRef);
           transaction.update(commentRef, { likeCount: increment(-1) });
         } else {
-          transaction.set(likeRef, { userId: user.uid, timestamp: serverTimestamp() });
+          transaction.set(likeRef, { userId: currentUser!.uid, timestamp: serverTimestamp() });
           transaction.update(commentRef, { likeCount: increment(1) });
         }
       });
@@ -825,13 +833,13 @@ function CommentItem({ comment, firestore, user, courseId, lessonId, isAdmin }: 
           <div>
             <div className="font-semibold text-white">
                 {comment.userDisplayName}
-                {comment.userId === user.uid && <Badge variant="secondary" className="ml-2">Você</Badge>}
+                {user && comment.userId === user.uid && <Badge variant="secondary" className="ml-2">Você</Badge>}
             </div>
             <p className="text-xs text-muted-foreground">
               {comment.timestamp ? formatDistanceToNow(comment.timestamp.toDate(), { addSuffix: true, locale: ptBR }) : 'agora'}
             </p>
           </div>
-          {(isAdmin || comment.userId === user.uid) && (
+          {(isAdmin || (user && comment.userId === user.uid)) && (
              <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="h-8 w-8"><MoreVertical className="h-4 w-4" /></Button>
@@ -858,10 +866,12 @@ function CommentItem({ comment, firestore, user, courseId, lessonId, isAdmin }: 
         {showReplies && (
           <RepliesSection 
             firestore={firestore}
+            auth={auth}
             user={user}
             courseId={courseId}
             lessonId={lessonId}
             commentId={comment.id}
+            isAdmin={isAdmin}
           />
         )}
       </div>
@@ -873,14 +883,17 @@ function CommentItem({ comment, firestore, user, courseId, lessonId, isAdmin }: 
 // --- Replies Section ---
 interface RepliesSectionProps {
   firestore: any;
+  auth: any;
   user: any;
   courseId: string;
   lessonId: string;
   commentId: string;
+  isAdmin: boolean;
 }
 
-function RepliesSection({ firestore, user, courseId, lessonId, commentId }: RepliesSectionProps) {
+function RepliesSection({ firestore, auth, user, courseId, lessonId, commentId, isAdmin }: RepliesSectionProps) {
   const [newReply, setNewReply] = useState('');
+  const { toast } = useToast();
   
   const repliesQuery = useMemoFirebase(() => {
      return query(
@@ -892,11 +905,23 @@ function RepliesSection({ firestore, user, courseId, lessonId, commentId }: Repl
   const { data: replies, isLoading: repliesLoading } = useCollection<CommentReply>(repliesQuery);
   
   const handlePostReply = async () => {
-    if (!newReply.trim()) return;
+    if (!newReply.trim() || !auth) return;
+
+    let currentUser = auth.currentUser;
+    if (!currentUser) {
+        try {
+            const userCredential = await signInAnonymously(auth);
+            currentUser = userCredential.user;
+        } catch (error) {
+            toast({ variant: "destructive", title: "Erro", description: "Não foi possível postar sua resposta." });
+            return;
+        }
+    }
+
     const replyData = {
-      userId: user.uid,
-      userDisplayName: user.displayName || 'Anônimo',
-      userPhotoURL: user.photoURL || '',
+      userId: currentUser.uid,
+      userDisplayName: currentUser.displayName || 'Anônimo',
+      userPhotoURL: currentUser.photoURL || '',
       text: newReply,
       timestamp: serverTimestamp(),
     };
@@ -938,7 +963,7 @@ function RepliesSection({ firestore, user, courseId, lessonId, commentId }: Repl
                         {reply.timestamp ? formatDistanceToNow(reply.timestamp.toDate(), { addSuffix: true, locale: ptBR }) : 'agora'}
                     </p>
                 </div>
-                {reply.userId === user.uid && (
+                {(isAdmin || (user && reply.userId === user.uid)) && (
                      <AlertDialog>
                         <AlertDialogTrigger asChild>
                            <Button variant="ghost" size="icon" className="h-7 w-7"><Trash2 className="h-3 w-3 text-destructive" /></Button>
@@ -960,8 +985,8 @@ function RepliesSection({ firestore, user, courseId, lessonId, commentId }: Repl
       {/* Reply input */}
       <div className="flex items-start gap-3 pt-4">
         <Avatar className="h-8 w-8">
-          <AvatarImage src={user.photoURL || ''} />
-          <AvatarFallback>{user.displayName?.charAt(0) || 'U'}</AvatarFallback>
+          <AvatarImage src={user?.photoURL || ''} />
+          <AvatarFallback>{user?.displayName?.charAt(0) || 'A'}</AvatarFallback>
         </Avatar>
         <div className="w-full">
             <Textarea value={newReply} onChange={e => setNewReply(e.target.value)} placeholder="Escreva uma resposta..." className="text-sm min-h-[60px]" />
@@ -1009,5 +1034,3 @@ function LessonPageSkeleton() {
     </div>
   )
 }
-
-    

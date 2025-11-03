@@ -5,29 +5,10 @@ service cloud.firestore {
 
     // Helper function to check if the user is an admin
     function isAdmin() {
-      // Use a simple, direct check against the admin email for performance.
       return request.auth != null && request.auth.token.email == 'admin@reidavsl.com';
     }
 
-    // Helper function to check if a user has been granted access to a specific course.
-    function hasCourseAccess(courseId) {
-      return request.auth != null && exists(/databases/$(database)/documents/users/$(request.auth.uid)/courseAccess/$(courseId));
-    }
-    
-    // Helper function to check if a course is free
-    function isCourseFree(courseId) {
-        return get(/databases/$(database)/documents/courses/$(courseId)).data.isFree == true;
-    }
-    
-    // Helper function to check if a course is a published demo
-    function isPublishedDemo(courseId) {
-      let courseData = get(/databases/$(database)/documents/courses/$(courseId)).data;
-      return courseData.status == 'published' && courseData.isDemoEnabled == true;
-    }
-
-    // User documents can be read by their owner or an admin.
-    // Admins can list all users.
-    // Users can only create their own document. Admins can update any user document.
+    // --- User Data ---
     match /users/{userId} {
       allow read: if (request.auth != null && request.auth.uid == userId) || isAdmin();
       allow list: if isAdmin();
@@ -36,94 +17,73 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Course access records can be read by their owner or managed by admins.
     match /users/{userId}/courseAccess/{courseId} {
         allow read: if (request.auth != null && request.auth.uid == userId) || isAdmin();
         allow write: if isAdmin();
         allow list: if isAdmin();
     }
 
-    // User progress can be read by the owner or an admin.
-    // It can only be written to by the owner.
     match /users/{userId}/progress/{courseId} {
         allow read: if (request.auth != null && request.auth.uid == userId) || isAdmin();
         allow write: if request.auth != null && request.auth.uid == userId;
     }
     
-    // Layout documents can be read by anyone, but only written by admins
+    // --- App Content ---
     match /layout/{layoutId} {
       allow read: if true;
       allow write: if isAdmin();
     }
 
-    // Course documents can be listed by any authenticated user if they are published.
-    // A single course document can be read if it's published, the user is an admin, has access, or it's a free/demo course.
     match /courses/{courseId} {
-      allow list: if (request.auth != null && resource.data.status == 'published') || isAdmin();
-      allow read: if (request.auth != null && resource.data.status == 'published') || isAdmin() || hasCourseAccess(courseId) || isCourseFree(courseId) || isPublishedDemo(courseId);
+      allow read: if resource.data.status == 'published' || isAdmin();
+      allow list: if resource.data.status == 'published' || isAdmin();
       allow write: if isAdmin();
     }
     
-    // --- Lesson Engagement Features ---
+    // --- Lesson Engagement (Public Access) ---
     match /courses/{courseId}/lessons/{lessonId} {
-      
-      // Allow engagement on demo lessons
-      function isDemoLesson() {
-        return isPublishedDemo(courseId);
-      }
-      
-      // Comments, Replies, and Likes can be managed by any user with course access or an admin or if it's a demo.
       match /comments/{commentId} {
-        allow read, write: if hasCourseAccess(courseId) || isAdmin() || isCourseFree(courseId) || isDemoLesson();
-
+        allow read, write: if true;
         match /replies/{replyId} {
-          allow read, write: if hasCourseAccess(courseId) || isAdmin() || isCourseFree(courseId) || isDemoLesson();
+          allow read, write: if true;
         }
-
-        match /likes/{userId} {
-          allow read, write: if hasCourseAccess(courseId) || isAdmin() || isCourseFree(courseId) || isDemoLesson();
+        match /likes/{likeId} {
+          allow read, write: if true;
         }
       }
 
-      // Reactions Subcollection
       match /reactions/{reactionId} {
-        allow read, write: if hasCourseAccess(courseId) || isAdmin() || isCourseFree(courseId) || isDemoLesson();
+        allow read, write: if true;
       }
     }
 
-
-    // Videos can be read by any authenticated user, but only written by admins
+    // --- Admin & Other Collections ---
     match /videos/{videoId} {
-      allow read: if request.auth != null;
+      allow read: if true;
       allow write: if isAdmin();
     }
 
-    // Clients can be read by any authenticated user, but only written by admins
     match /clients/{clientId} {
-      allow read: if request.auth != null;
+      allow read: if true;
       allow write: if isAdmin();
     }
     
-    // Skills can be read by any authenticated user, but only written by admins
     match /skills/{skillId} {
-      allow read: if request.auth != null;
+      allow read: if true;
       allow write: if isAdmin();
     }
     
-    // Contact messages can be created by anyone, but only read/deleted by admins
     match /contactMessages/{messageId} {
       allow create: if true;
       allow read, delete: if isAdmin();
       allow update: if false;
     }
 
-    // Premium links can be managed by admins and read by any authenticated user.
     match /premiumLinks/{linkId} {
-        allow read: if request.auth != null;
+        allow read: if true;
         allow write: if isAdmin();
     }
 
-    // Audit logs can only be read and created by admins. They cannot be updated or deleted.
     match /auditLogs/{logId} {
       allow read, list, create: if isAdmin();
       allow update, delete: if false;
