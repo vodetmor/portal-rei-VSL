@@ -1,9 +1,10 @@
+
 'use client';
 
 import Image from 'next/image';
 import Link from 'next/link';
 import { Button } from './ui/button';
-import { Pencil, Play, Trash2, Link2, Upload, Save, Lock } from 'lucide-react';
+import { Pencil, Play, Trash2, Link2, Upload, Save, Lock, ShoppingCart } from 'lucide-react';
 import { motion } from 'framer-motion';
 import {
   AlertDialog,
@@ -30,6 +31,7 @@ interface CourseCardProps {
     title: string;
     thumbnailUrl?: string;
     imageHint: string;
+    checkoutUrl?: string;
   };
   progress?: number | null; // Progress percentage (0-100)
   priority?: boolean;
@@ -153,6 +155,13 @@ export function CourseCard({ course, progress = null, priority = false, isAdmin 
              <div className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-center p-4">
                 <Lock className="h-10 w-10 text-primary mb-3" />
                 <p className="text-white font-semibold">Acesso Bloqueado</p>
+                {course.checkoutUrl && (
+                    <Button asChild size="sm" className="mt-4">
+                        <a href={course.checkoutUrl} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()}>
+                           <ShoppingCart className="mr-2 h-4 w-4" /> Comprar Acesso
+                        </a>
+                    </Button>
+                )}
             </div>
         )}
     </>
@@ -165,12 +174,12 @@ export function CourseCard({ course, progress = null, priority = false, isAdmin 
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={{ scale: isLocked ? 1.02 : 1.05, zIndex: 10 }}
+      whileHover={{ scale: 1.05, zIndex: 10 }}
       transition={{ duration: 0.3, ease: "easeOut" }}
       className={cn(
           "group relative block aspect-[2/3] w-full overflow-hidden rounded-lg bg-card shadow-lg transition-all",
           isEditing && "ring-2 ring-primary/50 ring-offset-2 ring-offset-background",
-          isLocked ? "cursor-not-allowed" : "cursor-pointer"
+          !isLocked && "cursor-pointer"
         )}
     >
         <WrapperComponent {...wrapperProps} className="block h-full w-full">
@@ -245,3 +254,5 @@ export function CourseCard({ course, progress = null, priority = false, isAdmin 
     </motion.div>
   );
 }
+
+    

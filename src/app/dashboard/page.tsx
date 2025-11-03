@@ -1,3 +1,4 @@
+
 'use client';
 import { useUser, useFirestore } from '@/firebase';
 import { useRouter } from 'next/navigation';
@@ -32,6 +33,7 @@ interface Course extends DocumentData {
   title: string;
   thumbnailUrl: string;
   imageHint: string;
+  checkoutUrl?: string;
   modules: { lessons: any[] }[];
 }
 
@@ -825,3 +827,5 @@ export default function DashboardPage() {
     <DashboardClientPage />
   )
 }
+
+    

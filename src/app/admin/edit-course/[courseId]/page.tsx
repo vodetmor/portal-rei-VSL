@@ -18,7 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Trash2, Save, Upload, Link2, GripVertical, FileVideo, Eye, CalendarDays, Send, BarChart2, Book, Bold, Italic, Underline, Palette, Monitor, Smartphone } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, Upload, Link2, GripVertical, FileVideo, Eye, CalendarDays, Send, BarChart2, Book, Bold, Italic, Underline, Palette, Monitor, Smartphone, ShoppingCart } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
@@ -66,6 +66,7 @@ interface Course {
   status: 'draft' | 'published';
   heroImageUrlDesktop?: string;
   heroImageUrlMobile?: string;
+  checkoutUrl?: string;
 }
 
 const DEFAULT_MODULE_IMAGE = "https://i.imgur.com/1X3ta7W.png";
@@ -87,6 +88,7 @@ function EditCoursePageContent() {
   const [tempTitle, setTempTitle] = useState('');
   const [tempSubtitle, setTempSubtitle] = useState('');
   const [tempDescription, setTempDescription] = useState('');
+  const [tempCheckoutUrl, setTempCheckoutUrl] = useState('');
   const [modules, setModules] = useState<Module[]>([]);
   const descriptionRef = useRef<HTMLDivElement>(null);
   const [activeEditor, setActiveEditor] = useState<string | null>(null);
@@ -118,6 +120,7 @@ function EditCoursePageContent() {
         setTempTitle(courseData.title || '');
         setTempSubtitle(courseData.subtitle || '');
         setTempDescription(courseData.description || '');
+        setTempCheckoutUrl(courseData.checkoutUrl || '');
         setTempHeroImageDesktop(courseData.heroImageUrlDesktop || DEFAULT_HERO_IMAGE_DESKTOP);
         setTempHeroImageMobile(courseData.heroImageUrlMobile || DEFAULT_HERO_IMAGE_MOBILE);
         setHeroImageUrlInputDesktop(courseData.heroImageUrlDesktop || '');
@@ -301,6 +304,7 @@ function EditCoursePageContent() {
         title: tempTitle,
         subtitle: tempSubtitle,
         description: tempDescription,
+        checkoutUrl: tempCheckoutUrl,
         heroImageUrlDesktop: finalHeroImageUrlDesktop,
         heroImageUrlMobile: finalHeroImageUrlMobile,
         modules: modulesToSave,
@@ -439,6 +443,19 @@ function EditCoursePageContent() {
                                 onChange={(e) => setTempSubtitle(e.target.value)}
                                 className="mt-1"
                             />
+                        </div>
+                        <div>
+                            <label htmlFor="course-checkout" className="text-sm font-medium text-white">Link de Checkout</label>
+                            <div className="relative mt-1">
+                                <ShoppingCart className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input 
+                                    id="course-checkout"
+                                    placeholder="https://suapagina.com/checkout" 
+                                    value={tempCheckoutUrl}
+                                    onChange={(e) => setTempCheckoutUrl(e.target.value)}
+                                    className="pl-9"
+                                />
+                            </div>
                         </div>
                          <div className='relative'>
                             <label htmlFor="course-description" className="text-sm font-medium text-white">Descrição</label>
@@ -1102,3 +1119,5 @@ export default function EditCoursePage() {
         </AdminGuard>
     )
 }
+
+    
