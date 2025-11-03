@@ -25,6 +25,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { Badge } from '@/components/ui/badge';
+import { Card, CardHeader, CardContent } from '@/components/ui/card';
 
 
 // --- Type Definitions ---
@@ -167,13 +168,7 @@ export default function LessonPage() {
   const { data: reactions, isLoading: reactionsLoading } = useCollection<LessonReaction>(reactionsQuery);
 
   const fetchLessonData = useCallback(async () => {
-    if (!firestore || !user) {
-        if (!userLoading) {
-             setHasAccess(false);
-             setLoading(false);
-        }
-        return;
-    };
+    if (!firestore) return;
     
     setLoading(true);
     setIsCurrentLessonCompleted(false);
@@ -188,11 +183,20 @@ export default function LessonPage() {
       const courseData = { id: courseDocSnap.id, ...courseDocSnap.data() } as Course;
       setCourse(courseData);
       
-      const userDocRef = doc(firestore, 'users', user.uid);
-      const userDocSnap = await getDoc(userDocRef);
-      const userRole = userDocSnap.data()?.role;
-      const isAdminUser = userRole === 'admin' || user.email === 'admin@reidavsl.com';
-      setIsAdmin(isAdminUser);
+      let userHasFullAccess = false;
+      let isAdminUser = false;
+
+      if(user) {
+        const userDocRef = doc(firestore, 'users', user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        const userRole = userDocSnap.data()?.role;
+        isAdminUser = userRole === 'admin' || user.email === 'admin@reidavsl.com';
+        setIsAdmin(isAdminUser);
+
+        const accessDocRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId as string);
+        const accessDocSnap = await getDoc(accessDocRef);
+        userHasFullAccess = accessDocSnap.exists() || isAdminUser || courseData.isFree === true;
+      }
       
       let foundLesson: Lesson | null = null;
       let foundModule: Module | null = null;
@@ -210,12 +214,6 @@ export default function LessonPage() {
       }
       
       const isDemoAllowed = courseData.isDemoEnabled && (foundLesson.isDemo || foundModule.isDemo);
-      const isFreeCourse = courseData.isFree === true;
-
-      const accessDocRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId as string);
-      const accessDocSnap = await getDoc(accessDocRef);
-      const userHasFullAccess = accessDocSnap.exists() || isAdminUser || isFreeCourse;
-      setHasFullAccess(userHasFullAccess);
       
       if (!userHasFullAccess && !isDemoAllowed) {
         router.push(`/courses/${courseId}`);
@@ -223,39 +221,44 @@ export default function LessonPage() {
       }
 
       setHasAccess(true);
+      setHasFullAccess(userHasFullAccess);
 
-      const accessTimestamp = accessDocSnap.data()?.grantedAt?.toDate();
-      const grantedAtDate = accessTimestamp || (isAdminUser ? new Date() : null);
-      if (grantedAtDate) {
-        setCourseAccessInfo({ grantedAt: grantedAtDate.toISOString() });
-      }
+      if (userHasFullAccess) {
+        const accessDocRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId as string);
+        const accessDocSnap = await getDoc(accessDocRef);
+        const accessTimestamp = accessDocSnap.data()?.grantedAt?.toDate();
+        const grantedAtDate = accessTimestamp || (isAdminUser ? new Date() : null);
+        if (grantedAtDate) {
+          setCourseAccessInfo({ grantedAt: grantedAtDate.toISOString() });
+        }
       
-      if (userHasFullAccess && !isAdminUser) {
-        const isModuleUnlocked = () => {
-          if (!grantedAtDate) return false;
-          const delay = foundModule?.releaseDelayDays || 0;
-          const releaseDate = addDays(grantedAtDate, delay);
-          return new Date() >= releaseDate;
-        }
-        
-        const isLessonUnlocked = () => {
-          if (!grantedAtDate) return false;
-          const moduleDelay = foundModule?.releaseDelayDays || 0;
-          const lessonDelay = foundLesson?.releaseDelayDays || 0;
-          const releaseDate = addDays(grantedAtDate, moduleDelay + lessonDelay);
-          return new Date() >= releaseDate;
-        }
+        if (!isAdminUser) {
+          const isModuleUnlocked = () => {
+            if (!grantedAtDate) return false;
+            const delay = foundModule?.releaseDelayDays || 0;
+            const releaseDate = addDays(grantedAtDate, delay);
+            return new Date() >= releaseDate;
+          }
+          
+          const isLessonUnlocked = () => {
+            if (!grantedAtDate) return false;
+            const moduleDelay = foundModule?.releaseDelayDays || 0;
+            const lessonDelay = foundLesson?.releaseDelayDays || 0;
+            const releaseDate = addDays(grantedAtDate, moduleDelay + lessonDelay);
+            return new Date() >= releaseDate;
+          }
 
-        if (!isModuleUnlocked() || !isLessonUnlocked()) {
-            router.push(`/courses/${courseId}`);
-            return;
+          if (!isModuleUnlocked() || !isLessonUnlocked()) {
+              router.push(`/courses/${courseId}`);
+              return;
+          }
         }
       }
 
       setCurrentLesson(foundLesson);
       setCurrentModule(foundModule);
 
-      if (userHasFullAccess) {
+      if (userHasFullAccess && user) {
         const progressDocRef = doc(firestore, `users/${user.uid}/progress`, courseId as string);
         const progressDocSnap = await getDoc(progressDocRef);
         if (progressDocSnap.exists()) {
