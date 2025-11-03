@@ -194,11 +194,15 @@ function DashboardClientPage() {
         let finalHeroImageUrlDesktop = tempHeroImageDesktop;
         if (heroImageDesktopFile) {
             finalHeroImageUrlDesktop = await uploadImage(heroImageDesktopFile, 'layout/dashboard-hero/desktop');
+        } else if (tempHeroImageUrlInputDesktop) {
+            finalHeroImageUrlDesktop = tempHeroImageUrlInputDesktop;
         }
 
         let finalHeroImageUrlMobile = tempHeroImageMobile;
         if (heroImageMobileFile) {
             finalHeroImageUrlMobile = await uploadImage(heroImageMobileFile, 'layout/dashboard-hero/mobile');
+        } else if (tempHeroImageUrlInputMobile) {
+            finalHeroImageUrlMobile = tempHeroImageUrlInputMobile;
         }
 
         const titleContent = titleRef.current?.innerHTML || tempHeroTitle;
@@ -326,11 +330,17 @@ function DashboardClientPage() {
     setLoading(true);
 
     try {
-        const coursesQuery = collection(firestore, 'courses');
+        let coursesQuery;
+        if (isAdmin) {
+            // Admins can see all courses
+            coursesQuery = query(collection(firestore, 'courses'));
+        } else {
+            // Regular users only see published courses
+            coursesQuery = query(collection(firestore, 'courses'), where('status', '==', 'published'));
+        }
+        
         const coursesSnapshot = await getDocs(coursesQuery);
-        const allFetchedCourses = coursesSnapshot.docs
-            .map(doc => ({ id: doc.id, ...doc.data() } as Course))
-            .filter(course => isAdmin || course.status === 'published'); // Admins see all, users see published
+        const allFetchedCourses = coursesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
         
         const newCourseAccess: CourseAccess = {};
         if (isAdmin) {
@@ -595,9 +605,9 @@ useEffect(() => {
                     <ActionToolbar
                       className="absolute -top-14"
                       buttons={[
-                        { label: "Esquerda", icon: <AlignLeft className="size-4" />, onClick: () => setHeroAlignment('left') },
-                        { label: "Centro", icon: <AlignCenter className="size-4" />, onClick: () => setHeroAlignment('center') },
-                        { label: "Direita", icon: <AlignRight className="size-4" />, onClick: () => setHeroAlignment('end') },
+                        { label: "Esquerda", icon: <AlignLeft className="size-4" />, onClick: () => setHeroAlignment('left'), active: heroAlignment === 'left' },
+                        { label: "Centro", icon: <AlignCenter className="size-4" />, onClick: () => setHeroAlignment('center'), active: heroAlignment === 'center' },
+                        { label: "Direita", icon: <AlignRight className="size-4" />, onClick: () => setHeroAlignment('end'), active: heroAlignment === 'end' },
                         { label: "Bold", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
                         { label: "Italic", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
                         { label: "Underline", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
@@ -716,6 +726,11 @@ useEffect(() => {
                         </Tabs>
                     </CollapsibleContent>
                 </Collapsible>
+                 <PageEditActions
+                    onSave={handleSaveChanges}
+                    onCancel={cancelEditMode}
+                    isSaving={isSaving}
+                 />
              </div>
           )}
 
@@ -765,14 +780,6 @@ useEffect(() => {
             )}
           </div>
         </section>
-
-        {isEditMode && (
-          <PageEditActions
-            onSave={handleSaveChanges}
-            onCancel={cancelEditMode}
-            isSaving={isSaving}
-          />
-        )}
       </div>
   );
 }
@@ -829,5 +836,3 @@ export default function DashboardPage() {
     <DashboardClientPage />
   )
 }
-
-    
