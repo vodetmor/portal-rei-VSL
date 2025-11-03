@@ -121,15 +121,19 @@ export default function CourseAnalytics({ courseId, courseTitle }: CourseAnalyti
 
         const overallCompletionRate = (totalLessonsCount > 0 && totalEnrollments > 0) ? (totalCompletedLessonsOverall / (totalLessonsCount * totalEnrollments)) * 100 : 0;
         
-        // --- Fetch Engagement Data ---
         let totalComments = 0;
         const lessonEngagements = await Promise.all(allLessons.map(async (lesson) => {
             const commentsRef = collection(firestore, `courses/${courseId}/lessons/${lesson.id}/comments`);
             const reactionsRef = collection(firestore, `courses/${courseId}/lessons/${lesson.id}/reactions`);
-            const [commentsSnap, reactionsSnap] = await Promise.all([getDocs(commentsRef), getDocs(reactionsRef)]);
             
-            totalComments += commentsSnap.size;
-            
+            const [commentsSnap, reactionsSnap] = await Promise.all([
+                getDocs(commentsRef),
+                getDocs(reactionsRef)
+            ]);
+
+            const commentsCount = commentsSnap.size;
+            totalComments += commentsCount;
+
             const reactions = reactionsSnap.docs.map(d => d.data() as Reaction);
             const likes = reactions.filter(r => r.type === 'like').map(r => userMap.get(r.userId)).filter(Boolean) as UserData[];
             const dislikes = reactions.filter(r => r.type === 'dislike').map(r => userMap.get(r.userId)).filter(Boolean) as UserData[];
@@ -137,7 +141,7 @@ export default function CourseAnalytics({ courseId, courseTitle }: CourseAnalyti
             return {
                 lessonId: lesson.id,
                 lessonTitle: lesson.title,
-                commentsCount: commentsSnap.size,
+                commentsCount: commentsCount,
                 likes,
                 dislikes,
             };
