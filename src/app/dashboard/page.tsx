@@ -319,55 +319,62 @@ function DashboardClientPage() {
   const fetchCoursesAndProgress = useCallback(async () => {
     if (!firestore || !user) return;
     setLoading(true);
-
+  
     try {
-        // Step 1: Fetch all courses based on role
-        let coursesQuery;
-        if (isAdmin) {
-            coursesQuery = query(collection(firestore, 'courses'));
-        } else {
-            coursesQuery = query(collection(firestore, 'courses'), where('status', '==', 'published'));
-        }
-        
-        const coursesSnapshot = await getDocs(coursesQuery);
-        const coursesData = coursesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
-        
-        // Step 2: For non-admins, filter to only show courses they have access to
-        if (!isAdmin) {
-            const accessQuery = query(collection(firestore, `users/${user.uid}/courseAccess`));
-            const accessSnapshot = await getDocs(accessQuery);
-            const accessibleCourseIds = new Set(accessSnapshot.docs.map(doc => doc.id));
-            const viewableCourses = coursesData.filter(course => accessibleCourseIds.has(course.id));
-            setCourses(viewableCourses);
-        } else {
-            setCourses(coursesData);
-        }
-        
-        const accessibleCourseIds = new Set(courses.map(c => c.id));
-        if (accessibleCourseIds.size === 0) {
-            setLoading(false);
-            return;
-        }
-
-        // Step 3: Fetch user's progress for accessible courses
-        const progressPromises = Array.from(accessibleCourseIds).map(id => getDoc(doc(firestore, `users/${user.uid}/progress`, id)));
-        const progressSnaps = await Promise.all(progressPromises);
-        const progressData: UserProgress = {};
-        progressSnaps.forEach(snap => {
-            if (snap.exists()) {
-                progressData[snap.id] = snap.data() as UserProgress[string];
-            }
-        });
-        setUserProgress(progressData);
-
-    } catch (error) {
-        console.error("Error fetching courses and progress: ", error);
-        toast({ variant: "destructive", title: "Erro ao Carregar", description: "Não foi possível carregar os cursos."});
-        setCourses([]);
-    } finally {
+      // Step 1: Fetch all courses based on role
+      let coursesQuery;
+      if (isAdmin) {
+        coursesQuery = query(collection(firestore, 'courses'));
+      } else {
+        coursesQuery = query(collection(firestore, 'courses'), where('status', '==', 'published'));
+      }
+      
+      const coursesSnapshot = await getDocs(coursesQuery);
+      let coursesData = coursesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
+      let finalCourses = coursesData;
+      
+      // Step 2: Fetch user's access and filter courses if not admin
+      const accessQuery = query(collection(firestore, `users/${user.uid}/courseAccess`));
+      const accessSnapshot = await getDocs(accessQuery);
+      const accessibleCourseIds = new Set(accessSnapshot.docs.map(doc => doc.id));
+      
+      const newCourseAccess: CourseAccess = {};
+      accessibleCourseIds.forEach(id => {
+        newCourseAccess[id] = true;
+      });
+      setCourseAccess(newCourseAccess);
+      
+      if (!isAdmin) {
+          finalCourses = coursesData.filter(course => accessibleCourseIds.has(course.id));
+      }
+      
+      setCourses(finalCourses);
+      
+      // Step 3: Fetch progress only for courses the user can see
+      const finalCourseIds = new Set(finalCourses.map(c => c.id));
+      if (finalCourseIds.size === 0) {
         setLoading(false);
+        return;
+      }
+  
+      const progressPromises = Array.from(finalCourseIds).map(id => getDoc(doc(firestore, `users/${user.uid}/progress`, id)));
+      const progressSnaps = await Promise.all(progressPromises);
+      const progressData: UserProgress = {};
+      progressSnaps.forEach(snap => {
+        if (snap.exists()) {
+          progressData[snap.id] = snap.data() as UserProgress[string];
+        }
+      });
+      setUserProgress(progressData);
+  
+    } catch (error) {
+      console.error("Error fetching courses and progress: ", error);
+      toast({ variant: "destructive", title: "Erro ao Carregar", description: "Não foi possível carregar os cursos."});
+      setCourses([]);
+    } finally {
+      setLoading(false);
     }
-  }, [firestore, user, isAdmin, toast, courses]);
+  }, [firestore, user, isAdmin, toast]);
   
   const handleConfirmDelete = (courseId: string) => {
     if (!firestore) return;
@@ -825,3 +832,5 @@ export default function DashboardPage() {
     <DashboardClientPage />
   )
 }
+
+    
