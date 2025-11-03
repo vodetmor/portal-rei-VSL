@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
@@ -57,6 +56,7 @@ interface Course {
   title: string;
   modules: Module[];
   isDemoEnabled?: boolean;
+  isFree?: boolean;
 }
 
 interface UserProgress {
@@ -140,6 +140,7 @@ export default function LessonPage() {
   const [isCurrentLessonCompleted, setIsCurrentLessonCompleted] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const [hasAccess, setHasAccess] = useState(false);
+  const [hasFullAccess, setHasFullAccess] = useState(false); // Differentiates full access from demo access
   
   const youtubeEmbedUrl = useMemo(() => {
     if (!currentLesson || !currentLesson.videoUrl || !currentLesson.videoUrl.includes('youtube.com')) {
@@ -155,15 +156,16 @@ export default function LessonPage() {
   }, [currentLesson]);
 
   const reactionsQuery = useMemoFirebase(() => {
-    if (!firestore || !courseId || !lessonId) return null;
+    // Only fetch reactions if user has full access
+    if (!firestore || !courseId || !lessonId || !hasFullAccess) return null;
     return collection(firestore, `courses/${courseId}/lessons/${lessonId}/reactions`);
-  }, [firestore, courseId, lessonId]);
+  }, [firestore, courseId, lessonId, hasFullAccess]);
+
   const { data: reactions, isLoading: reactionsLoading } = useCollection<LessonReaction>(reactionsQuery);
 
   const fetchLessonData = useCallback(async () => {
-    if (!firestore) return;
-    // Do not fetch data if user is not logged in.
-    if (!user) {
+    if (!firestore || !user) {
+        if (!userLoading) router.push('/login');
         setLoading(false);
         return;
     };
@@ -204,10 +206,12 @@ export default function LessonPage() {
       
       // Check Access Rights
       const isDemoAllowed = courseData.isDemoEnabled && (foundLesson.isDemo || foundModule.isDemo);
+      const isFreeCourse = courseData.isFree === true;
       const accessDocSnap = await getDoc(doc(firestore, `users/${user.uid}/courseAccess`, courseId as string));
-      const hasFullAccess = accessDocSnap.exists() || isAdminUser;
+      const userHasFullAccess = accessDocSnap.exists() || isAdminUser || isFreeCourse;
+      setHasFullAccess(userHasFullAccess);
       
-      if (!hasFullAccess && !isDemoAllowed) {
+      if (!userHasFullAccess && !isDemoAllowed) {
         router.push(`/courses/${courseId}`);
         return;
       }
@@ -221,7 +225,7 @@ export default function LessonPage() {
       }
       
       // Check Drip Content if user doesn't have admin rights
-      if (!isAdminUser && hasFullAccess) {
+      if (!isAdminUser && userHasFullAccess) {
         const isModuleUnlocked = () => {
           if (!grantedAtDate) return false;
           const delay = foundModule?.releaseDelayDays || 0;
@@ -247,7 +251,7 @@ export default function LessonPage() {
       setCurrentModule(foundModule);
 
       // Fetch Progress only for users with full access
-      if (hasFullAccess) {
+      if (userHasFullAccess) {
         const progressDocSnap = await getDoc(doc(firestore, `users/${user.uid}/progress`, courseId as string));
         if (progressDocSnap.exists()) {
           const progressData = progressDocSnap.data() as UserProgress;
@@ -280,7 +284,7 @@ export default function LessonPage() {
     } finally {
       setLoading(false);
     }
-  }, [courseId, lessonId, user, firestore, router]);
+  }, [courseId, lessonId, user, userLoading, firestore, router]);
 
 
   useEffect(() => {
@@ -294,7 +298,7 @@ export default function LessonPage() {
   }, [user, userLoading, fetchLessonData]);
 
  const markAsCompleted = async () => {
-    if (isCurrentLessonCompleted || !user || !firestore || !hasAccess) return;
+    if (isCurrentLessonCompleted || !user || !firestore || !hasFullAccess) return;
     
     setIsCurrentLessonCompleted(true);
 
@@ -342,7 +346,7 @@ export default function LessonPage() {
   }, [reactions, user]);
 
   const handleReaction = (type: 'like' | 'dislike') => {
-    if (!user || !firestore || !courseId || !lessonId || !hasAccess) return;
+    if (!user || !firestore || !courseId || !lessonId || !hasFullAccess) return;
 
     const reactionRef = doc(firestore, `courses/${courseId}/lessons/${lessonId}/reactions`, user.uid);
     const reactionData = { userId: user.uid, type };
@@ -391,9 +395,11 @@ export default function LessonPage() {
     );
   }
 
-  const isLessonCompleted = (lessonId: string) => hasAccess && !!userProgress?.completedLessons[lessonId];
+  const isLessonCompleted = (lessonId: string) => hasFullAccess && !!userProgress?.completedLessons[lessonId];
   const isModuleUnlocked = (module: Module) => {
-      if (isAdmin || !courseAccessInfo || !isClient) return true;
+      if (isAdmin || !isClient || !hasFullAccess) return false; // Demos are not subject to drip
+      if (!courseAccessInfo) return false;
+
       const delay = module.releaseDelayDays || 0;
       if (delay === 0) return true;
       const grantedDate = parseISO(courseAccessInfo.grantedAt);
@@ -428,7 +434,7 @@ export default function LessonPage() {
         <div className="flex-grow overflow-y-auto border-r border-border">
           <Accordion type="single" collapsible defaultValue={currentModule.id} className="w-full">
             {course.modules.map(module => (
-              <AccordionItem key={module.id} value={module.id} disabled={!isModuleUnlocked(module) && !(course.isDemoEnabled && module.isDemo)}>
+              <AccordionItem key={module.id} value={module.id} disabled={!hasFullAccess && !isModuleUnlocked(module) && !(course.isDemoEnabled && module.isDemo)}>
                 <AccordionTrigger className="px-4 py-3 text-sm font-semibold hover:bg-secondary/50 disabled:opacity-50 disabled:hover:bg-transparent">
                   <div className="text-left">
                     {module.title}
@@ -486,7 +492,7 @@ export default function LessonPage() {
                 </div>
             </div>
           <div className="flex items-center gap-4">
-            {hasAccess && (
+            {hasFullAccess && (
               <div className="w-40 hidden md:block">
                   <Progress value={courseProgressPercentage} className="h-2" />
                   <span className="text-xs text-muted-foreground">{completedLessonsCount} de {totalLessons} ({Math.round(courseProgressPercentage)}%)</span>
@@ -498,7 +504,7 @@ export default function LessonPage() {
                         Próxima <ArrowRight className="ml-2 h-4 w-4" />
                     </Link>
                  </Button>
-            ) : hasAccess ? (
+            ) : hasFullAccess ? (
                 <Button variant={isCurrentLessonCompleted ? 'default' : 'outline'} className="bg-green-600 hover:bg-green-700">
                     <CheckCircle className="mr-2 h-4 w-4"/> Curso Concluído
                 </Button>
@@ -541,7 +547,7 @@ export default function LessonPage() {
                 <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-4 gap-4">
                   <h1 className="text-2xl md:text-3xl font-bold text-white">{currentLesson.title}</h1>
                   <div className="flex items-center gap-2 shrink-0">
-                      {hasAccess && (
+                      {hasFullAccess && (
                           <>
                             <div className="flex items-center gap-1 p-1 rounded-full bg-secondary/50">
                                 <Button size="sm" variant="ghost" onClick={() => handleReaction('like')} className={cn("rounded-full h-8 px-3", userReaction === 'like' && 'bg-primary/20 text-primary')}>
@@ -564,7 +570,7 @@ export default function LessonPage() {
                 <Tabs defaultValue="description" className="w-full">
                     <TabsList>
                         <TabsTrigger value="description"><BookOpen className="h-4 w-4 mr-2" />Descrição</TabsTrigger>
-                         {hasAccess && <TabsTrigger value="comments"><MessagesSquare className="h-4 w-4 mr-2" />Comentários</TabsTrigger>}
+                         {hasFullAccess && <TabsTrigger value="comments"><MessagesSquare className="h-4 w-4 mr-2" />Comentários</TabsTrigger>}
                     </TabsList>
                     <TabsContent value="description" className="py-6">
                         {currentLesson.description && (
@@ -607,7 +613,7 @@ export default function LessonPage() {
                             </div>
                         )}
                     </TabsContent>
-                    {hasAccess && (
+                    {hasFullAccess && (
                         <TabsContent value="comments" className="py-6">
                             <CommentsSection 
                                 courseId={courseId as string}
