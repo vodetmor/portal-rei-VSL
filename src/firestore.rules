@@ -26,12 +26,16 @@ service cloud.firestore {
         if (!('modules' in course) || course.modules.size() == 0) {
             return false;
         }
-        let lesson = course.modules.flatMap(m => m.lessons).find(l => l.id == lessonId);
+        let allLessons = course.modules.flatMap(m => m.lessons);
+        let lesson = allLessons.filter(l => l.id == lessonId)[0];
+
         // Gracefully handle lesson not being found
         if (lesson == null) {
             return false;
         }
-        let module = course.modules.find(m => m.lessons.find(l => l.id == lessonId) != null);
+        
+        // Find the module containing the lesson
+        let module = course.modules.filter(m => m.lessons.filter(l => l.id == lessonId).size() > 0)[0];
         
         return course.isDemoEnabled == true && (lesson.isDemo == true || (module != null && module.isDemo == true));
     }
@@ -67,7 +71,7 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // Course documents can be listed by any authenticated user.
+    // Course documents can be listed by any authenticated user if published.
     // A single course document can be read if it's published and the user is authenticated,
     // or if the user is an admin or has specific access.
     // Write access is restricted to admins.
