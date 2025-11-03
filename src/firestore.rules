@@ -68,7 +68,7 @@ service cloud.firestore {
     // Write access is restricted to admins.
     match /courses/{courseId} {
       allow list: if request.auth != null;
-      allow read: if (isAdmin() || hasCourseAccess(courseId) || isCourseFree(courseId) || (resource.data.status == 'published' && request.auth != null));
+      allow read: if isAdmin() || hasCourseAccess(courseId) || isCourseFree(courseId) || (resource.data.status == 'published' && request.auth != null);
       allow write: if isAdmin();
     }
     
@@ -77,14 +77,14 @@ service cloud.firestore {
       
       // Comments, Replies, and Likes can be managed by any user with course access or an admin.
       match /comments/{commentId} {
-        allow list, read, create, update, delete: if hasCourseAccess(courseId) || isAdmin() || isCourseFree(courseId) || isDemoLesson(courseId, lessonId);
+        allow read, write: if true;
 
         match /replies/{replyId} {
-          allow list, read, create, update, delete: if hasCourseAccess(courseId) || isAdmin() || isCourseFree(courseId) || isDemoLesson(courseId, lessonId);
+          allow read, write: if true;
         }
 
         match /likes/{userId} {
-          allow list, read, create, delete: if hasCourseAccess(courseId) || isAdmin() || isCourseFree(courseId) || isDemoLesson(courseId, lessonId);
+          allow read, write: if true;
         }
       }
 
@@ -120,9 +120,9 @@ service cloud.firestore {
       allow update: if false;
     }
 
-    // Premium links can be managed by admins and read by any authenticated user.
+    // Premium links can be read by anyone and managed by admins.
     match /premiumLinks/{linkId} {
-        allow read: if request.auth != null;
+        allow read: if true;
         allow write: if isAdmin();
     }
 
