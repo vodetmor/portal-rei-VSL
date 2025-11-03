@@ -1,14 +1,14 @@
 
 'use client';
 import { useUser, useFirestore } from '@/firebase';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { CourseCard } from '@/components/course-card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { doc, getDoc, collection, getDocs, setDoc, deleteDoc, type DocumentData, updateDoc, addDoc, query, where } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, setDoc, deleteDoc, type DocumentData, updateDoc, addDoc, query, where, writeBatch, serverTimestamp } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { useLayout } from '@/context/layout-context';
-import { ActionToolbar } from '@/components/ui/action-toolbar';
+import { ActionToolbar } from '@/components/admin/action-toolbar';
 import { PageEditActions } from '@/components/admin/page-edit-actions';
 
 import Image from 'next/image';
@@ -63,6 +63,7 @@ function DashboardClientPage() {
   const { user, loading: userLoading } = useUser();
   const firestore = useFirestore();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const { layoutData, setLayoutData, isEditMode, setIsEditMode } = useLayout();
 
@@ -454,6 +455,62 @@ function DashboardClientPage() {
       router.push('/login');
     }
   }, [user, userLoading, router]);
+
+    const redeemPremiumLink = useCallback(async (linkId: string) => {
+    if (!firestore || !user) return;
+
+    try {
+      const linkRef = doc(firestore, 'premiumLinks', linkId);
+      const linkSnap = await getDoc(linkRef);
+
+      if (!linkSnap.exists()) {
+        toast({ variant: "destructive", title: "Link Inválido", description: "O link de acesso premium não foi encontrado." });
+        return;
+      }
+
+      const linkData = linkSnap.data();
+      const courseIdsToGrant = linkData.courseIds || [];
+      if (courseIdsToGrant.length === 0) return;
+
+      const batch = writeBatch(firestore);
+      let grantedCount = 0;
+
+      for (const courseId of courseIdsToGrant) {
+        const accessRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId);
+        const accessSnap = await getDoc(accessRef);
+        if (!accessSnap.exists()) {
+          batch.set(accessRef, {
+            courseId: courseId,
+            grantedAt: serverTimestamp()
+          });
+          grantedCount++;
+        }
+      }
+
+      if (grantedCount > 0) {
+        await batch.commit();
+        toast({ title: "Acesso Liberado!", description: `${grantedCount} novo(s) curso(s) foram adicionados à sua conta.` });
+        fetchCoursesAndProgress(); // Re-fetch data to show new courses
+      } else {
+        toast({ title: "Tudo Certo!", description: "Você já tinha acesso a todos os cursos deste link." });
+      }
+
+    } catch (error) {
+      console.error("Error redeeming premium link: ", error);
+      toast({ variant: "destructive", title: "Erro", description: "Não foi possível resgatar o acesso premium." });
+    } finally {
+        // Clean the URL to avoid re-triggering on refresh
+        router.replace('/dashboard', { scroll: false });
+    }
+  }, [firestore, user, toast, router, fetchCoursesAndProgress]);
+
+  useEffect(() => {
+    const linkId = searchParams.get('linkId');
+    if (linkId && user && firestore) {
+        redeemPremiumLink(linkId);
+    }
+  }, [searchParams, user, firestore, redeemPremiumLink]);
+
 
   useEffect(() => {
     const checkAdminAndFetchData = async () => {

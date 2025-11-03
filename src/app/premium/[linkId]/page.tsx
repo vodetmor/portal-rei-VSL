@@ -1,3 +1,4 @@
+
 'use client';
 import { useAuth, useUser, useFirestore } from '@/firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
@@ -89,10 +90,10 @@ export default function PremiumAccessPage() {
   
   const redirectIfLoggedIn = useCallback(() => {
     if (user && !userLoading) {
-      toast({ title: "Acesso Premium", description: "Bem-vindo(a) de volta! Redirecionando..." });
-      router.push('/dashboard');
+      toast({ title: "Acesso Premium", description: "Verificando seus cursos..." });
+      router.push(`/dashboard?linkId=${linkId}`);
     }
-  }, [user, userLoading, router, toast]);
+  }, [user, userLoading, router, toast, linkId]);
 
   useEffect(() => {
     redirectIfLoggedIn();
@@ -142,21 +143,8 @@ export default function PremiumAccessPage() {
             });
         }
         
-        const loggedInUser = userCredential.user;
-        const batch = writeBatch(firestore);
-
-        linkData.courseIds.forEach(courseId => {
-            const accessRef = doc(firestore, `users/${loggedInUser.uid}/courseAccess`, courseId);
-            batch.set(accessRef, {
-                grantedAt: serverTimestamp(),
-                courseId: courseId
-            });
-        });
-
-        await batch.commit();
-
-        toast({ title: "Acesso Liberado!", description: "Seus cursos foram adicionados. Bem-vindo(a)!" });
-        router.push('/dashboard');
+        // Redirect to dashboard with linkId, let dashboard handle access grant
+        router.push(`/dashboard?linkId=${linkId}`);
 
     } catch (error: any) {
         const message = mapFirebaseError(error.code);
