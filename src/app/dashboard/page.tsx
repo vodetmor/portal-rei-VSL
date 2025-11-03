@@ -34,6 +34,9 @@ interface Course extends DocumentData {
   thumbnailUrl: string;
   imageHint: string;
   checkoutUrl?: string;
+  vslUrl?: string;
+  isDemoEnabled?: boolean;
+  isFree?: boolean;
   modules: { lessons: any[] }[];
 }
 
@@ -324,7 +327,6 @@ function DashboardClientPage() {
 
     try {
         let coursesQuery;
-        // Admins get all courses, users get only published ones.
         if (isAdmin) {
             coursesQuery = query(collection(firestore, 'courses'));
         } else {
@@ -334,7 +336,6 @@ function DashboardClientPage() {
         const coursesSnapshot = await getDocs(coursesQuery);
         const allFetchedCourses = coursesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
         
-        // Admins have access to everything. For users, fetch their specific access records.
         const newCourseAccess: CourseAccess = {};
         if (isAdmin) {
             allFetchedCourses.forEach(course => newCourseAccess[course.id] = true);
@@ -344,12 +345,17 @@ function DashboardClientPage() {
             accessSnapshot.docs.forEach(doc => {
                 newCourseAccess[doc.id] = true;
             });
+            // Also grant access to all free courses
+            allFetchedCourses.forEach(course => {
+                if (course.isFree) {
+                    newCourseAccess[course.id] = true;
+                }
+            });
         }
         
         setCourses(allFetchedCourses);
         setCourseAccess(newCourseAccess);
         
-        // Fetch progress for all visible courses
         if (allFetchedCourses.length > 0) {
             const courseIds = allFetchedCourses.map(c => c.id);
             const progressPromises = courseIds.map(id => getDoc(doc(firestore, `users/${user.uid}/progress`, id)));
@@ -369,7 +375,7 @@ function DashboardClientPage() {
     } catch (error) {
         console.error("Error fetching courses and progress: ", error);
         toast({ variant: "destructive", title: "Erro ao Carregar", description: "Não foi possível carregar os cursos."});
-        setCourses([]); // Clear courses on error
+        setCourses([]);
     } finally {
         setLoading(false);
     }
@@ -827,5 +833,3 @@ export default function DashboardPage() {
     <DashboardClientPage />
   )
 }
-
-    

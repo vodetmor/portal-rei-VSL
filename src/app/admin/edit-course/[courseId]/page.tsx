@@ -18,7 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Trash2, Save, Upload, Link2, GripVertical, FileVideo, Eye, CalendarDays, Send, BarChart2, Book, Bold, Italic, Underline, Palette, Monitor, Smartphone, ShoppingCart, AlignLeft, AlignCenter, AlignRight, EyeOff } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, Upload, Link2, GripVertical, FileVideo, Eye, CalendarDays, Send, BarChart2, Book, Bold, Italic, Underline, Palette, Monitor, Smartphone, ShoppingCart, AlignLeft, AlignCenter, AlignRight, EyeOff, Video } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
@@ -68,6 +68,9 @@ interface Course {
   heroImageUrlDesktop?: string;
   heroImageUrlMobile?: string;
   checkoutUrl?: string;
+  vslUrl?: string;
+  isDemoEnabled?: boolean;
+  isFree?: boolean;
   heroAlignment?: "left" | "center" | "end";
   heroTextVisible?: boolean;
 }
@@ -92,6 +95,9 @@ function EditCoursePageContent() {
   const [tempSubtitle, setTempSubtitle] = useState('');
   const [tempDescription, setTempDescription] = useState('');
   const [tempCheckoutUrl, setTempCheckoutUrl] = useState('');
+  const [tempVslUrl, setTempVslUrl] = useState('');
+  const [tempIsDemoEnabled, setTempIsDemoEnabled] = useState(false);
+  const [tempIsFree, setTempIsFree] = useState(false);
   const [modules, setModules] = useState<Module[]>([]);
   const descriptionRef = useRef<HTMLDivElement>(null);
   const [activeEditor, setActiveEditor] = useState<string | null>(null);
@@ -126,6 +132,9 @@ function EditCoursePageContent() {
         setTempSubtitle(courseData.subtitle || '');
         setTempDescription(courseData.description || '');
         setTempCheckoutUrl(courseData.checkoutUrl || '');
+        setTempVslUrl(courseData.vslUrl || '');
+        setTempIsDemoEnabled(courseData.isDemoEnabled || false);
+        setTempIsFree(courseData.isFree || false);
         setTempHeroImageDesktop(courseData.heroImageUrlDesktop || DEFAULT_HERO_IMAGE_DESKTOP);
         setTempHeroImageMobile(courseData.heroImageUrlMobile || DEFAULT_HERO_IMAGE_MOBILE);
         setHeroImageUrlInputDesktop(courseData.heroImageUrlDesktop || '');
@@ -312,6 +321,9 @@ function EditCoursePageContent() {
         subtitle: tempSubtitle,
         description: tempDescription,
         checkoutUrl: tempCheckoutUrl,
+        vslUrl: tempVslUrl,
+        isDemoEnabled: tempIsDemoEnabled,
+        isFree: tempIsFree,
         heroImageUrlDesktop: finalHeroImageUrlDesktop,
         heroImageUrlMobile: finalHeroImageUrlMobile,
         heroAlignment: tempHeroAlignment,
@@ -454,7 +466,7 @@ function EditCoursePageContent() {
                             />
                         </div>
                         <div>
-                            <label htmlFor="course-checkout" className="text-sm font-medium text-white">Link de Checkout</label>
+                            <label htmlFor="course-checkout" className="text-sm font-medium text-white">Link de Checkout (Opcional)</label>
                             <div className="relative mt-1">
                                 <ShoppingCart className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                                 <Input 
@@ -462,6 +474,19 @@ function EditCoursePageContent() {
                                     placeholder="https://suapagina.com/checkout" 
                                     value={tempCheckoutUrl}
                                     onChange={(e) => setTempCheckoutUrl(e.target.value)}
+                                    className="pl-9"
+                                />
+                            </div>
+                        </div>
+                         <div>
+                            <label htmlFor="course-vsl" className="text-sm font-medium text-white">URL da VSL (Opcional)</label>
+                            <div className="relative mt-1">
+                                <Video className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                <Input 
+                                    id="course-vsl"
+                                    placeholder="https://youtube.com/seu-video" 
+                                    value={tempVslUrl}
+                                    onChange={(e) => setTempVslUrl(e.target.value)}
                                     className="pl-9"
                                 />
                             </div>
@@ -491,6 +516,22 @@ function EditCoursePageContent() {
                                 }}
                                 className="mt-1 min-h-[120px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 prose prose-sm prose-invert max-w-none"
                             />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
+                           <div className="flex items-center justify-between space-x-2 rounded-lg border p-4 bg-secondary/30">
+                                <div className="space-y-0.5">
+                                    <Label htmlFor="is-demo" className="text-base font-medium text-white">Modo Demo</Label>
+                                    <p className="text-xs text-muted-foreground">Libera a primeira aula para não-inscritos.</p>
+                                </div>
+                                <Switch id="is-demo" checked={tempIsDemoEnabled} onCheckedChange={setTempIsDemoEnabled} />
+                            </div>
+                             <div className="flex items-center justify-between space-x-2 rounded-lg border p-4 bg-secondary/30">
+                                <div className="space-y-0.5">
+                                    <Label htmlFor="is-free" className="text-base font-medium text-white">Curso Gratuito</Label>
+                                    <p className="text-xs text-muted-foreground">Libera o curso completo para todos.</p>
+                                </div>
+                                <Switch id="is-free" checked={tempIsFree} onCheckedChange={setTempIsFree} />
+                            </div>
                         </div>
                          <div className="pt-4 space-y-2">
                              <label className="text-sm font-medium text-white">Banner e Layout da Página do Curso</label>

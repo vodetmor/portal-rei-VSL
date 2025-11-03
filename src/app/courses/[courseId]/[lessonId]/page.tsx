@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
@@ -53,6 +54,7 @@ interface Course {
   id: string;
   title: string;
   modules: Module[];
+  isDemoEnabled?: boolean;
 }
 
 interface UserProgress {
@@ -154,21 +156,7 @@ export default function LessonPage() {
     setIsCurrentLessonCompleted(false);
 
     try {
-      const userDocSnap = await getDoc(doc(firestore, 'users', user.uid));
-      const userRole = userDocSnap.data()?.role;
-      const isAdminUser = userRole === 'admin' || user.email === 'admin@reidavsl.com';
-      setIsAdmin(isAdminUser);
-      
-      const accessDocSnap = await getDoc(doc(firestore, `users/${user.uid}/courseAccess`, courseId as string));
-      if (!accessDocSnap.exists() && !isAdminUser) {
-        toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você não tem acesso a este curso.' });
-        router.push('/dashboard');
-        return;
-      }
-      setHasAccess(true);
-      const accessTimestamp = accessDocSnap.data()?.grantedAt?.toDate();
-      setCourseAccessInfo({ grantedAt: accessTimestamp ? accessTimestamp.toISOString() : new Date().toISOString() });
-
+      // Get Course and User Admin status first
       const courseDocSnap = await getDoc(doc(firestore, 'courses', courseId as string));
       if (!courseDocSnap.exists()) {
         toast({ variant: 'destructive', title: 'Erro', description: 'Curso não encontrado.' });
@@ -177,14 +165,33 @@ export default function LessonPage() {
       }
       const courseData = { id: courseDocSnap.id, ...courseDocSnap.data() } as Course;
       setCourse(courseData);
+      
+      const userDocSnap = await getDoc(doc(firestore, 'users', user.uid));
+      const userRole = userDocSnap.data()?.role;
+      const isAdminUser = userRole === 'admin' || user.email === 'admin@reidavsl.com';
+      setIsAdmin(isAdminUser);
+      
+      // Check Access
+      const accessDocSnap = await getDoc(doc(firestore, `users/${user.uid}/courseAccess`, courseId as string));
+      const hasFullAccess = accessDocSnap.exists() || isAdminUser;
+      setHasAccess(hasFullAccess);
+      
+      const accessTimestamp = accessDocSnap.data()?.grantedAt?.toDate();
+      setCourseAccessInfo({ grantedAt: accessTimestamp ? accessTimestamp.toISOString() : new Date().toISOString() });
 
+      // Find current lesson and module
       let foundLesson: Lesson | null = null;
       let foundModule: Module | null = null;
+      let isFirstLesson = false;
+
       for (const module of courseData.modules) {
         const lesson = module.lessons.find(l => l.id === lessonId);
         if (lesson) {
           foundLesson = lesson;
           foundModule = module;
+          if (courseData.modules.indexOf(module) === 0 && module.lessons.indexOf(lesson) === 0) {
+            isFirstLesson = true;
+          }
           break;
         }
       }
@@ -195,21 +202,21 @@ export default function LessonPage() {
         return;
       }
       
-       const isUnlocked = isAdminUser || (
-        (foundModule.releaseDelayDays || 0) === 0 && (foundLesson.releaseDelayDays || 0) === 0
-      ) || (accessTimestamp && (
-          addDays(accessTimestamp, (foundModule.releaseDelayDays || 0) + (foundLesson.releaseDelayDays || 0)) <= new Date()
-      ));
+      // Permission Checks
+      const isDemoAllowed = courseData.isDemoEnabled && isFirstLesson;
+      const hasDripAccess = hasFullAccess && (accessTimestamp && (addDays(accessTimestamp, (foundModule.releaseDelayDays || 0) + (foundLesson.releaseDelayDays || 0)) <= new Date()));
+      const isUnlocked = hasFullAccess && (isAdminUser || hasDripAccess);
 
-      if (!isUnlocked) {
-          toast({ variant: 'destructive', title: 'Conteúdo Bloqueado', description: 'Esta aula ainda não foi liberada.' });
-          router.push(`/courses/${courseId}`);
-          return;
+      if (!isUnlocked && !isDemoAllowed) {
+        toast({ variant: 'destructive', title: 'Conteúdo Bloqueado', description: 'Esta aula ainda não foi liberada para você.' });
+        router.push(`/courses/${courseId}`);
+        return;
       }
 
       setCurrentLesson(foundLesson);
       setCurrentModule(foundModule);
 
+      // Fetch Progress
       const progressDocSnap = await getDoc(doc(firestore, `users/${user.uid}/progress`, courseId as string));
       if (progressDocSnap.exists()) {
         const progressData = progressDocSnap.data() as UserProgress;
@@ -221,6 +228,7 @@ export default function LessonPage() {
         setUserProgress({ completedLessons: {} });
       }
 
+      // Determine Next Lesson
       const moduleIndex = courseData.modules.findIndex(m => m.id === foundModule!.id);
       const lessonIndex = foundModule!.lessons.findIndex(l => l.id === foundLesson!.id);
 
@@ -348,6 +356,19 @@ export default function LessonPage() {
   };
   
   const processedDescription = makeLinksClickable(currentLesson.description || '');
+  
+  const youtubeEmbedUrl = useMemo(() => {
+    if (!currentLesson.videoUrl || !currentLesson.videoUrl.includes('youtube.com')) {
+      return currentLesson.videoUrl;
+    }
+    const videoIdMatch = currentLesson.videoUrl.match(/(?:v=|\/embed\/|\.be\/)([\w-]+)/);
+    if (!videoIdMatch) {
+      return currentLesson.videoUrl; // fallback to original if ID not found
+    }
+    const videoId = videoIdMatch[1];
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    return `https://www.youtube.com/embed/${videoId}?origin=${origin}`;
+  }, [currentLesson.videoUrl]);
 
   return (
     <div className="flex min-h-screen bg-black text-white pt-20">
@@ -457,20 +478,14 @@ export default function LessonPage() {
             {currentLesson.videoUrl ? (
                 <div className="aspect-video w-full max-w-4xl mx-auto bg-black rounded-lg overflow-hidden">
                     <ReactPlayer
-                        url={currentLesson.videoUrl}
+                        url={youtubeEmbedUrl}
                         width="100%"
                         height="100%"
                         controls
                         playing={false}
                         onProgress={(progress) => handleProgress(progress.played)}
                         config={{
-                            youtube: { 
-                                playerVars: { 
-                                    showinfo: 0, 
-                                    rel: 0,
-                                    origin: typeof window !== 'undefined' ? window.location.origin : ''
-                                } 
-                            },
+                            youtube: { playerVars: { showinfo: 0, rel: 0, origin: typeof window !== 'undefined' ? window.location.origin : '' } },
                             vimeo: { playerOptions: { byline: false, portrait: false } }
                         }}
                     />
@@ -600,7 +615,7 @@ function CommentsSection({ courseId, lessonId, user, isAdmin }: CommentsSectionP
             toast({
                 variant: 'destructive',
                 title: 'Erro ao carregar comentários.',
-                description: 'Verifique suas permissões de rede ou tente novamente mais tarde.'
+                description: commentsError.message || 'Verifique suas permissões de rede ou tente novamente mais tarde.'
             })
         }
     }, [commentsError, toast])
@@ -673,7 +688,6 @@ function CommentsSection({ courseId, lessonId, user, isAdmin }: CommentsSectionP
                 {commentsError && (
                     <div className="text-center py-8 text-destructive">
                         <p>Ocorreu um erro ao carregar os comentários.</p>
-                        <p className="text-xs">{commentsError.message}</p>
                     </div>
                 )}
 
