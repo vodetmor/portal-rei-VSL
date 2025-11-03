@@ -74,22 +74,27 @@ service cloud.firestore {
     // --- Lesson Engagement Features ---
     match /courses/{courseId}/lessons/{lessonId} {
       
-      // Comments, Replies, and Likes can be managed by any user with course access or an admin.
+      // Comments, Replies, and Likes can be managed by any user with course access, if the course is free/demo, or an admin.
+      function canInteract() {
+        return hasCourseAccess(courseId) || isAdmin() || isCourseFree(courseId) || isDemoLesson(courseId, lessonId);
+      }
+
       match /comments/{commentId} {
-        allow read, write: if true;
+        allow list, read, create, update, delete: if canInteract();
 
         match /replies/{replyId} {
-          allow read, write: if true;
+          allow list, read, create, update, delete: if canInteract();
         }
 
         match /likes/{userId} {
-          allow read, write: if true;
+           allow list, read, create, delete: if canInteract();
+           allow update: if false; // Users can't update likes, only create/delete
         }
       }
 
       // Reactions Subcollection
       match /reactions/{reactionId} {
-        allow read, list, write: if true;
+        allow read, list, write: if canInteract();
       }
     }
 
