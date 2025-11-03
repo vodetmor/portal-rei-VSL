@@ -6,13 +6,14 @@ import { useParams, useRouter } from 'next/navigation';
 import { useFirestore, useUser } from '@/firebase';
 import { doc, getDoc, updateDoc, type DocumentData } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
-
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Pencil, Save, X, Upload, Link2, Smartphone, Monitor, Lock, Trophy, AlignCenter, AlignLeft, AlignRight, Bold, Italic, Underline, Palette } from 'lucide-react';
+import { Plus, Pencil, Save, X, Upload, Link2, Smartphone, Monitor, Lock, Trophy, AlignCenter, AlignLeft, AlignRight, Bold, Italic, Underline, Palette, Eye, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -22,6 +23,7 @@ import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from '@/components/ui/carousel';
 import { ActionToolbar } from '@/components/ui/action-toolbar';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface Module {
     id: string;
@@ -41,6 +43,8 @@ interface Course extends DocumentData {
   heroImageUrlDesktop?: string;
   heroImageUrlMobile?: string;
   status: 'draft' | 'published';
+  heroAlignment?: "left" | "center" | "end";
+  heroTextVisible?: boolean;
 }
 
 interface CourseAccessInfo {
@@ -87,10 +91,13 @@ export default function CoursePlayerPage() {
   const [tempTitle, setTempTitle] = useState('');
   const [tempSubtitle, setTempSubtitle] = useState('');
   const [tempDescription, setTempDescription] = useState('');
+  const [tempHeroAlignment, setTempHeroAlignment] = useState<'left' | 'center' | 'end'>('left');
+  const [tempHeroTextVisible, setTempHeroTextVisible] = useState(true);
 
   const [activeEditor, setActiveEditor] = useState<string | null>(null);
   const titleRef = useRef<HTMLDivElement>(null);
   const descriptionRef = useRef<HTMLDivElement>(null);
+  const [openCollapsible, setOpenCollapsible] = useState<string | null>(null);
 
   useEffect(() => {
     setIsClient(true);
@@ -158,6 +165,8 @@ export default function CoursePlayerPage() {
         setTempHeroImageMobile(courseData.heroImageUrlMobile || DEFAULT_HERO_IMAGE_MOBILE);
         setHeroImageUrlInputDesktop(courseData.heroImageUrlDesktop || '');
         setHeroImageUrlInputMobile(courseData.heroImageUrlMobile || '');
+        setTempHeroAlignment(courseData.heroAlignment || 'left');
+        setTempHeroTextVisible(courseData.heroTextVisible !== undefined ? courseData.heroTextVisible : true);
 
         // Fetch user progress
         const progressRef = doc(firestore, `users/${user.uid}/progress`, courseId);
@@ -194,6 +203,8 @@ export default function CoursePlayerPage() {
         setTempHeroImageMobile(course.heroImageUrlMobile || DEFAULT_HERO_IMAGE_MOBILE);
         setHeroImageUrlInputDesktop(course.heroImageUrlDesktop || '');
         setHeroImageUrlInputMobile(course.heroImageUrlMobile || '');
+        setTempHeroAlignment(course.heroAlignment || 'left');
+        setTempHeroTextVisible(course.heroTextVisible !== undefined ? course.heroTextVisible : true);
     }
   };
 
@@ -207,6 +218,8 @@ export default function CoursePlayerPage() {
       setTempHeroImageMobile(course.heroImageUrlMobile || DEFAULT_HERO_IMAGE_MOBILE);
       setHeroImageUrlInputDesktop(course.heroImageUrlDesktop || '');
       setHeroImageUrlInputMobile(course.heroImageUrlMobile || '');
+      setTempHeroAlignment(course.heroAlignment || 'left');
+      setTempHeroTextVisible(course.heroTextVisible !== undefined ? course.heroTextVisible : true);
     }
     setHeroImageDesktopFile(null);
     setHeroImageMobileFile(null);
@@ -281,6 +294,8 @@ export default function CoursePlayerPage() {
             description: tempDescription,
             heroImageUrlDesktop: finalHeroImageUrlDesktop,
             heroImageUrlMobile: finalHeroImageUrlMobile,
+            heroAlignment: tempHeroAlignment,
+            heroTextVisible: tempHeroTextVisible,
         };
 
         await updateDoc(courseRef, dataToSave);
@@ -382,10 +397,22 @@ export default function CoursePlayerPage() {
 
   const firstLessonId = course.modules?.[0]?.lessons?.[0]?.id;
 
+  const heroContainerClasses = cn(
+    "relative z-10 mx-auto flex w-full max-w-3xl flex-col px-4",
+    {
+      'items-start text-left': tempHeroAlignment === 'left',
+      'items-center text-center': tempHeroAlignment === 'center',
+      'items-end text-right': tempHeroAlignment === 'end'
+    }
+  );
+
+  const heroContentVisible = isEditMode || (course.heroTextVisible !== undefined ? course.heroTextVisible : true);
+
+
   return (
     <div className="w-full">
       <section className={cn(
-        "relative flex h-[60vh] min-h-[450px] w-full items-center justify-center text-center py-12",
+        "relative flex h-[60vh] min-h-[450px] w-full items-center justify-center py-12",
         isEditMode && "border-2 border-dashed border-primary/50"
       )}>
         <div className="absolute inset-0 z-0">
@@ -403,7 +430,8 @@ export default function CoursePlayerPage() {
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
         </div>
 
-        <div className="relative z-10 p-4 max-w-3xl mx-auto">
+        {heroContentVisible && (
+        <div className={heroContainerClasses}>
              <div
                 ref={titleRef}
                 contentEditable={isEditMode}
@@ -424,6 +452,9 @@ export default function CoursePlayerPage() {
                 <ActionToolbar
                     className="absolute -top-14"
                     buttons={[
+                        { label: "Esquerda", icon: <AlignLeft className="size-4" />, onClick: () => setTempHeroAlignment('left') },
+                        { label: "Centro", icon: <AlignCenter className="size-4" />, onClick: () => setTempHeroAlignment('center') },
+                        { label: "Direita", icon: <AlignRight className="size-4" />, onClick: () => setTempHeroAlignment('end') },
                         { label: "Negrito", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
                         { label: "Itálico", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
                         { label: "Sublinhado", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
@@ -458,6 +489,7 @@ export default function CoursePlayerPage() {
                   />
               )}
         </div>
+        )}
         
         {isAdmin && !isEditMode && (
           <div className="absolute top-24 right-8 z-20 flex items-center gap-2">
@@ -469,61 +501,79 @@ export default function CoursePlayerPage() {
         )}
 
         {isAdmin && isEditMode && (
-          <div className="absolute bottom-8 right-8 z-20 flex flex-col gap-2 items-end">
-            <div className="flex gap-2">
-                <Button onClick={handleSaveChanges} disabled={isSaving}><Save className="mr-2 h-4 w-4" /> {isSaving ? 'Salvando...' : 'Salvar'}</Button>
-                <Button onClick={cancelEditMode} variant="secondary"><X className="mr-2 h-4 w-4" /> Cancelar</Button>
-            </div>
-             <div className="w-full max-w-sm p-4 rounded-lg bg-background/80 border border-border backdrop-blur-sm space-y-2">
-                <Tabs value={imageInputMode} onValueChange={(v) => setImageInputMode(v as 'desktop' | 'mobile')} className="w-full">
-                    <TabsList className="grid w-full grid-cols-2">
-                        <TabsTrigger value="desktop"><Monitor className="mr-2 h-4 w-4"/> Computador</TabsTrigger>
-                        <TabsTrigger value="mobile"><Smartphone className="mr-2 h-4 w-4"/> Celular</TabsTrigger>
-                    </TabsList>
-                    <TabsContent value="desktop" className="mt-4">
-                        <div className="space-y-2">
-                            <p className="text-sm font-medium text-white">Banner do Computador</p>
-                            <Tabs defaultValue="upload" className="w-full">
-                                <TabsList className="grid w-full grid-cols-2"><TabsTrigger value="upload">Enviar</TabsTrigger><TabsTrigger value="url">URL</TabsTrigger></TabsList>
-                                <TabsContent value="upload" className="mt-2">
-                                    <label htmlFor="hero-image-upload-desktop" className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground hover:text-white border border-dashed rounded-md p-2 justify-center bg-background/50">
-                                        <Upload className="h-3 w-3" /><span>{heroImageDesktopFile ? heroImageDesktopFile.name : 'Selecione a imagem'}</span>
-                                    </label>
-                                    <Input id="hero-image-upload-desktop" type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'desktop')} className="hidden" />
-                                </TabsContent>
-                                <TabsContent value="url" className="mt-2">
-                                    <div className="relative">
-                                        <Link2 className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-                                        <Input type="text" placeholder="https://..." value={heroImageUrlInputDesktop} onChange={(e) => handleUrlInputChange(e, 'desktop')} className="w-full bg-background/50 pl-7 text-xs h-9"/>
-                                    </div>
-                                </TabsContent>
-                            </Tabs>
-                            {uploadProgress !== null && imageInputMode === 'desktop' && (<Progress value={uploadProgress} className="w-full h-1 mt-2" />)}
+          <div className="absolute top-24 right-8 z-20 flex flex-col items-end gap-2">
+            <Collapsible open={openCollapsible === 'banner'} onOpenChange={(isOpen) => setOpenCollapsible(isOpen ? 'banner' : null)} className="w-full max-w-xs">
+                    <CollapsibleTrigger asChild>
+                        <Button variant="outline"><Pencil className="mr-2 h-4 w-4" /> Editar Banner</Button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="mt-2 w-full space-y-4 p-4 rounded-lg bg-background/80 border border-border backdrop-blur-sm">
+                        <div className="flex items-center justify-between space-x-2 rounded-lg border p-3 shadow-sm">
+                            <div className="space-y-0.5">
+                                <Label htmlFor="text-visibility" className="text-sm font-medium text-white">
+                                  Exibir Textos
+                                </Label>
+                                <p className="text-xs text-muted-foreground">
+                                    Mostrar/ocultar título e descrição.
+                                </p>
+                            </div>
+                            <Switch
+                                id="text-visibility"
+                                checked={tempHeroTextVisible}
+                                onCheckedChange={setTempHeroTextVisible}
+                            />
                         </div>
-                    </TabsContent>
-                     <TabsContent value="mobile" className="mt-4">
-                        <div className="space-y-2">
-                            <p className="text-sm font-medium text-white">Banner do Celular</p>
-                             <Tabs defaultValue="upload" className="w-full">
-                                <TabsList className="grid w-full grid-cols-2"><TabsTrigger value="upload">Enviar</TabsTrigger><TabsTrigger value="url">URL</TabsTrigger></TabsList>
-                                <TabsContent value="upload" className="mt-2">
-                                    <label htmlFor="hero-image-upload-mobile" className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground hover:text-white border border-dashed rounded-md p-2 justify-center bg-background/50">
-                                        <Upload className="h-3 w-3" /><span>{heroImageMobileFile ? heroImageMobileFile.name : 'Selecione a imagem'}</span>
-                                    </label>
-                                    <Input id="hero-image-upload-mobile" type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'mobile')} className="hidden" />
-                                </TabsContent>
-                                <TabsContent value="url" className="mt-2">
-                                     <div className="relative">
-                                        <Link2 className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
-                                        <Input type="text" placeholder="https://..." value={heroImageUrlInputMobile} onChange={(e) => handleUrlInputChange(e, 'mobile')} className="w-full bg-background/50 pl-7 text-xs h-9"/>
-                                    </div>
-                                </TabsContent>
-                            </Tabs>
-                            {uploadProgress !== null && imageInputMode === 'mobile' && (<Progress value={uploadProgress} className="w-full h-1 mt-2" />)}
-                        </div>
-                    </TabsContent>
-                </Tabs>
-            </div>
+                         <Tabs value={imageInputMode} onValueChange={(v) => setImageInputMode(v as 'desktop' | 'mobile')} className="w-full">
+                            <TabsList className="grid w-full grid-cols-2">
+                                <TabsTrigger value="desktop"><Monitor className="mr-2 h-4 w-4"/> Computador</TabsTrigger>
+                                <TabsTrigger value="mobile"><Smartphone className="mr-2 h-4 w-4"/> Celular</TabsTrigger>
+                            </TabsList>
+                            <TabsContent value="desktop" className="mt-4">
+                                <div className="space-y-2">
+                                    <Tabs defaultValue="upload" className="w-full">
+                                        <TabsList className="grid w-full grid-cols-2"><TabsTrigger value="upload">Enviar</TabsTrigger><TabsTrigger value="url">URL</TabsTrigger></TabsList>
+                                        <TabsContent value="upload" className="mt-2">
+                                            <label htmlFor="hero-image-upload-desktop" className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground hover:text-white border border-dashed rounded-md p-2 justify-center bg-background/50">
+                                                <Upload className="h-3 w-3" /><span>{heroImageDesktopFile ? heroImageDesktopFile.name : 'Selecione a imagem'}</span>
+                                            </label>
+                                            <Input id="hero-image-upload-desktop" type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'desktop')} className="hidden" />
+                                        </TabsContent>
+                                        <TabsContent value="url" className="mt-2">
+                                            <div className="relative">
+                                                <Link2 className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                                                <Input type="text" placeholder="https://..." value={heroImageUrlInputDesktop} onChange={(e) => handleUrlInputChange(e, 'desktop')} className="w-full bg-background/50 pl-7 text-xs h-9"/>
+                                            </div>
+                                        </TabsContent>
+                                    </Tabs>
+                                    {uploadProgress !== null && imageInputMode === 'desktop' && (<Progress value={uploadProgress} className="w-full h-1 mt-2" />)}
+                                </div>
+                            </TabsContent>
+                             <TabsContent value="mobile" className="mt-4">
+                                <div className="space-y-2">
+                                     <Tabs defaultValue="upload" className="w-full">
+                                        <TabsList className="grid w-full grid-cols-2"><TabsTrigger value="upload">Enviar</TabsTrigger><TabsTrigger value="url">URL</TabsTrigger></TabsList>
+                                        <TabsContent value="upload" className="mt-2">
+                                            <label htmlFor="hero-image-upload-mobile" className="flex items-center gap-2 cursor-pointer text-xs text-muted-foreground hover:text-white border border-dashed rounded-md p-2 justify-center bg-background/50">
+                                                <Upload className="h-3 w-3" /><span>{heroImageMobileFile ? heroImageMobileFile.name : 'Selecione a imagem'}</span>
+                                            </label>
+                                            <Input id="hero-image-upload-mobile" type="file" accept="image/*" onChange={(e) => handleFileChange(e, 'mobile')} className="hidden" />
+                                        </TabsContent>
+                                        <TabsContent value="url" className="mt-2">
+                                             <div className="relative">
+                                                <Link2 className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+                                                <Input type="text" placeholder="https://..." value={heroImageUrlInputMobile} onChange={(e) => handleUrlInputChange(e, 'mobile')} className="w-full bg-background/50 pl-7 text-xs h-9"/>
+                                            </div>
+                                        </TabsContent>
+                                    </Tabs>
+                                    {uploadProgress !== null && imageInputMode === 'mobile' && (<Progress value={uploadProgress} className="w-full h-1 mt-2" />)}
+                                </div>
+                            </TabsContent>
+                        </Tabs>
+                    </CollapsibleContent>
+                </Collapsible>
+                <div className="flex gap-2">
+                    <Button onClick={handleSaveChanges} disabled={isSaving}><Save className="mr-2 h-4 w-4" /> {isSaving ? 'Salvando...' : 'Salvar'}</Button>
+                    <Button onClick={cancelEditMode} variant="secondary"><X className="mr-2 h-4 w-4" /> Cancelar</Button>
+                </div>
           </div>
         )}
       </section>

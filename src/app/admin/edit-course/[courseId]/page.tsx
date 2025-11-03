@@ -18,7 +18,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import Link from 'next/link';
-import { ArrowLeft, Plus, Trash2, Save, Upload, Link2, GripVertical, FileVideo, Eye, CalendarDays, Send, BarChart2, Book, Bold, Italic, Underline, Palette, Monitor, Smartphone, ShoppingCart } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Save, Upload, Link2, GripVertical, FileVideo, Eye, CalendarDays, Send, BarChart2, Book, Bold, Italic, Underline, Palette, Monitor, Smartphone, ShoppingCart, AlignLeft, AlignCenter, AlignRight, EyeOff } from 'lucide-react';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import Image from 'next/image';
 import { Progress } from '@/components/ui/progress';
@@ -30,7 +30,8 @@ import { Badge } from '@/components/ui/badge';
 import CourseAnalytics from '@/components/admin/course-analytics';
 import { ActionToolbar } from '@/components/ui/action-toolbar';
 import { cn } from '@/lib/utils';
-
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 interface ComplementaryMaterial {
   id: string;
@@ -67,6 +68,8 @@ interface Course {
   heroImageUrlDesktop?: string;
   heroImageUrlMobile?: string;
   checkoutUrl?: string;
+  heroAlignment?: "left" | "center" | "end";
+  heroTextVisible?: boolean;
 }
 
 const DEFAULT_MODULE_IMAGE = "https://i.imgur.com/1X3ta7W.png";
@@ -102,6 +105,8 @@ function EditCoursePageContent() {
   const [heroImageUrlInputMobile, setHeroImageUrlInputMobile] = useState('');
   const [imageInputMode, setImageInputMode] = useState<'desktop' | 'mobile'>('desktop');
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [tempHeroAlignment, setTempHeroAlignment] = useState<'left' | 'center' | 'end'>('left');
+  const [tempHeroTextVisible, setTempHeroTextVisible] = useState(true);
   
   const applyFormat = (command: string, value: string | undefined = undefined) => {
     document.execCommand(command, false, value);
@@ -125,6 +130,8 @@ function EditCoursePageContent() {
         setTempHeroImageMobile(courseData.heroImageUrlMobile || DEFAULT_HERO_IMAGE_MOBILE);
         setHeroImageUrlInputDesktop(courseData.heroImageUrlDesktop || '');
         setHeroImageUrlInputMobile(courseData.heroImageUrlMobile || '');
+        setTempHeroAlignment(courseData.heroAlignment || 'left');
+        setTempHeroTextVisible(courseData.heroTextVisible !== undefined ? courseData.heroTextVisible : true);
         setModules((courseData.modules || []).map(m => ({
           ...m,
           id: m.id || uuidv4(),
@@ -307,6 +314,8 @@ function EditCoursePageContent() {
         checkoutUrl: tempCheckoutUrl,
         heroImageUrlDesktop: finalHeroImageUrlDesktop,
         heroImageUrlMobile: finalHeroImageUrlMobile,
+        heroAlignment: tempHeroAlignment,
+        heroTextVisible: tempHeroTextVisible,
         modules: modulesToSave,
         status: status,
         updatedAt: serverTimestamp(),
@@ -484,8 +493,30 @@ function EditCoursePageContent() {
                             />
                         </div>
                          <div className="pt-4 space-y-2">
-                             <label className="text-sm font-medium text-white">Banner do Curso</label>
-                             <div className="p-4 rounded-lg bg-secondary/30 border border-border">
+                             <label className="text-sm font-medium text-white">Banner e Layout da Página do Curso</label>
+                             <div className="p-4 rounded-lg bg-secondary/30 border border-border space-y-4">
+                               <div className='flex items-center justify-between'>
+                                   <Label className="text-white">Alinhamento do Texto</Label>
+                                   <ActionToolbar
+                                        buttons={[
+                                            { label: "Esquerda", icon: <AlignLeft className="size-4" />, onClick: () => setTempHeroAlignment('left'), active: tempHeroAlignment === 'left' },
+                                            { label: "Centro", icon: <AlignCenter className="size-4" />, onClick: () => setTempHeroAlignment('center'), active: tempHeroAlignment === 'center' },
+                                            { label: "Direita", icon: <AlignRight className="size-4" />, onClick: () => setTempHeroAlignment('end'), active: tempHeroAlignment === 'end' },
+                                        ]}
+                                        compact
+                                    />
+                               </div>
+                                <div className="flex items-center justify-between">
+                                    <Label htmlFor="text-visibility" className="text-white">
+                                        Visibilidade do Texto
+                                    </Label>
+                                    <Switch
+                                        id="text-visibility"
+                                        checked={tempHeroTextVisible}
+                                        onCheckedChange={setTempHeroTextVisible}
+                                        />
+                                </div>
+                                <Separator />
                                 <Tabs value={imageInputMode} onValueChange={(v) => setImageInputMode(v as 'desktop' | 'mobile')} className="w-full">
                                     <TabsList className="grid w-full grid-cols-2">
                                         <TabsTrigger value="desktop"><Monitor className="mr-2 h-4 w-4"/> Computador</TabsTrigger>
@@ -976,7 +1007,7 @@ function LessonEditor({ lesson, moduleId, onUpdate, onRemove, applyFormat }: Les
 
                 {isDriveLink && (
                     <div className="my-2 p-3 rounded-md bg-secondary/50 border border-blue-500/50 flex items-center gap-3">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-blue-400 flex-shrink-0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="m10.4 17.6 1.6-1.6"></path><path d="m12 16 3-3"></path><path d="m11.2 14.8 3.2-3.2"></path></svg>
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6 text-blue-400 flex-shrink-0"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="m10.4 17.6 1.6-1.6"></path><path d="m12 16 3-3"></path><path d="m11.2 14.8 3.2-3.2"></path></svg>
                         <div>
                             <p className="text-sm font-medium text-white">Link do Google Drive Anexado</p>
                             <p className="text-xs text-muted-foreground truncate">{lesson.videoUrl}</p>
@@ -1119,5 +1150,3 @@ export default function EditCoursePage() {
         </AdminGuard>
     )
 }
-
-    
