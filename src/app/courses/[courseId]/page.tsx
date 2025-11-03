@@ -418,13 +418,10 @@ export default function CoursePlayerPage() {
         <div className="absolute inset-0 z-0">
           <picture>
             <source srcSet={isEditMode ? tempHeroImageMobile : course.heroImageUrlMobile || DEFAULT_HERO_IMAGE_MOBILE} media="(max-width: 768px)" />
-            <source srcSet={isEditMode ? tempHeroImageDesktop : course.heroImageUrlDesktop || DEFAULT_HERO_IMAGE_DESKTOP} media="(min-width: 769px)" />
-            <Image
+            <img
                 src={isEditMode ? tempHeroImageDesktop : course.heroImageUrlDesktop || DEFAULT_HERO_IMAGE_DESKTOP}
                 alt={course.title}
-                fill
-                className="object-cover"
-                priority
+                className="object-cover w-full h-full"
             />
           </picture>
           <div className="absolute inset-0 bg-gradient-to-t from-background via-background/60 to-transparent" />
