@@ -72,6 +72,7 @@ function DashboardClientPage() {
   const [courseAccess, setCourseAccess] = useState<CourseAccess>({});
   const [loading, setLoading] = useState(true);
   const [userProgress, setUserProgress] = useState<UserProgress>({});
+  const [isAdmin, setIsAdmin] = useState(false);
   
   const [isSaving, setIsSaving] = useState(false);
   const [activeEditor, setActiveEditor] = useState<string | null>(null);
@@ -325,13 +326,23 @@ function DashboardClientPage() {
   };
 
 
-  const fetchCoursesAndProgress = useCallback(async (isAdmin: boolean) => {
+  const fetchCoursesAndProgress = useCallback(async () => {
     if (!firestore || !user) return;
     setLoading(true);
 
     try {
+        let finalIsAdmin = false;
+        if (user.email === 'admin@reidavsl.com') {
+            finalIsAdmin = true;
+        } else {
+            const userDocRef = doc(firestore, 'users', user.uid);
+            const userDocSnap = await getDoc(userDocRef);
+            finalIsAdmin = userDocSnap.exists() && userDocSnap.data().role === 'admin';
+        }
+        setIsAdmin(finalIsAdmin);
+
         let coursesQuery;
-        if (isAdmin) {
+        if (finalIsAdmin) {
             coursesQuery = query(collection(firestore, 'courses'));
         } else {
             coursesQuery = query(collection(firestore, 'courses'), where('status', '==', 'published'));
@@ -341,7 +352,7 @@ function DashboardClientPage() {
         const allFetchedCourses = coursesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
         
         const newCourseAccess: CourseAccess = {};
-        if (isAdmin) {
+        if (finalIsAdmin) {
             allFetchedCourses.forEach(course => newCourseAccess[course.id] = true);
         } else {
             const accessQuery = query(collection(firestore, `users/${user.uid}/courseAccess`));
@@ -399,7 +410,7 @@ function DashboardClientPage() {
           title: "Curso Excluído",
           description: "O curso foi removido com sucesso.",
         });
-        fetchCoursesAndProgress(isEditMode); // re-fetch with current admin status
+        fetchCoursesAndProgress();
       })
       .catch((error) => {
         console.error("Error deleting course: ", error);
@@ -425,6 +436,7 @@ function DashboardClientPage() {
       imageHint: 'placeholder',
       createdAt: new Date(),
       modules: [],
+      status: 'draft',
     };
     const coursesCollection = collection(firestore, 'courses');
     addDoc(coursesCollection, newCourseData)
@@ -511,7 +523,7 @@ function DashboardClientPage() {
             
             await batch.commit();
             toast({ title: "Acesso Liberado!", description: `${grantedCount} novo(s) curso(s) foram adicionados à sua conta.` });
-            await fetchCoursesAndProgress(isEditMode); // Pass admin status
+            await fetchCoursesAndProgress();
         } else {
             toast({ title: "Tudo Certo!", description: "Você já tem acesso a todos os cursos deste link." });
         }
@@ -527,7 +539,7 @@ function DashboardClientPage() {
     } finally {
         router.replace('/dashboard', { scroll: false });
     }
-  }, [firestore, user, toast, router, fetchCoursesAndProgress, isEditMode]);
+  }, [firestore, user, toast, router, fetchCoursesAndProgress]);
 
   useEffect(() => {
     const linkId = searchParams.get('linkId');
@@ -538,34 +550,11 @@ function DashboardClientPage() {
 
 
   useEffect(() => {
-    const checkAdminAndFetchData = async () => {
-      if (user && firestore && !userLoading) {
-        let userIsAdmin = false;
-        if (user.email === 'admin@reidavsl.com') {
-          userIsAdmin = true;
-        } else {
-            try {
-              const userDocRef = doc(firestore, 'users', user.uid);
-              const userDoc = await getDoc(userDocRef);
-              if (userDoc.exists() && userDoc.data().role === 'admin') {
-                userIsAdmin = true;
-              }
-            } catch (error: any) {
-                console.error("Error checking admin role:", error);
-                const permissionError = new FirestorePermissionError({
-                    path: `users/${user.uid}`,
-                    operation: 'get',
-                });
-                errorEmitter.emit('permission-error', permissionError);
-            }
-        }
-        await fetchCoursesAndProgress(userIsAdmin);
-      } else if (!user && !userLoading) {
-        router.push('/login');
-      }
-    };
-
-    checkAdminAndFetchData();
+    if (user && firestore && !userLoading) {
+        fetchCoursesAndProgress();
+    } else if (!user && !userLoading) {
+      router.push('/login');
+    }
   }, [user, firestore, userLoading, fetchCoursesAndProgress, router]);
   
   // Effect to set initial content of contentEditable divs & sync state
@@ -584,9 +573,6 @@ function DashboardClientPage() {
       if (ctaEl) ctaEl.innerHTML = layoutData.ctaText;
     }
   }, [isEditMode, tempHeroTitle, tempHeroSubtitle, tempCtaText, layoutData]);
-  
-  const isAdmin = layoutData.isLoading ? false : isEditMode;
-
 
   if (userLoading || !user || layoutData.isLoading) {
     return (
@@ -903,5 +889,3 @@ export default function DashboardPage() {
     <DashboardClientPage />
   )
 }
-
-    
