@@ -1,4 +1,3 @@
-
 'use client';
 import { useUser, useFirestore } from '@/firebase';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -478,14 +477,17 @@ function DashboardClientPage() {
       const batch = writeBatch(firestore);
       let grantedCount = 0;
       
+      const currentCourseAccess = { ...courseAccess };
+
       courseIdsToGrant.forEach((courseId: string) => {
-        if (!courseAccess[courseId]) {
+        if (!currentCourseAccess[courseId]) {
             const accessRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId);
             batch.set(accessRef, {
                 courseId: courseId,
                 grantedAt: serverTimestamp()
             });
             grantedCount++;
+            currentCourseAccess[courseId] = true;
         }
       });
 
@@ -493,6 +495,7 @@ function DashboardClientPage() {
       if (grantedCount > 0) {
         await batch.commit();
         toast({ title: "Acesso Liberado!", description: `${grantedCount} novo(s) curso(s) foram adicionados à sua conta.` });
+        setCourseAccess(currentCourseAccess);
         fetchCoursesAndProgress(); 
       } else {
         toast({ title: "Tudo Certo!", description: "Você já tinha acesso a todos os cursos deste link." });
