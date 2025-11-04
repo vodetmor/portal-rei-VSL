@@ -2,7 +2,7 @@
 'use client';
 import { useAuth, useUser, useFirestore } from '@/firebase';
 import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
-import { doc, setDoc, getDoc, collection, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { useRouter, useParams } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
@@ -54,6 +54,8 @@ export default function PremiumAccessPage() {
   const fetchLinkData = useCallback(async () => {
     if (!firestore || !linkId) return;
 
+    setLoadingLink(true);
+    setError(null);
     try {
       const linkRef = doc(firestore, 'premiumLinks', linkId);
       const linkSnap = await getDoc(linkRef);
@@ -64,7 +66,7 @@ export default function PremiumAccessPage() {
       }
 
       const link = linkSnap.data();
-      const coursePromises = link.courseIds.map((id: string) => getDoc(doc(firestore, 'courses', id)));
+      const coursePromises = (link.courseIds || []).map((id: string) => getDoc(doc(firestore, 'courses', id)));
       const courseSnaps = await Promise.all(coursePromises);
       const courses = courseSnaps
         .filter(snap => snap.exists() && snap.data()?.status === 'published')
@@ -76,28 +78,38 @@ export default function PremiumAccessPage() {
         courses: courses,
       });
 
-    } catch (err) {
-      console.error(err);
-      setError("Ocorreu um erro ao verificar o link de acesso.");
+    } catch (err: any) {
+        if (err.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({ path: `premiumLinks/${linkId}`, operation: 'get' });
+            errorEmitter.emit('permission-error', permissionError);
+            setError("Você não tem permissão para visualizar este link. Faça o login para continuar.");
+        } else {
+            console.error(err);
+            setError("Ocorreu um erro ao verificar o link de acesso.");
+        }
     } finally {
       setLoadingLink(false);
     }
   }, [firestore, linkId]);
 
   useEffect(() => {
-    // We only fetch link data if the user is NOT logged in, 
-    // because if they are, they'll be redirected to the dashboard anyway.
-    if (!user && !userLoading) {
-      fetchLinkData();
+    // This effect handles the core logic based on authentication state
+    if (userLoading) {
+      // Still checking auth state, do nothing yet. The loading spinner will show.
+      return;
     }
-  }, [fetchLinkData, user, userLoading]);
-  
-  useEffect(() => {
-    if (user && !userLoading) {
-      // If user is already logged in, redirect to dashboard for redemption
+
+    if (user) {
+      // User is logged in, redirect to the dashboard to handle redemption securely.
       router.push(`/dashboard?linkId=${linkId}`);
+    } else {
+      // No user is logged in. It's now safe to fetch public link data if we wanted to,
+      // but for max security, we will just show the login form.
+      // We can fetch minimal data here if rules were public.
+      // For now, just stop the main loading spinner.
+      setLoadingLink(false);
     }
-  }, [user, userLoading, router, linkId]);
+  }, [user, userLoading, router, linkId, fetchLinkData]);
 
 
   const mapFirebaseError = (code: string) => {
@@ -120,7 +132,7 @@ export default function PremiumAccessPage() {
   };
 
   const onSubmit = async (data: AuthFormValues) => {
-    if (!auth || !firestore || !linkData) return;
+    if (!auth || !firestore || !linkId) return;
     setAuthError(null);
 
     try {
@@ -142,8 +154,8 @@ export default function PremiumAccessPage() {
             });
         }
         
-        // The useEffect will handle redirection once the user state is updated.
-        // No need to manually push here.
+        // After successful login/signup, the useEffect will detect the user change and redirect to the dashboard.
+        // No manual redirect is needed here.
 
     } catch (error: any) {
         const message = mapFirebaseError(error.code);
@@ -152,13 +164,13 @@ export default function PremiumAccessPage() {
     }
   };
   
-  if (userLoading || loadingLink || user) {
+  // This is the main loading gate. It waits for the initial user check.
+  if (userLoading || user) {
     return <div className="flex min-h-screen items-center justify-center"><div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
   }
   
-  if (error) {
-    return <div className="flex min-h-screen items-center justify-center text-center text-destructive px-4"><h1>{error}</h1></div>;
-  }
+  // If we are here, it means userLoading is false AND user is null.
+  // We show the login/register form.
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -169,9 +181,8 @@ export default function PremiumAccessPage() {
                 Acesso Premium
             </h1>
             <p className="mt-2 text-muted-foreground">
-                {formMode === 'login' ? 'Faça login para acessar:' : 'Crie uma conta para acessar:'}
+                {formMode === 'login' ? 'Faça login para resgatar seu acesso.' : 'Crie uma conta para resgatar seu acesso.'}
             </p>
-            <p className="mt-1 font-semibold text-primary">{linkData?.courses.map(c => c.title).join(', ')}</p>
         </div>
 
         <Form {...form}>
@@ -199,7 +210,7 @@ export default function PremiumAccessPage() {
             )}/>
             {authError && <p className="text-sm font-medium text-destructive">{authError}</p>}
             <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting ? 'Processando...' : (formMode === 'login' ? 'Entrar e Acessar' : 'Criar Conta e Acessar')}
+              {form.formState.isSubmitting ? 'Processando...' : (formMode === 'login' ? 'Entrar e Resgatar' : 'Criar Conta e Resgatar')}
             </Button>
           </form>
         </Form>
@@ -215,4 +226,3 @@ export default function PremiumAccessPage() {
     </div>
   );
 }
-
