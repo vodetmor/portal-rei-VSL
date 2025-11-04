@@ -83,7 +83,7 @@ export default function RedeemPage() {
           transaction.update(linkRef, { uses: newUses });
         }
         
-        toast({ title: "Acesso Liberado!", description: `${coursesToActuallyGrant.length} novo(s) curso(s) foram adicionados à sua conta.` });
+        toast({ title: "Acesso Liberado!", description: `${coursesToActuallyGrant.length > 0 ? `${coursesToActuallyGrant.length} novo(s) curso(s) foram adicionados à sua conta.` : 'Você já possui acesso a todos os cursos deste link.'}` });
       });
       
       router.push('/dashboard');
@@ -105,10 +105,10 @@ export default function RedeemPage() {
 
     const unsubscribe = onAuthStateChanged(auth, (user) => {
         if (user) {
-            // User is logged in, proceed with redeeming access.
+            // Usuário está logado, pode prosseguir com o resgate
             redeemAccess(user);
         } else {
-            // User is not logged in, redirect to login page.
+            // Usuário não está logado, redireciona para login
             setStatusMessage("Redirecionando para a área de acesso...");
             localStorage.setItem("redirectAfterLogin", `/redeem/${linkId}`);
             router.push(`/login`);
@@ -141,8 +141,7 @@ export default function RedeemPage() {
     );
   }
 
-  // This part will only be reached if loading is false and there's no error,
-  // but by that point, the user should have been redirected.
-  // It's a fallback.
+  // Se o carregamento terminou e não houve erro, o redirecionamento já terá ocorrido.
+  // Este retorno é apenas um fallback.
   return null;
 }
