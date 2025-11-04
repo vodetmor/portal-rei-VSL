@@ -157,7 +157,7 @@
       "required": ["id", "name", "email", "message", "sentAt"]
     },
     "PremiumLink": {
-      "$schema": "http://json-schema.org/draft-07-schema#",
+      "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "PremiumLink",
       "type": "object",
       "description": "Represents a unique link that grants access to one or more courses.",
@@ -364,14 +364,15 @@
         }
       },
       {
-        "path": "/users/{userId}/demoAccess/{demoId}",
+        "path": "/users/{userId}/demoAccess/{courseId}/lessons/{lessonId}",
         "definition": {
           "entityName": "DemoAccess",
           "schema": { "$ref": "#/backend/entities/DemoAccess" },
-          "description": "Stores a record of a user's access to a specific demo lesson. The demoId is a concatenation of courseId and lessonId.",
+          "description": "Stores a record of a user's access to a specific demo lesson.",
           "params": [
             { "name": "userId", "description": "The ID of the user." },
-            { "name": "demoId", "description": "The unique identifier for the demo access, typically `courseId_lessonId`." }
+            { "name": "courseId", "description": "The ID of the course containing the demo." },
+            { "name": "lessonId", "description": "The ID of the specific demo lesson." }
           ]
         }
       },

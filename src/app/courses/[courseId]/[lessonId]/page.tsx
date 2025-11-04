@@ -175,8 +175,7 @@ export default function LessonPage() {
 
   const grantDemoAccess = useCallback(async (uid: string, cid: string, lid: string) => {
     if (!firestore) return;
-    const demoId = `${cid}_${lid}`;
-    const demoDocRef = doc(firestore, `users/${uid}/demoAccess`, demoId);
+    const demoDocRef = doc(firestore, `users/${uid}/demoAccess/${cid}/lessons/${lid}`);
     try {
         await setDoc(demoDocRef, { granted: true, timestamp: serverTimestamp() }, { merge: true });
     } catch (error) {
