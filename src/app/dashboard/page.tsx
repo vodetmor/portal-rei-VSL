@@ -5,10 +5,10 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { CourseCard } from '@/components/course-card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { doc, getDoc, collection, getDocs, setDoc, deleteDoc, type DocumentData, updateDoc, addDoc, query, where, writeBatch, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs, setDoc, deleteDoc, type DocumentData, updateDoc, addDoc, query, where, writeBatch, serverTimestamp, increment } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { useLayout } from '@/context/layout-context';
-import { ActionToolbar } from '@/components/ui/action-toolbar';
+import { ActionToolbar } from '@/components/admin/page-edit-actions';
 import { PageEditActions } from '@/components/admin/page-edit-actions';
 
 import Image from 'next/image';
@@ -469,7 +469,7 @@ function DashboardClientPage() {
         }
 
         const linkData = linkSnap.data();
-        if (!linkData.active) {
+        if (linkData.active === false) {
             toast({ variant: "destructive", title: "Link Inativo", description: "Este link de acesso não está mais ativo." });
             return;
         }
@@ -488,29 +488,27 @@ function DashboardClientPage() {
         const batch = writeBatch(firestore);
         let grantedCount = 0;
         
-        const currentAccess = { ...courseAccess };
+        const currentAccessSnapshot = await getDocs(collection(firestore, `users/${user.uid}/courseAccess`));
+        const currentAccessIds = new Set(currentAccessSnapshot.docs.map(d => d.id));
 
         courseIdsToGrant.forEach((courseId: string) => {
-            if (!currentAccess[courseId]) {
+            if (!currentAccessIds.has(courseId)) {
                 const accessRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId);
                 batch.set(accessRef, {
                     courseId: courseId,
                     grantedAt: serverTimestamp()
                 });
                 grantedCount++;
-                currentAccess[courseId] = true;
             }
         });
         
-        // Increment usage count
         if (grantedCount > 0) {
             batch.update(linkRef, {
-                uses: (linkData.uses || 0) + 1
+                uses: increment(1)
             });
             
             await batch.commit();
             toast({ title: "Acesso Liberado!", description: `${grantedCount} novo(s) curso(s) foram adicionados à sua conta.` });
-            setCourseAccess(currentAccess);
             await fetchCoursesAndProgress();
         } else {
             toast({ title: "Tudo Certo!", description: "Você já tem acesso a todos os cursos deste link." });
@@ -527,7 +525,7 @@ function DashboardClientPage() {
     } finally {
         router.replace('/dashboard', { scroll: false });
     }
-  }, [firestore, user, toast, router, fetchCoursesAndProgress, courseAccess]);
+  }, [firestore, user, toast, router, fetchCoursesAndProgress]);
 
   useEffect(() => {
     const linkId = searchParams.get('linkId');
@@ -918,4 +916,3 @@ export default function DashboardPage() {
     <DashboardClientPage />
   )
 }
-

@@ -18,13 +18,16 @@ export default function RedeemPage() {
 
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
-        // User is logged in. Redirect to dashboard to handle redemption.
+        // User is logged in. Redirect to dashboard to handle redemption securely.
         setMessage("Usuário autenticado. Redirecionando para o painel...");
         router.push(`/dashboard?linkId=${linkId}`);
       } else {
-        // User is not logged in. Redirect to premium access page which handles login/register.
-        setMessage("Você precisa fazer login para resgatar o acesso.");
-        router.push(`/premium/${linkId}`);
+        // User is not logged in. Redirect to the premium access page which handles login/register.
+        // It's better to go to the login page directly with a redirect param.
+        const redirectTo = `/login?redirect=/redeem/${linkId}`;
+        setMessage("Você precisa fazer login para resgatar o acesso. Redirecionando...");
+        localStorage.setItem("redirectAfterLogin", `/redeem/${linkId}`);
+        router.push(`/login`);
       }
     });
 
@@ -39,4 +42,3 @@ export default function RedeemPage() {
       </div>
   );
 }
-
