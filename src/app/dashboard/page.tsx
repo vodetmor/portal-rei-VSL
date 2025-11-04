@@ -1,3 +1,4 @@
+
 'use client';
 import { useUser, useFirestore } from '@/firebase';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -69,7 +70,7 @@ function DashboardClientPage() {
 
   const [courses, setCourses] = useState<Course[]>([]);
   const [courseAccess, setCourseAccess] = useState<CourseAccess>({});
-  const [loading, setLoading] = useState(true);
+  const [loadingData, setLoadingData] = useState(true);
   const [userProgress, setUserProgress] = useState<UserProgress>({});
   const [isAdmin, setIsAdmin] = useState(false);
   
@@ -324,68 +325,67 @@ function DashboardClientPage() {
     }
   };
 
-    const fetchCoursesAndProgress = useCallback(async () => {
-        if (!firestore || !user) return;
-        setLoading(true);
+  const fetchCoursesAndProgress = useCallback(async (userIsAdmin: boolean) => {
+    if (!firestore || !user) return;
+    setLoadingData(true);
 
-        try {
-            // Step 1: Check admin status
-            const userDocRef = doc(firestore, 'users', user.uid);
-            const userDocSnap = await getDoc(userDocRef);
-            const userIsAdmin = userDocSnap.exists() && userDocSnap.data().role === 'admin';
-            setIsAdmin(userIsAdmin);
-            
-            // Step 2: Fetch all accessible courses
-            const coursesSnapshot = await getDocs(
-                userIsAdmin 
-                    ? query(collection(firestore, 'courses')) 
-                    : query(collection(firestore, 'courses'), where('status', '==', 'published'))
-            );
-            const allFetchedCourses = coursesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
+    try {
+      // Build the query based on admin status
+      const coursesRef = collection(firestore, 'courses');
+      const coursesQuery = userIsAdmin
+        ? query(coursesRef)
+        : query(coursesRef, where('status', '==', 'published'));
+      
+      const coursesSnapshot = await getDocs(coursesQuery);
+      const allFetchedCourses = coursesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
+      
+      const publishedCourses = userIsAdmin ? allFetchedCourses : allFetchedCourses.filter(c => c.status === 'published');
+      setCourses(publishedCourses);
 
-            // Step 3: Determine course access
-            const newCourseAccess: CourseAccess = {};
-            if (userIsAdmin) {
-                allFetchedCourses.forEach(course => newCourseAccess[course.id] = true);
-            } else {
-                const accessSnapshot = await getDocs(collection(firestore, `users/${user.uid}/courseAccess`));
-                accessSnapshot.docs.forEach(doc => newCourseAccess[doc.id] = true);
-                allFetchedCourses.forEach(course => {
-                    if (course.isFree) newCourseAccess[course.id] = true;
-                });
-            }
-            
-            setCourses(allFetchedCourses);
-            setCourseAccess(newCourseAccess);
+      // Determine course access
+      const newCourseAccess: CourseAccess = {};
+      const accessSnapshot = await getDocs(collection(firestore, `users/${user.uid}/courseAccess`));
+      accessSnapshot.docs.forEach(doc => newCourseAccess[doc.id] = true);
+      publishedCourses.forEach(course => {
+        if (course.isFree) newCourseAccess[course.id] = true;
+      });
 
-            // Step 4: Fetch progress only for accessible courses
-            const accessibleCourseIds = Object.keys(newCourseAccess);
-            if (accessibleCourseIds.length > 0) {
-                const progressPromises = accessibleCourseIds.map(id => getDoc(doc(firestore, `users/${user.uid}/progress`, id)));
-                const progressSnaps = await Promise.all(progressPromises);
-                const progressData: UserProgress = {};
-                progressSnaps.forEach(snap => {
-                    if (snap.exists()) {
-                        progressData[snap.id] = snap.data() as UserProgress[string];
-                    }
-                });
-                setUserProgress(progressData);
-            }
+      if (userIsAdmin) {
+        allFetchedCourses.forEach(course => newCourseAccess[course.id] = true);
+        setCourses(allFetchedCourses);
+      } else {
+        setCourses(publishedCourses);
+      }
+      setCourseAccess(newCourseAccess);
 
-        } catch (error: any) {
-            console.error("Error fetching courses and progress: ", error);
-            if (error.code === 'permission-denied') {
-                errorEmitter.emit('permission-error', new FirestorePermissionError({
-                    path: `courses`,
-                    operation: 'list'
-                }));
-            }
-            toast({ variant: "destructive", title: "Erro ao Carregar", description: "Não foi possível carregar os cursos." });
-            setCourses([]);
-        } finally {
-            setLoading(false);
-        }
-    }, [firestore, user, toast]);
+      // Fetch progress only for accessible courses
+      const accessibleCourseIds = Object.keys(newCourseAccess);
+      if (accessibleCourseIds.length > 0) {
+        const progressPromises = accessibleCourseIds.map(id => getDoc(doc(firestore, `users/${user.uid}/progress`, id)));
+        const progressSnaps = await Promise.all(progressPromises);
+        const progressData: UserProgress = {};
+        progressSnaps.forEach(snap => {
+          if (snap.exists()) {
+            progressData[snap.id] = snap.data() as UserProgress[string];
+          }
+        });
+        setUserProgress(progressData);
+      }
+
+    } catch (error: any) {
+      console.error("Error fetching courses and progress: ", error);
+      if (error.code === 'permission-denied') {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: `courses`,
+          operation: 'list'
+        }));
+      }
+      toast({ variant: "destructive", title: "Erro ao Carregar", description: "Não foi possível carregar os cursos." });
+      setCourses([]);
+    } finally {
+      setLoadingData(false);
+    }
+  }, [firestore, user, toast]);
   
   const handleConfirmDelete = (courseId: string) => {
     if (!firestore) return;
@@ -396,7 +396,7 @@ function DashboardClientPage() {
           title: "Curso Excluído",
           description: "O curso foi removido com sucesso.",
         });
-        fetchCoursesAndProgress();
+        fetchCoursesAndProgress(isAdmin);
       })
       .catch((error) => {
         console.error("Error deleting course: ", error);
@@ -448,13 +448,6 @@ function DashboardClientPage() {
         });
       });
   };
-
-
-  useEffect(() => {
-    if (!userLoading && !user) {
-      router.push('/login');
-    }
-  }, [user, userLoading, router]);
 
   const redeemPremiumLink = useCallback(async (linkId: string) => {
     if (!firestore || !user) return;
@@ -509,7 +502,7 @@ function DashboardClientPage() {
             
             await batch.commit();
             toast({ title: "Acesso Liberado!", description: `${grantedCount} novo(s) curso(s) foram adicionados à sua conta.` });
-            await fetchCoursesAndProgress();
+            await fetchCoursesAndProgress(isAdmin);
         } else {
             toast({ title: "Tudo Certo!", description: "Você já tem acesso a todos os cursos deste link." });
         }
@@ -525,23 +518,49 @@ function DashboardClientPage() {
     } finally {
         router.replace('/dashboard', { scroll: false });
     }
-  }, [firestore, user, toast, router, fetchCoursesAndProgress]);
+  }, [firestore, user, toast, router, fetchCoursesAndProgress, isAdmin]);
 
   useEffect(() => {
+    if (userLoading) return; // Wait until auth state is known
+
+    if (!user) {
+        router.push('/login');
+        return;
+    }
+    
+    // Once user is confirmed, check admin status and fetch data
+    const checkAdminAndFetchData = async () => {
+        if (!firestore) return;
+        setLoadingData(true);
+        let userIsAdmin = false;
+        try {
+            const userDocRef = doc(firestore, 'users', user.uid);
+            const userDocSnap = await getDoc(userDocRef);
+            userIsAdmin = userDocSnap.exists() && userDocSnap.data().role === 'admin';
+        } catch (error: any) {
+            console.error('Error checking admin status:', error);
+            if (error.code === 'permission-denied') {
+                const permissionError = new FirestorePermissionError({
+                    path: `users/${user.uid}`,
+                    operation: 'get',
+                });
+                errorEmitter.emit('permission-error', permissionError);
+            }
+            userIsAdmin = false; // Assume not admin on error
+        }
+        setIsAdmin(userIsAdmin);
+        await fetchCoursesAndProgress(userIsAdmin);
+        setLoadingData(false);
+    };
+
+    checkAdminAndFetchData();
+
+    // Handle premium link redemption
     const linkId = searchParams.get('linkId');
-    if (linkId && user && firestore) {
+    if (linkId) {
         redeemPremiumLink(linkId);
     }
-  }, [searchParams, user, firestore, redeemPremiumLink]);
-
-
-  useEffect(() => {
-    if (user && firestore && !userLoading) {
-        fetchCoursesAndProgress();
-    } else if (!user && !userLoading) {
-      router.push('/login');
-    }
-  }, [user, firestore, userLoading, fetchCoursesAndProgress, router]);
+}, [user, userLoading, firestore, router, fetchCoursesAndProgress, redeemPremiumLink, searchParams]);
   
   // Effect to set initial content of contentEditable divs & sync state
   useEffect(() => {
@@ -560,7 +579,7 @@ function DashboardClientPage() {
     }
   }, [isEditMode, tempHeroTitle, tempHeroSubtitle, tempCtaText, layoutData]);
 
-  if (userLoading || !user || layoutData.isLoading) {
+  if (userLoading || loadingData || layoutData.isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
@@ -787,7 +806,7 @@ function DashboardClientPage() {
                     </Button>
                 )}
             </div>
-            {loading ? (
+            {loadingData ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
                   {Array.from({ length: 4 }).map((_, index) => (
                       <div key={index}>
@@ -875,3 +894,5 @@ export default function DashboardPage() {
     <DashboardClientPage />
   )
 }
+
+    
