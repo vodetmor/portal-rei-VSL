@@ -97,36 +97,40 @@ export default function ProfilePage() {
     defaultValues: { otp: '' }
   });
 
+  const resetProfileForm = useCallback(() => {
+    if (user) {
+        profileForm.reset({ displayName: user.displayName || '' });
+        setAvatarPreview(user.photoURL || null);
+        setAvatarUrlInput(user.photoURL || '');
+        setAvatarFile(null);
+    }
+  }, [user, profileForm]);
+
 
   useEffect(() => {
     if (!userLoading && !user) {
       router.push('/login');
     }
     if (user) {
-      profileForm.reset({ displayName: user.displayName || '' });
-      setAvatarPreview(user.photoURL || null);
-      setAvatarUrlInput(user.photoURL || '');
-      
+      resetProfileForm();
       const enrolledMfa = multiFactor(user).enrolledFactors;
       setMfaEnrollment(enrolledMfa.length > 0 ? enrolledMfa[0] : null);
     }
-  }, [user, userLoading, router, profileForm]);
+  }, [user, userLoading, router, resetProfileForm]);
   
   useEffect(() => {
-    if (auth && !recaptchaVerifierRef.current) {
-      // Ensure the container exists before initializing.
+    if (auth && !recaptchaVerifierRef.current && activeTab === 'security') {
       const recaptchaContainer = document.getElementById('recaptcha-container');
-      if (recaptchaContainer) {
+      if (recaptchaContainer && recaptchaContainer.childElementCount === 0) {
         recaptchaVerifierRef.current = new RecaptchaVerifier(auth, recaptchaContainer, {
           'size': 'invisible',
           'callback': () => {},
           'expired-callback': () => {}
         });
-        // Render the reCAPTCHA widget when the component mounts
         recaptchaVerifierRef.current.render();
       }
     }
-  }, [auth, activeTab]); // Re-run if auth or the activeTab changes (to re-init on tab switch if needed)
+  }, [auth, activeTab]);
 
 
   const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -345,7 +349,7 @@ export default function ProfilePage() {
                         <div className="relative group">
                         <Avatar className="h-24 w-24">
                             <AvatarImage src={avatarPreview || undefined} alt={user.displayName || 'User'} />
-                            <AvatarFallback>{user.displayName?.charAt(0).toUpperCase()}</AvatarFallback>
+                            <AvatarFallback>{user.displayName?.charAt(0).toUpperCase()} </AvatarFallback>
                         </Avatar>
                         </div>
                         <div className="w-full flex-1">
@@ -388,7 +392,10 @@ export default function ProfilePage() {
                     )}
                   />
                 </CardContent>
-                <CardFooter className="border-t px-6 py-4">
+                <CardFooter className="border-t px-6 py-4 flex justify-end gap-2">
+                  <Button type="button" variant="outline" onClick={resetProfileForm} disabled={isSavingProfile}>
+                    Cancelar
+                  </Button>
                   <Button type="submit" disabled={isSavingProfile}>
                     {isSavingProfile ? 'Salvando...' : 'Salvar Alterações'}
                   </Button>
@@ -461,7 +468,6 @@ export default function ProfilePage() {
                     )}
                 </CardContent>
                 <CardFooter>
-                  {/* This div is essential for RecaptchaVerifier to find its container */}
                   <div id="recaptcha-container"></div>
                 </CardFooter>
             </Card>
@@ -521,3 +527,5 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+    
