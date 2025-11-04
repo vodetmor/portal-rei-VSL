@@ -88,7 +88,7 @@ function DashboardClientPage() {
   const [tempHeroTextVisible, setTempHeroTextVisible] = useState(layoutData.heroTextVisible);
   
   const [heroImageDesktopFile, setHeroImageDesktopFile] = useState<File | null>(null);
-  const [heroImageMobileFile, setHeroImageMobileFile = useState<File | null>(null);
+  const [heroImageMobileFile, setHeroImageMobileFile] = useState<File | null>(null);
 
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [imageInputMode, setImageInputMode] = useState<'desktop' | 'mobile'>('desktop');
