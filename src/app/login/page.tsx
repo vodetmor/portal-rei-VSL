@@ -38,7 +38,6 @@ export default function LoginPage() {
   });
 
   useEffect(() => {
-    // This effect handles redirection for already logged-in users.
     if (user && !user.isAnonymous && !loading) {
         const redirectPath = localStorage.getItem('redirectAfterLogin');
         if (redirectPath) {

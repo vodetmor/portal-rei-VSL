@@ -98,15 +98,17 @@ export default function RedeemPage() {
 
   useEffect(() => {
     if (!auth || !linkId) {
-        setError("Ocorreu um erro de inicialização.");
         setLoading(false);
+        setError("Ocorreu um erro de inicialização.");
         return;
     };
 
     const unsubscribe = onAuthStateChanged(auth, (user) => {
         if (user) {
+            // User is logged in, proceed with redeeming access.
             redeemAccess(user);
         } else {
+            // User is not logged in, redirect to login page.
             setStatusMessage("Redirecionando para a área de acesso...");
             localStorage.setItem("redirectAfterLogin", `/redeem/${linkId}`);
             router.push(`/login`);
@@ -129,11 +131,18 @@ export default function RedeemPage() {
     );
   }
   
-  return (
-    <div className="flex min-h-screen flex-col items-center justify-center text-center px-4">
-        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent mb-4" />
-        <h1 className="text-2xl font-bold text-white">Um momento...</h1>
-        <p className="text-muted-foreground mt-2">{statusMessage}</p>
-    </div>
-  );
+  if(loading) {
+    return (
+        <div className="flex min-h-screen flex-col items-center justify-center text-center px-4">
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent mb-4" />
+            <h1 className="text-2xl font-bold text-white">Um momento...</h1>
+            <p className="text-muted-foreground mt-2">{statusMessage}</p>
+        </div>
+    );
+  }
+
+  // This part will only be reached if loading is false and there's no error,
+  // but by that point, the user should have been redirected.
+  // It's a fallback.
+  return null;
 }
