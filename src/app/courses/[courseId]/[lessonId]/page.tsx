@@ -334,6 +334,10 @@ export default function LessonPage() {
 
   useEffect(() => {
     setIsClient(true);
+    // Set sidebar open by default on desktop
+    if (typeof window !== 'undefined' && window.innerWidth >= 768) {
+      setIsSidebarOpen(true);
+    }
     fetchLessonData();
   }, [fetchLessonData]);
 
@@ -453,8 +457,8 @@ export default function LessonPage() {
       {/* Sidebar */}
       <aside
         className={cn(
-          'fixed top-0 left-0 z-40 h-full w-80 shrink-0 border-r border-border bg-background transition-transform md:relative md:translate-x-0',
-          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          'fixed top-0 left-0 z-40 h-full w-80 shrink-0 border-r border-border bg-background transition-transform md:relative',
+          isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:-ml-80'
         )}
       >
         <div className="flex h-20 items-center justify-between border-b border-border px-4">
@@ -511,13 +515,13 @@ export default function LessonPage() {
         </div>
       </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className={cn("flex min-w-0 flex-1 flex-col transition-all duration-300", isSidebarOpen && 'md:ml-0')}>
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto">
           {/* Header */}
-          <header className="flex h-20 items-center justify-between border-b border-border bg-background/80 backdrop-blur-sm px-4 md:sticky top-0 z-30">
+          <header className="flex h-20 items-center justify-between border-b border-border bg-background/80 backdrop-blur-sm px-4 static top-0 z-30">
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setIsSidebarOpen(true)}>
+              <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
                   <Menu className="h-5 w-5" />
               </Button>
               <div className='hidden md:flex items-center gap-2'>
