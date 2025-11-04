@@ -174,13 +174,14 @@ export default function CoursePlayerPage() {
         if (progressSnap.exists()) {
             setUserProgress(progressSnap.data() as UserProgress);
         }
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error fetching course data:', error);
-        const permissionError = new FirestorePermissionError({
-            path: `courses/${courseId}`,
-            operation: 'get',
-        });
-        errorEmitter.emit('permission-error', permissionError);
+        if (error.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: `courses/${courseId}`,
+                operation: 'get'
+            }));
+        }
         toast({ variant: "destructive", title: "Erro de Permissão", description: "Ocorreu um erro ao carregar o curso." });
     } finally {
         setLoading(false);
@@ -304,7 +305,7 @@ export default function CoursePlayerPage() {
         toast({ title: "Sucesso!", description: "O curso foi atualizado." });
         setIsEditMode(false);
 
-    } catch (error) {
+    } catch (error: any) {
         console.error('Error saving course:', error);
         const permissionError = new FirestorePermissionError({
             path: `courses/${courseId}`,

@@ -313,7 +313,7 @@ function DashboardClientPage() {
       toast({ title: 'Curso atualizado!' });
       // Refresh local state
       setCourses(courses.map(c => c.id === courseId ? { ...c, ...data } : c));
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating course:', error);
       const permissionError = new FirestorePermissionError({
         path: courseRef.path,
@@ -379,8 +379,14 @@ function DashboardClientPage() {
             setUserProgress({});
         }
 
-    } catch (error) {
+    } catch (error: any) {
         console.error("Error fetching courses and progress: ", error);
+        if (error.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: `courses or users/${user.uid}/courseAccess`,
+                operation: 'list'
+            }));
+        }
         toast({ variant: "destructive", title: "Erro ao Carregar", description: "Não foi possível carregar os cursos."});
         setCourses([]);
     } finally {
@@ -549,7 +555,7 @@ function DashboardClientPage() {
               } else {
                 setIsAdmin(false);
               }
-            } catch (error) {
+            } catch (error: any) {
                 const permissionError = new FirestorePermissionError({
                     path: userDocRef.path,
                     operation: 'get',
@@ -916,4 +922,3 @@ export default function DashboardPage() {
     <DashboardClientPage />
   )
 }
-

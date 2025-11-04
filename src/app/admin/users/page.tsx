@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useEffect, useState, useMemo } from 'react';
@@ -48,14 +49,14 @@ function UserManagementPage() {
         const querySnapshot = await getDocs(q);
         const usersData = querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })) as User[];
         setUsers(usersData);
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error fetching users:", error);
-        // This is a prime candidate for the permission error emitter
-        const permissionError = new FirestorePermissionError({
-            path: 'users',
-            operation: 'list'
-        });
-        errorEmitter.emit('permission-error', permissionError);
+        if (error.code === 'permission-denied') {
+            errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: 'users',
+                operation: 'list'
+            }));
+        }
 
         toast({
           variant: "destructive",
