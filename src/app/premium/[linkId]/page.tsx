@@ -40,7 +40,6 @@ export default function PremiumAccessPage() {
   const { user, loading: userLoading } = useUser();
   const router = useRouter();
   const params = useParams();
-  const { toast } = useToast();
   
   const linkId = params.linkId as string;
   
@@ -56,12 +55,9 @@ export default function PremiumAccessPage() {
   });
 
   useEffect(() => {
-    if (userLoading) {
-      return;
-    }
-    if (user) {
+    if (user && !userLoading) {
       router.push(`/dashboard?linkId=${linkId}`);
-    } else {
+    } else if (!userLoading) {
       setLoadingLink(false);
     }
   }, [user, userLoading, router, linkId]);
@@ -72,7 +68,7 @@ export default function PremiumAccessPage() {
       case 'auth/user-not-found':
       case 'auth/wrong-password':
       case 'auth/invalid-credential':
-        return 'Credenciais inválidas. Verifique seu e-mail e senha ou se o método de login (ex: Google) está correto.';
+        return 'Credenciais inválidas. Verifique seu e-mail e senha.';
       case 'auth/email-already-in-use':
         return 'Este email já está em uso. Tente fazer login.';
       case 'auth/invalid-email':
@@ -106,7 +102,7 @@ export default function PremiumAccessPage() {
                   role: 'user',
               });
           }
-          // Redirection handled by useEffect
+          router.push(`/dashboard?linkId=${linkId}`);
       } catch (error: any) {
           const message = mapFirebaseError(error.code);
           setAuthError(message);
@@ -118,11 +114,10 @@ export default function PremiumAccessPage() {
     setAuthError(null);
 
     try {
-        let userCredential;
         if (formMode === 'login') {
-            userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
+            await signInWithEmailAndPassword(auth, data.email, data.password);
         } else {
-            userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+            const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
             const userDocRef = doc(firestore, 'users', userCredential.user.uid);
             const userDocData = {
                 email: userCredential.user.email,
@@ -135,6 +130,7 @@ export default function PremiumAccessPage() {
                 errorEmitter.emit('permission-error', permissionError);
             });
         }
+        router.push(`/dashboard?linkId=${linkId}`);
     } catch (error: any) {
         const message = mapFirebaseError(error.code);
         setAuthError(message);

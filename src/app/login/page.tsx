@@ -64,7 +64,7 @@ export default function LoginPage() {
       case 'auth/user-not-found':
       case 'auth/wrong-password':
       case 'auth/invalid-credential':
-        return 'Credenciais inválidas. Verifique seu e-mail e senha ou se o método de login (ex: Google) está correto.';
+        return 'Credenciais inválidas. Verifique seu e-mail e senha.';
       case 'auth/invalid-email':
           return "Formato de e-mail inválido.";
       case 'auth/too-many-requests':
@@ -76,6 +76,12 @@ export default function LoginPage() {
     }
   };
 
+  const handleSuccessfulLogin = () => {
+    const redirectPath = localStorage.getItem('redirectAfterLogin');
+    localStorage.removeItem('redirectAfterLogin');
+    router.push(redirectPath || '/dashboard');
+  };
+
   const handleGoogleSignIn = async () => {
     if (!auth || !firestore) return;
     setAuthError(null);
@@ -84,20 +90,18 @@ export default function LoginPage() {
         const result = await signInWithPopup(auth, provider);
         const user = result.user;
 
-        // Check if user exists in Firestore
         const userDocRef = doc(firestore, 'users', user.uid);
         const userDocSnap = await getDoc(userDocRef);
 
         if (!userDocSnap.exists()) {
-            // Create user document if it doesn't exist
             await setDoc(userDocRef, {
                 email: user.email,
                 displayName: user.displayName,
                 photoURL: user.photoURL,
-                role: 'user', // default role
+                role: 'user',
             });
         }
-        // Redirection is handled by the useEffect
+        handleSuccessfulLogin();
     } catch (error: any) {
         const message = mapFirebaseError(error.code);
         setAuthError(message);
@@ -110,7 +114,7 @@ export default function LoginPage() {
     setAuthError(null);
     try {
       await signInWithEmailAndPassword(auth, data.email, data.password);
-      // The useEffect will handle redirection once the user state updates.
+      handleSuccessfulLogin();
     } catch (error: any) {
       const message = mapFirebaseError(error.code);
       setAuthError(message);

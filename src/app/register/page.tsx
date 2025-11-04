@@ -76,6 +76,12 @@ export default function RegisterPage() {
     }
   };
 
+  const handleSuccessfulLogin = () => {
+    const redirectPath = localStorage.getItem('redirectAfterLogin');
+    localStorage.removeItem('redirectAfterLogin');
+    router.push(redirectPath || '/dashboard');
+  };
+
   const handleGoogleSignIn = async () => {
     if (!auth || !firestore) return;
     setAuthError(null);
@@ -92,9 +98,10 @@ export default function RegisterPage() {
                 email: user.email,
                 displayName: user.displayName,
                 photoURL: user.photoURL,
-                role: 'user', // default role
+                role: 'user',
             });
         }
+        handleSuccessfulLogin();
     } catch (error: any) {
         const message = mapFirebaseError(error.code);
         setAuthError(message);
@@ -129,6 +136,7 @@ export default function RegisterPage() {
             });
             errorEmitter.emit('permission-error', permissionError);
         });
+      handleSuccessfulLogin();
 
     } catch (error: any) {
       const message = mapFirebaseError(error.code);
