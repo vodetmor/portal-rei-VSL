@@ -62,12 +62,11 @@ service cloud.firestore {
     }
 
     match /courses/{courseId} {
-      // Any authenticated user can read course metadata (title, description, etc.)
-      // This is safe because lesson content is protected by its own rules.
-      // This rule is CRITICAL for the premium link redemption to work, as it needs
-      // to read course titles before granting access.
-      allow read: if request.auth != null; 
-      allow list: if request.auth != null;
+      // Admins can read any course, published or not.
+      // Authenticated users can read any PUBLISHED course.
+      // This is crucial for both the dashboard and for premium link redemption.
+      allow read: if isAdmin() || (request.auth != null && resource.data.status == 'published');
+      allow list: if isAdmin(); // Only admins can list all courses (including drafts)
       allow write: if isAdmin();
     }
     

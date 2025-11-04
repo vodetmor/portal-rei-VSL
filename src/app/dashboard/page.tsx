@@ -1,4 +1,3 @@
-
 'use client';
 import { useUser, useFirestore } from '@/firebase';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -383,7 +382,7 @@ function DashboardClientPage() {
         console.error("Error fetching courses and progress: ", error);
         if (error.code === 'permission-denied') {
             errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: `courses or users/${user.uid}/courseAccess`,
+                path: `courses`,
                 operation: 'list'
             }));
         }
