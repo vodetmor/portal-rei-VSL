@@ -1,4 +1,3 @@
-
 'use client';
 import { useUser, useFirestore } from '@/firebase';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -325,81 +324,68 @@ function DashboardClientPage() {
     }
   };
 
+    const fetchCoursesAndProgress = useCallback(async () => {
+        if (!firestore || !user) return;
+        setLoading(true);
 
-  const fetchCoursesAndProgress = useCallback(async () => {
-    if (!firestore || !user) return;
-    setLoading(true);
-
-    try {
-        let finalIsAdmin = false;
-        if (user.email === 'admin@reidavsl.com') {
-            finalIsAdmin = true;
-        } else {
+        try {
+            // Step 1: Check admin status
             const userDocRef = doc(firestore, 'users', user.uid);
             const userDocSnap = await getDoc(userDocRef);
-            finalIsAdmin = userDocSnap.exists() && userDocSnap.data().role === 'admin';
-        }
-        setIsAdmin(finalIsAdmin);
-
-        let coursesQuery;
-        if (finalIsAdmin) {
-            coursesQuery = query(collection(firestore, 'courses'));
-        } else {
-            coursesQuery = query(collection(firestore, 'courses'), where('status', '==', 'published'));
-        }
-        
-        const coursesSnapshot = await getDocs(coursesQuery);
-        const allFetchedCourses = coursesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
-        
-        const newCourseAccess: CourseAccess = {};
-        if (finalIsAdmin) {
-            allFetchedCourses.forEach(course => newCourseAccess[course.id] = true);
-        } else {
-            const accessQuery = query(collection(firestore, `users/${user.uid}/courseAccess`));
-            const accessSnapshot = await getDocs(accessQuery);
-            accessSnapshot.docs.forEach(doc => {
-                newCourseAccess[doc.id] = true;
-            });
-            allFetchedCourses.forEach(course => {
-                if (course.isFree) {
-                    newCourseAccess[course.id] = true;
-                }
-            });
-        }
-        
-        setCourses(allFetchedCourses);
-        setCourseAccess(newCourseAccess);
-        
-        const accessibleCourseIds = allFetchedCourses.filter(c => newCourseAccess[c.id]).map(c => c.id);
-        if (accessibleCourseIds.length > 0) {
-            const progressPromises = accessibleCourseIds.map(id => getDoc(doc(firestore, `users/${user.uid}/progress`, id)));
-            const progressSnaps = await Promise.all(progressPromises);
+            const userIsAdmin = userDocSnap.exists() && userDocSnap.data().role === 'admin';
+            setIsAdmin(userIsAdmin);
             
-            const progressData: UserProgress = {};
-            progressSnaps.forEach(snap => {
-                if (snap.exists()) {
-                    progressData[snap.id] = snap.data() as UserProgress[string];
-                }
-            });
-            setUserProgress(progressData);
-        } else {
-            setUserProgress({});
-        }
+            // Step 2: Fetch all accessible courses
+            const coursesSnapshot = await getDocs(
+                userIsAdmin 
+                    ? query(collection(firestore, 'courses')) 
+                    : query(collection(firestore, 'courses'), where('status', '==', 'published'))
+            );
+            const allFetchedCourses = coursesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
 
-    } catch (error: any) {
-        console.error("Error fetching courses and progress: ", error);
-        if (error.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: `courses`,
-                operation: 'list'
-            }));
+            // Step 3: Determine course access
+            const newCourseAccess: CourseAccess = {};
+            if (userIsAdmin) {
+                allFetchedCourses.forEach(course => newCourseAccess[course.id] = true);
+            } else {
+                const accessSnapshot = await getDocs(collection(firestore, `users/${user.uid}/courseAccess`));
+                accessSnapshot.docs.forEach(doc => newCourseAccess[doc.id] = true);
+                allFetchedCourses.forEach(course => {
+                    if (course.isFree) newCourseAccess[course.id] = true;
+                });
+            }
+            
+            setCourses(allFetchedCourses);
+            setCourseAccess(newCourseAccess);
+
+            // Step 4: Fetch progress only for accessible courses
+            const accessibleCourseIds = Object.keys(newCourseAccess);
+            if (accessibleCourseIds.length > 0) {
+                const progressPromises = accessibleCourseIds.map(id => getDoc(doc(firestore, `users/${user.uid}/progress`, id)));
+                const progressSnaps = await Promise.all(progressPromises);
+                const progressData: UserProgress = {};
+                progressSnaps.forEach(snap => {
+                    if (snap.exists()) {
+                        progressData[snap.id] = snap.data() as UserProgress[string];
+                    }
+                });
+                setUserProgress(progressData);
+            }
+
+        } catch (error: any) {
+            console.error("Error fetching courses and progress: ", error);
+            if (error.code === 'permission-denied') {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({
+                    path: `courses`,
+                    operation: 'list'
+                }));
+            }
+            toast({ variant: "destructive", title: "Erro ao Carregar", description: "Não foi possível carregar os cursos." });
+            setCourses([]);
+        } finally {
+            setLoading(false);
         }
-        toast({ variant: "destructive", title: "Erro ao Carregar", description: "Não foi possível carregar os cursos."});
-        setCourses([]);
-    } finally {
-        setLoading(false);
-    }
-  }, [firestore, user, toast]);
+    }, [firestore, user, toast]);
   
   const handleConfirmDelete = (courseId: string) => {
     if (!firestore) return;
