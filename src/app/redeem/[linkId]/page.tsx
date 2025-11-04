@@ -20,18 +20,17 @@ export default function RedeemPage() {
   
   const linkId = params.linkId as string;
   
-  const [loading, setLoading] = useState(true);
-  const [statusMessage, setStatusMessage] = useState("Verificando seu acesso...");
-  const [error, setError] = useState<string | null>(null);
+  const [status, setStatus] = useState<'loading' | 'error' | 'success'>('loading');
+  const [message, setMessage] = useState("Verificando seu acesso...");
 
   const redeemAccess = useCallback(async (user: User) => {
     if (!firestore || !linkId) {
-      setError("Ocorreu um erro interno. Tente novamente.");
-      setLoading(false);
+      setMessage("Ocorreu um erro interno. Tente novamente.");
+      setStatus('error');
       return;
     }
 
-    setStatusMessage("Validando o link de acesso...");
+    setMessage("Validando o link de acesso...");
     const linkRef = doc(firestore, 'premiumLinks', linkId);
     
     try {
@@ -56,7 +55,7 @@ export default function RedeemPage() {
           return; 
         }
         
-        setStatusMessage(`Concedendo acesso a ${courseIdsToGrant.length} curso(s)...`);
+        setMessage(`Concedendo acesso a ${courseIdsToGrant.length} curso(s)...`);
 
         const accessCheckPromises = courseIdsToGrant.map(courseId => 
             getDoc(doc(firestore, `users/${user.uid}/courseAccess`, courseId))
@@ -88,19 +87,22 @@ export default function RedeemPage() {
         toast({ title: "Acesso Liberado!", description: `${coursesToActuallyGrant.length > 0 ? `${coursesToActuallyGrant.length} novo(s) curso(s) foram adicionados à sua conta.` : 'Você já possui acesso a todos os cursos deste link.'}` });
       });
       
+      setStatus('success');
+      setMessage("Acesso concedido! Redirecionando...");
       router.push('/dashboard');
 
     } catch (e: any) {
         console.error("Redemption transaction error: ", e);
-        setError(e.message || "Não foi possível resgatar o acesso. Por favor, contate o suporte.");
-        setLoading(false);
+        setMessage(e.message || "Não foi possível resgatar o acesso. Por favor, contate o suporte.");
+        setStatus('error');
     }
 
   }, [firestore, linkId, router, toast]);
 
   useEffect(() => {
     if (!auth || !linkId) {
-      setStatusMessage("Erro de configuração. Tente recarregar.");
+      setMessage("Erro de configuração. Tente recarregar a página.");
+      setStatus('error');
       return;
     };
 
@@ -110,7 +112,7 @@ export default function RedeemPage() {
         redeemAccess(user);
       } else {
         // Usuário não está logado, redireciona para a tela de login.
-        setStatusMessage("Redirecionando para a área de acesso...");
+        setMessage("Redirecionando para a área de acesso...");
         localStorage.setItem("redirectAfterLogin", `/redeem/${linkId}`);
         router.push(`/login`);
       }
@@ -119,12 +121,12 @@ export default function RedeemPage() {
     return () => unsubscribe();
   }, [auth, linkId, redeemAccess, router]);
   
-  if (error) {
+  if (status === 'error') {
     return (
         <div className="flex min-h-screen flex-col items-center justify-center text-center px-4">
             <Lock className="mx-auto h-12 w-12 text-destructive mb-4" />
             <h1 className="text-2xl font-bold text-white">Erro ao Resgatar Acesso</h1>
-            <p className="text-muted-foreground mt-2">{error}</p>
+            <p className="text-muted-foreground mt-2">{message}</p>
             <Button asChild className="mt-6">
                 <Link href="/dashboard">Voltar ao Início</Link>
             </Button>
@@ -132,17 +134,11 @@ export default function RedeemPage() {
     );
   }
   
-  // Exibe a tela de carregamento enquanto o onAuthStateChanged está em execução.
-  if (loading) {
-    return (
-        <div className="flex min-h-screen flex-col items-center justify-center text-center px-4">
-            <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent mb-4" />
-            <h1 className="text-2xl font-bold text-white">Um momento...</h1>
-            <p className="text-muted-foreground mt-2">{statusMessage}</p>
-        </div>
-    );
-  }
-
-  // O redirecionamento já terá ocorrido se o carregamento terminar sem erro.
-  return null;
+  return (
+      <div className="flex min-h-screen flex-col items-center justify-center text-center px-4">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent mb-4" />
+          <h1 className="text-2xl font-bold text-white">Um momento...</h1>
+          <p className="text-muted-foreground mt-2">{message}</p>
+      </div>
+  );
 }
