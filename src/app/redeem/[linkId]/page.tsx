@@ -29,7 +29,7 @@ export default function RedeemPage() {
         return;
     };
 
-    setStatusMessage("Verificando link de acesso...");
+    setStatusMessage("Validando o link de acesso...");
     const linkRef = doc(firestore, 'premiumLinks', linkId);
     
     try {
@@ -40,7 +40,7 @@ export default function RedeemPage() {
         }
 
         const currentLinkData = linkSnap.data();
-        const maxUses = currentLinkData.maxUses || 0;
+        const maxUses = currentLinkData.maxUses || 0; // 0 for unlimited
         const currentUses = currentLinkData.uses || 0;
 
         if (maxUses > 0 && currentUses >= maxUses) {
@@ -50,43 +50,46 @@ export default function RedeemPage() {
         const courseIdsToGrant: string[] = currentLinkData.courseIds || [];
         
         if (courseIdsToGrant.length === 0) {
+            // This transaction doesn't need to write, so we can just inform the user.
             toast({ title: "Nenhum curso encontrado", description: "Este link não está associado a nenhum curso."});
-            router.push('/dashboard');
-            return;
+            return; // Exit transaction
         }
         
         setStatusMessage(`Concedendo acesso a ${courseIdsToGrant.length} curso(s)...`);
 
-        const batch = writeBatch(firestore);
+        // Check which courses the user already has access to
+        const accessCheckPromises = courseIdsToGrant.map(courseId => 
+            transaction.get(doc(firestore, `users/${user.uid}/courseAccess`, courseId))
+        );
+        const accessDocs = await Promise.all(accessCheckPromises);
         
-        for (const courseId of courseIdsToGrant) {
-            const accessRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId);
-            // We check for existence within the transaction
-            const accessDoc = await transaction.get(accessRef);
-            if (!accessDoc.exists()) {
-                batch.set(accessRef, {
+        const coursesToActuallyGrant = courseIdsToGrant.filter((_, index) => !accessDocs[index].exists());
+        
+        if (coursesToActuallyGrant.length > 0) {
+            const batch = writeBatch(transaction); // Use the transaction's write batch
+            coursesToActuallyGrant.forEach(courseId => {
+                const accessRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId);
+                 batch.set(accessRef, {
                     courseId: courseId,
                     grantedAt: serverTimestamp(),
                     redeemedByLink: linkId,
                 });
-            }
-        }
-        
-        // Only commit if there are changes
-        if (batch.length > 0) {
-             await batch.commit();
+            });
+            // The batch writes will be part of the transaction
+            await batch.commit(); 
         }
 
-        // Update the link usage
+        // Always update the link usage if the link was valid, even if no new courses were granted
         const newUses = increment(1);
         if (maxUses > 0 && currentUses + 1 >= maxUses) {
           transaction.update(linkRef, { uses: newUses, active: false });
         } else {
           transaction.update(linkRef, { uses: newUses });
         }
+        
+        toast({ title: "Acesso Liberado!", description: `${coursesToActuallyGrant.length} novo(s) curso(s) foram adicionados à sua conta.` });
       });
       
-      toast({ title: "Acesso Liberado!", description: "Os cursos foram adicionados à sua conta." });
       router.push('/dashboard');
 
     } catch (e: any) {
@@ -98,6 +101,7 @@ export default function RedeemPage() {
   }, [firestore, linkId, router, toast]);
 
   useEffect(() => {
+    // This effect's only job is to check auth status and either redirect or trigger the redeem process.
     if (!auth || !linkId) {
         if (!auth) setError("Serviço de autenticação indisponível.");
         if (!linkId) setError("ID do link não encontrado.");
@@ -105,15 +109,15 @@ export default function RedeemPage() {
         return;
     };
 
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    const unsubscribe = onAuthStateChanged(auth, (user) => {
         if (user) {
             // User is signed in, proceed to redeem access.
-            await redeemAccess(user);
+            redeemAccess(user);
         } else {
             // No user is signed in, save the path and redirect to login.
             setStatusMessage("Redirecionando para a área de acesso...");
             localStorage.setItem("redirectAfterLogin", `/redeem/${linkId}`);
-            router.push(`/login?message=${encodeURIComponent("Crie uma conta para acessar seus cursos")}`);
+            router.push(`/login?message=${encodeURIComponent("Crie ou acesse sua conta para resgatar o acesso.")}`);
         }
     });
 
