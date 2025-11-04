@@ -39,7 +39,7 @@ export default function LoginPage() {
   });
 
   useEffect(() => {
-    if (user && !loading) {
+    if (user && !user.isAnonymous && !loading) {
       router.push('/dashboard');
     }
   }, [user, loading, router]);
@@ -72,7 +72,7 @@ export default function LoginPage() {
     }
   };
 
-  if (loading || user) {
+  if (loading || (user && !user.isAnonymous)) {
     return <div className="flex min-h-screen items-center justify-center">
       <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
     </div>;

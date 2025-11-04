@@ -1,7 +1,7 @@
 
 'use client';
 import { useAuth, useUser, useFirestore } from '@/firebase';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signInAnonymously } from 'firebase/auth';
 import { doc, setDoc, getDoc, collection, writeBatch, serverTimestamp, updateDoc, increment, runTransaction } from 'firebase/firestore';
 import { useRouter, useParams } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
@@ -15,6 +15,7 @@ import { Eye, EyeOff, Lock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const authSchema = z.object({
   email: z.string().email({ message: 'Por favor, insira um email válido.' }),
@@ -48,6 +49,8 @@ export default function PremiumAccessPage() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [formMode, setFormMode] = useState<'login' | 'register'>('login');
+  const customMessage = params.get('message');
+
 
   const form = useForm<AuthFormValues>({
     resolver: zodResolver(authSchema),
@@ -91,11 +94,23 @@ export default function PremiumAccessPage() {
   }, [firestore, linkId]);
 
   useEffect(() => {
-    fetchLinkData();
-  }, [fetchLinkData]);
+    if (user === null && !userLoading && auth) {
+      signInAnonymously(auth).catch((err) => {
+        console.error("Anonymous sign-in failed:", err);
+        setError("Não foi possível estabelecer uma sessão segura. Por favor, recarregue a página.");
+      });
+    }
+  }, [user, userLoading, auth]);
+
+  useEffect(() => {
+    // We only fetch link data once we have some form of user (anonymous or real)
+    if (!userLoading && user) {
+        fetchLinkData();
+    }
+  }, [fetchLinkData, user, userLoading]);
   
   const redirectIfLoggedIn = useCallback(async () => {
-    if (user && !userLoading && linkData) {
+    if (user && !user.isAnonymous && !userLoading && linkData) {
       toast({ title: "Acesso Premium", description: "Concedendo acesso aos cursos..." });
       
       const linkRef = doc(firestore, 'premiumLinks', linkId);
@@ -149,7 +164,7 @@ export default function PremiumAccessPage() {
   }, [user, userLoading, linkData, firestore, linkId, router, toast]);
 
   useEffect(() => {
-    if(user && linkData){
+    if(user && linkData && !user.isAnonymous){
         redirectIfLoggedIn();
     }
   }, [user, linkData, redirectIfLoggedIn]);
@@ -214,7 +229,7 @@ export default function PremiumAccessPage() {
   }
 
   // This prevents the form from flashing for already logged-in users while redirecting
-  if (user) {
+  if (user && !user.isAnonymous) {
     return <div className="flex min-h-screen items-center justify-center"><div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
   }
 
@@ -223,13 +238,20 @@ export default function PremiumAccessPage() {
       <div className="w-full max-w-sm space-y-8">
         <div className="text-center">
             <Lock className="mx-auto h-10 w-10 text-primary mb-4" />
-            <h1 className="text-2xl font-bold tracking-tight text-white">
+             <h1 className="text-2xl font-bold tracking-tight text-white">
                 Crie uma conta para você acessar seus cursos
             </h1>
             <p className="mt-2 text-muted-foreground">
                 Você está resgatando acesso para:
             </p>
             <p className="mt-1 font-semibold text-primary">{linkData?.courses.map(c => c.title).join(', ')}</p>
+             {customMessage && (
+              <Alert className="mt-4">
+                <AlertDescription className="text-center">
+                  {decodeURIComponent(customMessage)}
+                </AlertDescription>
+              </Alert>
+            )}
         </div>
 
         <Form {...form}>
