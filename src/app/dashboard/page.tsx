@@ -583,29 +583,11 @@ function DashboardClientPage() {
     const subtitleEl = subtitleRef.current;
     const ctaEl = ctaRef.current;
   
-    if (titleEl && isEditMode) {
-      titleEl.innerHTML = tempHeroTitle;
-    }
-    if (subtitleEl && isEditMode) {
-      subtitleEl.innerHTML = tempHeroSubtitle;
-    }
-    if (ctaEl && isEditMode) {
-        ctaEl.innerHTML = tempCtaText;
-    }
-}, [isEditMode, tempHeroTitle, tempHeroSubtitle, tempCtaText]);
-
-// Load initial data into non-edit mode
-useEffect(() => {
-    const titleEl = titleRef.current;
-    const subtitleEl = subtitleRef.current;
-    const ctaEl = ctaRef.current;
-    if (!isEditMode) {
-        if (titleEl) titleEl.innerHTML = layoutData.heroTitle;
-        if (subtitleEl) subtitleEl.innerHTML = layoutData.heroSubtitle;
-        if (ctaEl) ctaEl.innerHTML = layoutData.ctaText;
-    }
-}, [isEditMode, layoutData]);
-
+    if (titleEl && isEditMode) titleEl.innerHTML = tempHeroTitle;
+    if (subtitleEl && isEditMode) subtitleEl.innerHTML = tempHeroSubtitle;
+    if (ctaEl && isEditMode) ctaEl.innerHTML = tempCtaText;
+    
+  }, [isEditMode, tempHeroTitle, tempHeroSubtitle, tempCtaText]);
 
   if (userLoading || !user || layoutData.isLoading) {
     return (
@@ -681,8 +663,10 @@ useEffect(() => {
                       }}
                       className={cn(
                           "text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl",
+                          "prose prose-xl prose-invert max-w-none",
                           isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
                       )}
+                      dangerouslySetInnerHTML={{ __html: isEditMode ? tempHeroTitle : layoutData.heroTitle }}
                   />
                   {isEditMode && activeEditor === 'hero-title-editor' && (
                     <ActionToolbar
@@ -713,8 +697,10 @@ useEffect(() => {
                       }}
                       className={cn(
                           "max-w-2xl text-lg text-muted-foreground md:text-xl",
+                          "prose prose-lg prose-invert max-w-none",
                           isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
                       )}
+                      dangerouslySetInnerHTML={{ __html: isEditMode ? tempHeroSubtitle : layoutData.heroSubtitle }}
                   />
                   {isEditMode && activeEditor === 'hero-subtitle-editor' && (
                       <ActionToolbar
@@ -737,6 +723,7 @@ useEffect(() => {
                       suppressContentEditableWarning={true}
                       onBlur={(e) => setTempCtaText(e.currentTarget.innerHTML)}
                       className="inline-block px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-md text-lg font-semibold outline-none focus:ring-2 focus:ring-ring"
+                      dangerouslySetInnerHTML={{ __html: tempCtaText }}
                   >
                   </div>
                 ) : (
