@@ -1,4 +1,3 @@
-
 'use client';
 import { useAuth, useUser } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
@@ -29,6 +28,7 @@ export default function LoginPage() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const customMessage = params.get('message');
+  const redirectUrl = params.get('redirect');
 
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -40,9 +40,13 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (user && !user.isAnonymous && !loading) {
-      router.push('/dashboard');
+       if (redirectUrl) {
+        router.push(redirectUrl);
+      } else {
+        router.push('/dashboard');
+      }
     }
-  }, [user, loading, router]);
+  }, [user, loading, router, redirectUrl]);
 
   const mapFirebaseError = (code: string) => {
     switch (code) {
@@ -64,7 +68,7 @@ export default function LoginPage() {
     setAuthError(null);
     try {
       await signInWithEmailAndPassword(auth, data.email, data.password);
-      router.push('/dashboard');
+      // The useEffect will handle redirection.
     } catch (error: any) {
       const message = mapFirebaseError(error.code);
       setAuthError(message);
@@ -148,7 +152,7 @@ export default function LoginPage() {
         </Form>
         <div className="mt-4 text-center text-sm text-muted-foreground">
           Não tem uma conta?{' '}
-          <Link href="/register" className="font-medium text-primary hover:underline">
+          <Link href={`/register${redirectUrl ? `?redirect=${encodeURIComponent(redirectUrl)}` : ''}`} className="font-medium text-primary hover:underline">
             Cadastre-se
           </Link>
         </div>

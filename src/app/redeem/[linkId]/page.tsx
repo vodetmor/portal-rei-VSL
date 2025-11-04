@@ -1,9 +1,8 @@
-
 'use client';
 import { useAuth, useUser, useFirestore } from '@/firebase';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword, signInAnonymously } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, onAuthStateChanged } from 'firebase/auth';
 import { doc, setDoc, getDoc, collection, writeBatch, serverTimestamp, updateDoc, increment, runTransaction } from 'firebase/firestore';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -36,20 +35,21 @@ interface PremiumLinkData {
 export default function PremiumAccessPage() {
   const auth = useAuth();
   const firestore = useFirestore();
-  const { user, loading: userLoading } = useUser();
   const router = useRouter();
   const params = useParams();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   
   const linkId = params.linkId as string;
   
   const [linkData, setLinkData] = useState<PremiumLinkData | null>(null);
-  const [loadingLink, setLoadingLink] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [formMode, setFormMode] = useState<'login' | 'register'>('login');
-  const customMessage = params.get('message');
+  
+  const customMessage = searchParams.get('message');
 
 
   const form = useForm<AuthFormValues>({
@@ -57,118 +57,79 @@ export default function PremiumAccessPage() {
     defaultValues: { email: '', password: '' },
   });
 
-  const fetchLinkData = useCallback(async () => {
-    if (!firestore || !linkId) return;
+  const redeemAccess = useCallback(async (user: any) => {
+    if (!firestore || !linkId || !user) return;
 
+    const linkRef = doc(firestore, 'premiumLinks', linkId);
+    
     try {
-      const linkRef = doc(firestore, 'premiumLinks', linkId);
-      const linkSnap = await getDoc(linkRef);
+      await runTransaction(firestore, async (transaction) => {
+        const linkSnap = await transaction.get(linkRef);
+        if (!linkSnap.exists() || !linkSnap.data()?.active) {
+            throw new Error("Link inválido ou expirado.");
+        }
 
-      if (!linkSnap.exists() || !linkSnap.data().active) {
-        setError("Este link de acesso é inválido ou expirou.");
-        return;
-      }
+        const currentLinkData = linkSnap.data();
+        const maxUses = currentLinkData.maxUses || 0;
+        const currentUses = currentLinkData.uses || 0;
 
-      const link = linkSnap.data();
-      const coursePromises = link.courseIds.map((id: string) => getDoc(doc(firestore, 'courses', id)));
-      const courseSnaps = await Promise.all(coursePromises);
-      const courses = courseSnaps
-        .filter(snap => snap.exists())
-        .map(snap => ({ id: snap.id, title: snap.data()?.title || 'Curso Desconhecido' }));
-
-      setLinkData({
-        name: link.linkName,
-        courseIds: link.courseIds,
-        courses: courses,
-        maxUses: link.maxUses || 0,
-        uses: link.uses || 0,
-        active: link.active,
-      });
-
-    } catch (err) {
-      console.error(err);
-      setError("Ocorreu um erro ao verificar o link de acesso.");
-    } finally {
-      setLoadingLink(false);
-    }
-  }, [firestore, linkId]);
-
-  useEffect(() => {
-    if (user === null && !userLoading && auth) {
-      signInAnonymously(auth).catch((err) => {
-        console.error("Anonymous sign-in failed:", err);
-        setError("Não foi possível estabelecer uma sessão segura. Por favor, recarregue a página.");
-      });
-    }
-  }, [user, userLoading, auth]);
-
-  useEffect(() => {
-    // We only fetch link data once we have some form of user (anonymous or real)
-    if (!userLoading && user) {
-        fetchLinkData();
-    }
-  }, [fetchLinkData, user, userLoading]);
-  
-  const redirectIfLoggedIn = useCallback(async () => {
-    if (user && !user.isAnonymous && !userLoading && linkData) {
-      toast({ title: "Acesso Premium", description: "Concedendo acesso aos cursos..." });
-      
-      const linkRef = doc(firestore, 'premiumLinks', linkId);
-      try {
-        await runTransaction(firestore, async (transaction) => {
-            const linkSnap = await transaction.get(linkRef);
-            if (!linkSnap.exists() || !linkSnap.data()?.active) {
-                throw new Error("Link expirado ou inválido.");
-            }
-            const currentLinkData = linkSnap.data();
-            const maxUses = currentLinkData.maxUses || 0;
-            const currentUses = currentLinkData.uses || 0;
-
-            if (maxUses !== 0 && currentUses >= maxUses) {
-                throw new Error("Este link já atingiu o número máximo de usos.");
-            }
-
-            const batch = writeBatch(firestore);
-            const courseIdsToGrant = currentLinkData.courseIds || [];
-            
-            courseIdsToGrant.forEach((courseId: string) => {
-                const accessRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId);
-                batch.set(accessRef, {
-                    courseId: courseId,
-                    grantedAt: serverTimestamp(),
-                    redeemedByLink: linkId,
-                });
+        if (maxUses !== 0 && currentUses >= maxUses) {
+            throw new Error("Este link já atingiu o número máximo de usos.");
+        }
+        
+        const courseIdsToGrant = currentLinkData.courseIds || [];
+        const accessCollectionRef = collection(firestore, `users/${user.uid}/courseAccess`);
+        
+        // This is a simplified check. A more robust check would query the subcollection.
+        // For this flow, we grant access idempotently.
+        const batch = writeBatch(firestore);
+        courseIdsToGrant.forEach((courseId: string) => {
+            const accessRef = doc(accessCollectionRef, courseId);
+            batch.set(accessRef, {
+                courseId: courseId,
+                grantedAt: serverTimestamp(),
+                redeemedByLink: linkId,
             });
-
-            await batch.commit();
-
-            if (maxUses !== 0) {
-                 transaction.update(linkRef, { 
-                    uses: increment(1),
-                    active: (currentUses + 1) >= maxUses ? false : true 
-                });
-            } else {
-                 transaction.update(linkRef, { uses: increment(1) });
-            }
         });
+        await batch.commit();
 
-        toast({ title: "Acesso Liberado!", description: "Os cursos foram adicionados à sua conta." });
-        router.push(`/dashboard`);
+        if (maxUses !== 0) {
+            transaction.update(linkRef, { 
+                uses: increment(1),
+                active: (currentUses + 1) >= maxUses ? false : true 
+            });
+        } else {
+            transaction.update(linkRef, { uses: increment(1) });
+        }
+      });
+      
+      toast({ title: "Acesso Liberado!", description: "Os cursos foram adicionados à sua conta." });
+      router.push('/dashboard');
 
-      } catch(e: any) {
+    } catch (e: any) {
         console.error("Redemption error: ", e);
-        toast({ variant: "destructive", title: "Erro ao Resgatar", description: e.message || "Não foi possível resgatar o acesso." });
-        router.push('/dashboard');
-      }
+        setError(e.message || "Não foi possível resgatar o acesso.");
+        setLoading(false);
     }
-  }, [user, userLoading, linkData, firestore, linkId, router, toast]);
+
+  }, [firestore, linkId, router, toast]);
 
   useEffect(() => {
-    if(user && linkData && !user.isAnonymous){
-        redirectIfLoggedIn();
-    }
-  }, [user, linkData, redirectIfLoggedIn]);
+    if (!auth) return;
 
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+        if (user) {
+            // User is logged in, proceed to redeem.
+            await redeemAccess(user);
+        } else {
+            // No user is signed in, show the login/register form.
+            setLoading(false);
+        }
+    });
+
+    // Cleanup subscription on unmount
+    return () => unsubscribe();
+  }, [auth, redeemAccess]);
 
   const mapFirebaseError = (code: string) => {
     switch (code) {
@@ -190,15 +151,14 @@ export default function PremiumAccessPage() {
   };
 
   const onSubmit = async (data: AuthFormValues) => {
-    if (!auth || !firestore || !linkData) return;
+    if (!auth || !firestore) return;
     setAuthError(null);
 
     try {
-        let userCredential;
         if (formMode === 'login') {
-            userCredential = await signInWithEmailAndPassword(auth, data.email, data.password);
+            await signInWithEmailAndPassword(auth, data.email, data.password);
         } else {
-            userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
+            const userCredential = await createUserWithEmailAndPassword(auth, data.email, data.password);
             const userDocRef = doc(firestore, 'users', userCredential.user.uid);
             const userDocData = {
                 email: userCredential.user.email,
@@ -211,8 +171,7 @@ export default function PremiumAccessPage() {
                 errorEmitter.emit('permission-error', permissionError);
             });
         }
-        // After login/signup, the useEffect for redirectIfLoggedIn will handle the rest.
-        
+        // The onAuthStateChanged listener will handle the redirection and redemption.
     } catch (error: any) {
         const message = mapFirebaseError(error.code);
         setAuthError(message);
@@ -220,19 +179,14 @@ export default function PremiumAccessPage() {
     }
   };
   
-  if (userLoading || loadingLink) {
+  if (loading) {
     return <div className="flex min-h-screen items-center justify-center"><div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
   }
   
   if (error) {
     return <div className="flex min-h-screen items-center justify-center text-center text-destructive px-4"><h1>{error}</h1></div>;
   }
-
-  // This prevents the form from flashing for already logged-in users while redirecting
-  if (user && !user.isAnonymous) {
-    return <div className="flex min-h-screen items-center justify-center"><div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
-  }
-
+  
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm space-y-8">
@@ -242,9 +196,8 @@ export default function PremiumAccessPage() {
                 Crie uma conta para você acessar seus cursos
             </h1>
             <p className="mt-2 text-muted-foreground">
-                Você está resgatando acesso para:
+                Você está resgatando um acesso premium.
             </p>
-            <p className="mt-1 font-semibold text-primary">{linkData?.courses.map(c => c.title).join(', ')}</p>
              {customMessage && (
               <Alert className="mt-4">
                 <AlertDescription className="text-center">
