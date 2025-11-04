@@ -1,3 +1,4 @@
+
 'use client';
 import { useUser, useFirestore } from '@/firebase';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -455,62 +456,74 @@ function DashboardClientPage() {
     }
   }, [user, userLoading, router]);
 
-    const redeemPremiumLink = useCallback(async (linkId: string) => {
+  const redeemPremiumLink = useCallback(async (linkId: string) => {
     if (!firestore || !user) return;
 
     try {
-      const linkRef = doc(firestore, 'premiumLinks', linkId);
-      const linkSnap = await getDoc(linkRef);
+        const linkRef = doc(firestore, 'premiumLinks', linkId);
+        const linkSnap = await getDoc(linkRef);
 
-      if (!linkSnap.exists()) {
-        toast({ variant: "destructive", title: "Link Inválido", description: "O link de acesso premium não foi encontrado." });
-        return;
-      }
-
-      const linkData = linkSnap.data();
-      const courseIdsToGrant = linkData.courseIds || [];
-      if (courseIdsToGrant.length === 0) {
-        toast({ title: "Nenhum curso no link", description: "Este link premium não contém cursos." });
-        return;
-      };
-
-      const batch = writeBatch(firestore);
-      let grantedCount = 0;
-      
-      const currentCourseAccess = { ...courseAccess };
-
-      courseIdsToGrant.forEach((courseId: string) => {
-        if (!currentCourseAccess[courseId]) {
-            const accessRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId);
-            batch.set(accessRef, {
-                courseId: courseId,
-                grantedAt: serverTimestamp()
-            });
-            grantedCount++;
-            currentCourseAccess[courseId] = true;
+        if (!linkSnap.exists()) {
+            toast({ variant: "destructive", title: "Link Inválido", description: "O link de acesso premium não foi encontrado." });
+            return;
         }
-      });
 
+        const linkData = linkSnap.data();
+        if (!linkData.active) {
+            toast({ variant: "destructive", title: "Link Inativo", description: "Este link de acesso não está mais ativo." });
+            return;
+        }
 
-      if (grantedCount > 0) {
-        await batch.commit();
-        toast({ title: "Acesso Liberado!", description: `${grantedCount} novo(s) curso(s) foram adicionados à sua conta.` });
-        setCourseAccess(currentCourseAccess);
-        fetchCoursesAndProgress(); 
-      } else {
-        toast({ title: "Tudo Certo!", description: "Você já tinha acesso a todos os cursos deste link." });
-      }
+        if (linkData.maxUses > 0 && linkData.uses >= linkData.maxUses) {
+            toast({ variant: "destructive", title: "Limite Atingido", description: "O limite de usos para este link foi atingido." });
+            return;
+        }
+        
+        const courseIdsToGrant: string[] = linkData.courseIds || [];
+        if (courseIdsToGrant.length === 0) {
+            toast({ title: "Nenhum curso no link", description: "Este link premium não contém cursos." });
+            return;
+        }
+
+        const batch = writeBatch(firestore);
+        let grantedCount = 0;
+        
+        const currentAccess = { ...courseAccess };
+
+        courseIdsToGrant.forEach((courseId: string) => {
+            if (!currentAccess[courseId]) {
+                const accessRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId);
+                batch.set(accessRef, {
+                    courseId: courseId,
+                    grantedAt: serverTimestamp()
+                });
+                grantedCount++;
+                currentAccess[courseId] = true;
+            }
+        });
+        
+        // Increment usage count
+        if (grantedCount > 0) {
+            batch.update(linkRef, {
+                uses: (linkData.uses || 0) + 1
+            });
+            
+            await batch.commit();
+            toast({ title: "Acesso Liberado!", description: `${grantedCount} novo(s) curso(s) foram adicionados à sua conta.` });
+            setCourseAccess(currentAccess);
+            await fetchCoursesAndProgress();
+        } else {
+            toast({ title: "Tudo Certo!", description: "Você já tem acesso a todos os cursos deste link." });
+        }
 
     } catch (error: any) {
-      console.error("Error redeeming premium link: ", error);
-       if (error.code === 'permission-denied') {
-            const permissionError = new FirestorePermissionError({
-                path: `users/${user.uid}/courseAccess/...`,
-                operation: 'write'
-            });
-            errorEmitter.emit('permission-error', permissionError);
-       }
-      toast({ variant: "destructive", title: "Erro", description: "Não foi possível resgatar o acesso premium." });
+        console.error("Error redeeming premium link: ", error);
+        const permissionError = new FirestorePermissionError({
+            path: `premiumLinks/${linkId}`,
+            operation: 'get'
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        toast({ variant: "destructive", title: "Erro", description: "Não foi possível resgatar o acesso premium." });
     } finally {
         router.replace('/dashboard', { scroll: false });
     }
@@ -905,3 +918,4 @@ export default function DashboardPage() {
     <DashboardClientPage />
   )
 }
+

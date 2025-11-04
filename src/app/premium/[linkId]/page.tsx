@@ -85,19 +85,19 @@ export default function PremiumAccessPage() {
   }, [firestore, linkId]);
 
   useEffect(() => {
-    fetchLinkData();
-  }, [fetchLinkData]);
+    // We only fetch link data if the user is NOT logged in, 
+    // because if they are, they'll be redirected to the dashboard anyway.
+    if (!user && !userLoading) {
+      fetchLinkData();
+    }
+  }, [fetchLinkData, user, userLoading]);
   
-  const redirectIfLoggedIn = useCallback(() => {
+  useEffect(() => {
     if (user && !userLoading) {
-      toast({ title: "Acesso Premium", description: "Verificando seus cursos..." });
+      // If user is already logged in, redirect to dashboard for redemption
       router.push(`/dashboard?linkId=${linkId}`);
     }
-  }, [user, userLoading, router, toast, linkId]);
-
-  useEffect(() => {
-    redirectIfLoggedIn();
-  }, [redirectIfLoggedIn]);
+  }, [user, userLoading, router, linkId]);
 
 
   const mapFirebaseError = (code: string) => {
@@ -136,15 +136,14 @@ export default function PremiumAccessPage() {
                 photoURL: '',
                 role: 'user',
             };
-            // Non-blocking write
-            setDoc(userDocRef, userDocData).catch(err => {
+            await setDoc(userDocRef, userDocData).catch(err => {
                 const permissionError = new FirestorePermissionError({ path: userDocRef.path, operation: 'create', requestResourceData: userDocData });
                 errorEmitter.emit('permission-error', permissionError);
             });
         }
         
-        // Redirect to dashboard with linkId, let dashboard handle access grant
-        router.push(`/dashboard?linkId=${linkId}`);
+        // The useEffect will handle redirection once the user state is updated.
+        // No need to manually push here.
 
     } catch (error: any) {
         const message = mapFirebaseError(error.code);
@@ -153,17 +152,12 @@ export default function PremiumAccessPage() {
     }
   };
   
-  if (userLoading || loadingLink) {
+  if (userLoading || loadingLink || user) {
     return <div className="flex min-h-screen items-center justify-center"><div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
   }
   
   if (error) {
     return <div className="flex min-h-screen items-center justify-center text-center text-destructive px-4"><h1>{error}</h1></div>;
-  }
-
-  // This prevents the form from flashing for already logged-in users while redirecting
-  if (user) {
-    return <div className="flex min-h-screen items-center justify-center"><div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
   }
 
   return (
@@ -221,3 +215,4 @@ export default function PremiumAccessPage() {
     </div>
   );
 }
+

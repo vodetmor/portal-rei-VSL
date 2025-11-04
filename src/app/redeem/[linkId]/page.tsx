@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useAuth } from '@/firebase';
@@ -21,10 +22,9 @@ export default function RedeemPage() {
         setMessage("Usuário autenticado. Redirecionando para o painel...");
         router.push(`/dashboard?linkId=${linkId}`);
       } else {
-        // User is not logged in. Redirect to login page.
+        // User is not logged in. Redirect to premium access page which handles login/register.
         setMessage("Você precisa fazer login para resgatar o acesso.");
-        localStorage.setItem("redirectAfterLogin", `/redeem/${linkId}`);
-        router.push(`/login`);
+        router.push(`/premium/${linkId}`);
       }
     });
 
@@ -39,3 +39,4 @@ export default function RedeemPage() {
       </div>
   );
 }
+
