@@ -71,8 +71,6 @@ function DashboardClientPage() {
   const [courses, setCourses] = useState<Course[]>([]);
   const [courseAccess, setCourseAccess] = useState<CourseAccess>({});
   const [loading, setLoading] = useState(true);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isAdminCheckComplete, setIsAdminCheckComplete] = useState(false);
   const [userProgress, setUserProgress] = useState<UserProgress>({});
   
   const [isSaving, setIsSaving] = useState(false);
@@ -327,7 +325,7 @@ function DashboardClientPage() {
   };
 
 
-  const fetchCoursesAndProgress = useCallback(async () => {
+  const fetchCoursesAndProgress = useCallback(async (isAdmin: boolean) => {
     if (!firestore || !user) return;
     setLoading(true);
 
@@ -390,7 +388,7 @@ function DashboardClientPage() {
     } finally {
         setLoading(false);
     }
-}, [firestore, user, isAdmin, toast]);
+  }, [firestore, user, toast]);
   
   const handleConfirmDelete = (courseId: string) => {
     if (!firestore) return;
@@ -401,7 +399,7 @@ function DashboardClientPage() {
           title: "Curso Excluído",
           description: "O curso foi removido com sucesso.",
         });
-        fetchCoursesAndProgress();
+        fetchCoursesAndProgress(isEditMode); // re-fetch with current admin status
       })
       .catch((error) => {
         console.error("Error deleting course: ", error);
@@ -513,7 +511,7 @@ function DashboardClientPage() {
             
             await batch.commit();
             toast({ title: "Acesso Liberado!", description: `${grantedCount} novo(s) curso(s) foram adicionados à sua conta.` });
-            await fetchCoursesAndProgress();
+            await fetchCoursesAndProgress(isEditMode); // Pass admin status
         } else {
             toast({ title: "Tudo Certo!", description: "Você já tem acesso a todos os cursos deste link." });
         }
@@ -529,7 +527,7 @@ function DashboardClientPage() {
     } finally {
         router.replace('/dashboard', { scroll: false });
     }
-  }, [firestore, user, toast, router, fetchCoursesAndProgress]);
+  }, [firestore, user, toast, router, fetchCoursesAndProgress, isEditMode]);
 
   useEffect(() => {
     const linkId = searchParams.get('linkId');
@@ -541,44 +539,34 @@ function DashboardClientPage() {
 
   useEffect(() => {
     const checkAdminAndFetchData = async () => {
-      if (user && firestore) {
+      if (user && firestore && !userLoading) {
+        let userIsAdmin = false;
         if (user.email === 'admin@reidavsl.com') {
-          setIsAdmin(true);
+          userIsAdmin = true;
         } else {
-            const userDocRef = doc(firestore, 'users', user.uid);
             try {
+              const userDocRef = doc(firestore, 'users', user.uid);
               const userDoc = await getDoc(userDocRef);
               if (userDoc.exists() && userDoc.data().role === 'admin') {
-                setIsAdmin(true);
-              } else {
-                setIsAdmin(false);
+                userIsAdmin = true;
               }
             } catch (error: any) {
+                console.error("Error checking admin role:", error);
                 const permissionError = new FirestorePermissionError({
-                    path: userDocRef.path,
+                    path: `users/${user.uid}`,
                     operation: 'get',
                 });
                 errorEmitter.emit('permission-error', permissionError);
-                setIsAdmin(false);
             }
         }
-        setIsAdminCheckComplete(true);
-      } else {
-        setIsAdmin(false);
-        if(!userLoading) {
-            setIsAdminCheckComplete(true);
-        }
+        await fetchCoursesAndProgress(userIsAdmin);
+      } else if (!user && !userLoading) {
+        router.push('/login');
       }
     };
 
     checkAdminAndFetchData();
-  }, [user, firestore, userLoading]);
-
-   useEffect(() => {
-    if (!userLoading && user && firestore && isAdminCheckComplete) {
-      fetchCoursesAndProgress();
-    }
-  }, [user, userLoading, firestore, isAdminCheckComplete, fetchCoursesAndProgress]);
+  }, [user, firestore, userLoading, fetchCoursesAndProgress, router]);
   
   // Effect to set initial content of contentEditable divs & sync state
   useEffect(() => {
@@ -596,8 +584,11 @@ function DashboardClientPage() {
       if (ctaEl) ctaEl.innerHTML = layoutData.ctaText;
     }
   }, [isEditMode, tempHeroTitle, tempHeroSubtitle, tempCtaText, layoutData]);
+  
+  const isAdmin = layoutData.isLoading ? false : isEditMode;
 
-  if (userLoading || !user || layoutData.isLoading || !isAdminCheckComplete) {
+
+  if (userLoading || !user || layoutData.isLoading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
@@ -912,3 +903,5 @@ export default function DashboardPage() {
     <DashboardClientPage />
   )
 }
+
+    
