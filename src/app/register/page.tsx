@@ -64,15 +64,15 @@ export default function RegisterPage() {
   const mapFirebaseError = (code: string | undefined) => {
     switch (code) {
       case "auth/email-already-in-use":
-        return "Este email já está em uso.";
+        return "Este email já está em uso. Tente fazer login.";
       case "auth/invalid-email":
-        return "Email inválido.";
+        return "Formato de e-mail inválido.";
       case "auth/weak-password":
-        return "Senha fraca. Escolha uma senha mais segura.";
+        return "Senha fraca. A senha deve ter pelo menos 6 caracteres.";
       case 'auth/popup-closed-by-user':
         return "O pop-up de login foi fechado. Tente novamente.";
       default:
-        return "Erro ao criar conta. Tente novamente.";
+        return "Erro ao criar conta. Tente novamente mais tarde.";
     }
   };
 

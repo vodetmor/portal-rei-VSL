@@ -72,15 +72,15 @@ export default function PremiumAccessPage() {
       case 'auth/user-not-found':
       case 'auth/wrong-password':
       case 'auth/invalid-credential':
-        return 'Credenciais inválidas. Verifique seu e-mail e senha.';
+        return 'Credenciais inválidas. Verifique seu e-mail e senha ou se o método de login (ex: Google) está correto.';
       case 'auth/email-already-in-use':
         return 'Este email já está em uso. Tente fazer login.';
       case 'auth/invalid-email':
-          return "Email inválido.";
+          return "Formato de e-mail inválido.";
       case 'auth/weak-password':
           return "Senha fraca. A senha deve ter pelo menos 6 caracteres.";
       case 'auth/too-many-requests':
-        return "Muitas tentativas. Tente mais tarde.";
+        return "Muitas tentativas de login falharam. Tente novamente mais tarde.";
        case 'auth/popup-closed-by-user':
         return "O pop-up de login foi fechado. Tente novamente.";
       default:
