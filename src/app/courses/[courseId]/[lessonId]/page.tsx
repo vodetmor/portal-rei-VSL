@@ -361,9 +361,9 @@ export default function LessonPage() {
             ...prev,
             completedLessons: {
                 ...prev?.completedLessons,
-                ...newCompletedLesson
+                [lessonId as string]: new Date().toISOString()
             }
-        }));
+        } as UserProgress));
         setIsCurrentLessonCompleted(true);
 
 
@@ -508,7 +508,7 @@ export default function LessonPage() {
                               )}
                             >
                               {isLessonLocked ? <Lock className="h-4 w-4 shrink-0 text-muted-foreground" /> 
-                               : isTextLesson ? <FileText className="h-4 w-4 shrink-0 text-muted-foreground" />
+                               : isTextLesson ? <BookOpen className="h-4 w-4 shrink-0 text-muted-foreground" />
                                : isCompleted ? <CheckCircle className="h-4 w-4 shrink-0 text-primary" />
                                : <Circle className="h-4 w-4 shrink-0 text-muted-foreground" />}
                               <span className="flex-grow">{lesson.title}</span>
@@ -525,7 +525,7 @@ export default function LessonPage() {
         </div>
       </aside>
 
-      <div className={cn("flex min-w-0 flex-1 flex-col transition-[margin] duration-300 ease-in-out", isSidebarOpen && 'md:ml-0')}>
+      <div className={cn("flex min-w-0 flex-1 flex-col transition-all duration-300 ease-in-out", isSidebarOpen ? 'md:ml-0' : 'md:-ml-80')}>
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto">
           {/* Header */}
