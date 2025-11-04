@@ -1,5 +1,4 @@
 
-
 'use client';
 import { useUser, useFirestore } from '@/firebase';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -99,9 +98,6 @@ function DashboardClientPage() {
 
   const [openCollapsible, setOpenCollapsible] = useState<string | null>(null);
   
-  const titleRef = useRef<HTMLDivElement>(null);
-  const subtitleRef = useRef<HTMLDivElement>(null);
-  const ctaRef = useRef<HTMLDivElement>(null);
   const coursesSectionRef = useRef<HTMLDivElement>(null);
 
   const calculateProgress = (courseId: string) => {
@@ -208,16 +204,12 @@ function DashboardClientPage() {
             finalHeroImageUrlMobile = tempHeroImageUrlInputMobile;
         }
 
-        const titleContent = titleRef.current?.innerHTML || tempHeroTitle;
-        const subtitleContent = subtitleRef.current?.innerHTML || tempHeroSubtitle;
-        const ctaContent = ctaRef.current?.innerHTML || tempCtaText;
-
         const dataToSave = {
-            title: titleContent,
-            subtitle: subtitleContent,
+            title: tempHeroTitle,
+            subtitle: tempHeroSubtitle,
             imageUrlDesktop: finalHeroImageUrlDesktop,
             imageUrlMobile: finalHeroImageUrlMobile,
-            ctaText: ctaContent,
+            ctaText: tempCtaText,
             heroAlignment: heroAlignment,
             heroTextVisible: tempHeroTextVisible,
         };
@@ -390,26 +382,9 @@ function DashboardClientPage() {
       });
   };
 
-  const fetchCoursesAndProgress = useCallback(async () => {
+  const fetchCoursesAndProgress = useCallback(async (userIsAdmin: boolean) => {
     if (!firestore || !user) return;
     setLoadingData(true);
-  
-    // Determine admin status first
-    let userIsAdmin = false;
-    if (user.email === 'admin@reidavsl.com') {
-      userIsAdmin = true;
-    } else {
-      try {
-        const userDocRef = doc(firestore, 'users', user.uid);
-        const userDocSnap = await getDoc(userDocRef);
-        if (userDocSnap.exists() && userDocSnap.data().role === 'admin') {
-          userIsAdmin = true;
-        }
-      } catch (e) {
-        // Silently fail, user is not admin
-      }
-    }
-    setIsAdmin(userIsAdmin);
   
     try {
       const coursesRef = collection(firestore, 'courses');
@@ -519,7 +494,12 @@ function DashboardClientPage() {
             
             await batch.commit();
             toast({ title: "Acesso Liberado!", description: `${grantedCount} novo(s) curso(s) foram adicionados à sua conta.` });
-            await fetchCoursesAndProgress();
+            if (user) {
+              const userDocRef = doc(firestore, 'users', user.uid);
+              const userDocSnap = await getDoc(userDocRef);
+              const userIsAdmin = userDocSnap.exists() && userDocSnap.data().role === 'admin';
+              await fetchCoursesAndProgress(userIsAdmin);
+            }
         } else {
             toast({ title: "Tudo Certo!", description: "Você já tem acesso a todos os cursos deste link." });
         }
@@ -537,38 +517,38 @@ function DashboardClientPage() {
     }
   }, [firestore, user, toast, router, fetchCoursesAndProgress]);
 
-  useEffect(() => {
-    if (userLoading) {
-      return;
-    }
+ useEffect(() => {
+    if (userLoading) return;
     if (!user) {
       router.push('/login');
       return;
     }
-    
-    fetchCoursesAndProgress();
+
+    const checkAdminAndFetch = async () => {
+      let userIsAdmin = false;
+      if (user.email === 'admin@reidavsl.com') {
+          userIsAdmin = true;
+      } else {
+          try {
+              const userDocRef = doc(firestore, 'users', user.uid);
+              const userDocSnap = await getDoc(userDocRef);
+              userIsAdmin = userDocSnap.exists() && userDocSnap.data().role === 'admin';
+          } catch (e) {
+              console.error("Failed to check admin status", e);
+          }
+      }
+      setIsAdmin(userIsAdmin);
+      await fetchCoursesAndProgress(userIsAdmin);
+    };
+
+    checkAdminAndFetch();
     
     const linkId = searchParams.get('linkId');
     if (linkId) {
         redeemPremiumLink(linkId);
     }
   }, [user, userLoading, firestore, router, fetchCoursesAndProgress, redeemPremiumLink, searchParams]);
-  
-  useEffect(() => {
-    const titleEl = titleRef.current;
-    const subtitleEl = subtitleRef.current;
-    const ctaEl = ctaRef.current;
-  
-    if (isEditMode) {
-      if (titleEl) titleEl.innerHTML = tempHeroTitle;
-      if (subtitleEl) subtitleEl.innerHTML = tempHeroSubtitle;
-      if (ctaEl) ctaEl.innerHTML = tempCtaText;
-    } else {
-      if (titleEl) titleEl.innerHTML = layoutData.heroTitle;
-      if (subtitleEl) subtitleEl.innerHTML = layoutData.heroSubtitle;
-      if (ctaEl) ctaEl.innerHTML = layoutData.ctaText;
-    }
-  }, [isEditMode, tempHeroTitle, tempHeroSubtitle, tempCtaText, layoutData]);
+
 
   if (userLoading || loadingData || layoutData.isLoading) {
     return (
@@ -634,19 +614,17 @@ function DashboardClientPage() {
                 <div className={cn("relative w-full", textContainerClasses)}>
                   <div
                       id="hero-title-editor"
-                      ref={titleRef}
                       contentEditable={isEditMode}
                       suppressContentEditableWarning={true}
                       onFocus={() => setActiveEditor('hero-title-editor')}
-                      onBlur={(e) => {
-                        setActiveEditor(null);
-                        setTempHeroTitle(e.currentTarget.innerHTML);
-                      }}
+                      onBlur={() => setActiveEditor(null)}
+                      onInput={(e) => setTempHeroTitle(e.currentTarget.innerHTML)}
                       className={cn(
                           "text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl",
                           "prose prose-xl prose-invert max-w-none",
                           isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
                       )}
+                      dangerouslySetInnerHTML={{ __html: isEditMode ? tempHeroTitle : layoutData.heroTitle }}
                   />
                   {isEditMode && activeEditor === 'hero-title-editor' && (
                     <ActionToolbar
@@ -667,19 +645,17 @@ function DashboardClientPage() {
                 <div className={cn("relative mt-4 w-full", textContainerClasses)}>
                   <div
                       id="hero-subtitle-editor"
-                      ref={subtitleRef}
                       contentEditable={isEditMode}
                       suppressContentEditableWarning={true}
                       onFocus={() => setActiveEditor('hero-subtitle-editor')}
-                      onBlur={(e) => {
-                        setActiveEditor(null);
-                        setTempHeroSubtitle(e.currentTarget.innerHTML);
-                      }}
+                      onBlur={() => setActiveEditor(null)}
+                      onInput={(e) => setTempHeroSubtitle(e.currentTarget.innerHTML)}
                       className={cn(
                           "max-w-2xl text-lg text-muted-foreground md:text-xl",
                           "prose prose-lg prose-invert max-w-none",
                           isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
                       )}
+                      dangerouslySetInnerHTML={{ __html: isEditMode ? tempHeroSubtitle : layoutData.heroSubtitle }}
                   />
                   {isEditMode && activeEditor === 'hero-subtitle-editor' && (
                       <ActionToolbar
@@ -697,10 +673,9 @@ function DashboardClientPage() {
               <div className={cn("mt-8", textContainerClasses)}>
                 {isEditMode ? (
                   <div
-                      ref={ctaRef}
                       contentEditable={true}
                       suppressContentEditableWarning={true}
-                      onBlur={(e) => setTempCtaText(e.currentTarget.innerHTML)}
+                      onInput={(e) => setTempCtaText(e.currentTarget.innerHTML)}
                       className="inline-block px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-md text-lg font-semibold outline-none focus:ring-2 focus:ring-ring"
                       dangerouslySetInnerHTML={{ __html: tempCtaText }}
                   >
