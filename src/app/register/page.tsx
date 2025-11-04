@@ -1,9 +1,10 @@
+
 'use client';
 import { Button } from '@/components/ui/button';
 import { useAuth, useUser, useFirestore } from '@/firebase';
 import { createUserWithEmailAndPassword } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -14,6 +15,7 @@ import Link from 'next/link';
 import { Eye, EyeOff } from 'lucide-react';
 import { errorEmitter } from '@/firebase/error-emitter';
 import { FirestorePermissionError } from '@/firebase/errors';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const registerSchema = z.object({
   email: z.string().email({ message: 'Por favor, insira um email válido.' }),
@@ -27,8 +29,10 @@ export default function RegisterPage() {
   const firestore = useFirestore();
   const { user, loading } = useUser();
   const router = useRouter();
+  const params = useSearchParams();
   const [authError, setAuthError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const customMessage = params.get('message');
 
 
   const form = useForm<RegisterFormValues>({
@@ -105,11 +109,20 @@ export default function RegisterPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <div className="w-full max-w-sm space-y-8">
+      <div className="w-full max-w-sm space-y-6">
         <div className="text-center">
           <h1 className="text-3xl font-bold tracking-tight text-white">Criar Conta</h1>
           <p className="mt-2 text-muted-foreground">Junte-se à nossa comunidade de criadores de VSLs.</p>
         </div>
+
+        {customMessage && (
+          <Alert>
+            <AlertDescription className="text-center">
+              {decodeURIComponent(customMessage)}
+            </AlertDescription>
+          </Alert>
+        )}
+        
         <Form {...form}>
           <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
             <FormField
