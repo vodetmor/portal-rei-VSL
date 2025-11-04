@@ -20,13 +20,6 @@ service cloud.firestore {
       return request.auth != null && exists(/databases/$(database)/documents/users/$(request.auth.uid)/demoAccess/$(courseId)/lessons/$(lessonId));
     }
     
-    function isDemoLesson(courseId, lessonId) {
-        let course = get(/databases/$(database)/documents/courses/$(courseId)).data;
-        let isLessonInDemoModule = course.modules.filter(m => m.isDemo == true && m.lessons.find(l => l.id == lessonId) != null).size() > 0;
-        let isDemoLessonItself = course.modules.flatMap(m => m.lessons).find(l => l.id == lessonId && l.isDemo == true) != null;
-        return course.isDemoEnabled == true && (isLessonInDemoModule || isDemoLessonItself);
-    }
-
     match /users/{userId} {
       allow read: if (request.auth != null && request.auth.uid == userId) || isAdmin();
       allow list: if isAdmin();
@@ -62,8 +55,12 @@ service cloud.firestore {
     
     match /courses/{courseId}/lessons/{lessonId} {
       
+      // Centralized function to check all valid forms of access.
       function canInteract() {
-        return hasCourseAccess(courseId) || hasLessonDemoAccess(courseId, lessonId) || isAdmin() || isCourseFree(courseId);
+        return hasCourseAccess(courseId) 
+          || hasLessonDemoAccess(courseId, lessonId) 
+          || isAdmin() 
+          || isCourseFree(courseId);
       }
 
       match /comments/{commentId} {
