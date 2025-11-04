@@ -457,7 +457,7 @@ export default function LessonPage() {
       {/* Sidebar */}
       <aside
         className={cn(
-          'fixed top-0 left-0 z-40 h-full w-80 shrink-0 border-r border-border bg-background transition-transform duration-300 ease-in-out md:relative',
+          'fixed top-0 left-0 z-40 h-full w-80 shrink-0 border-r border-border bg-background transition-transform duration-300 ease-in-out md:relative md:translate-x-0',
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
@@ -515,7 +515,7 @@ export default function LessonPage() {
         </div>
       </aside>
 
-      <div className={cn("flex min-w-0 flex-1 flex-col transition-all duration-300", isSidebarOpen && 'md:ml-0')}>
+      <div className={cn("flex min-w-0 flex-1 flex-col transition-[margin] duration-300 ease-in-out", isSidebarOpen && 'md:ml-0')}>
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto">
           {/* Header */}
@@ -1025,5 +1025,3 @@ function LessonPageSkeleton() {
     </div>
   )
 }
-
-    

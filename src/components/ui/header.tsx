@@ -82,7 +82,7 @@ export function Header() {
 			className={cn(
 				'left-0 right-0 z-[100] transition-all ease-out duration-300',
                 isLessonPage 
-                    ? 'hidden' // Hide original header on lesson page
+                    ? 'static h-20 bg-background border-b border-border'
                     : scrolled 
                         ? 'fixed top-0 h-16 bg-background/80 border-b border-border backdrop-blur-md'
                         : 'fixed top-0 h-20 bg-transparent border-b border-transparent'
