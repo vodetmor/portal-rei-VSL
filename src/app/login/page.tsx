@@ -39,6 +39,8 @@ export default function LoginPage() {
   });
 
   useEffect(() => {
+    // This effect handles redirection *after* login is successful.
+    // The redeem page's onAuthStateChanged will handle the rest.
     if (user && !user.isAnonymous && !loading) {
        if (redirectUrl) {
         router.push(redirectUrl);
@@ -68,7 +70,7 @@ export default function LoginPage() {
     setAuthError(null);
     try {
       await signInWithEmailAndPassword(auth, data.email, data.password);
-      // The useEffect will handle redirection.
+      // The useEffect above will handle redirection once the user state updates.
     } catch (error: any) {
       const message = mapFirebaseError(error.code);
       setAuthError(message);
