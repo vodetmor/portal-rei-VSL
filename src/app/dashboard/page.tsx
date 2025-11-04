@@ -223,14 +223,7 @@ function DashboardClientPage() {
         
         const layoutRef = doc(firestore, 'layout', 'dashboard-hero');
       
-        setDoc(layoutRef, dataToSave, { merge: true }).catch(async (serverError) => {
-            const permissionError = new FirestorePermissionError({
-                path: layoutRef.path,
-                operation: 'update',
-                requestResourceData: dataToSave,
-            });
-            errorEmitter.emit('permission-error', permissionError);
-        });
+        await setDoc(layoutRef, dataToSave, { merge: true });
         
         setLayoutData(prev => ({ 
             ...prev, 
@@ -251,6 +244,12 @@ function DashboardClientPage() {
         setActiveEditor(null);
     } catch (error) {
       console.error("Error saving layout:", error);
+      const permissionError = new FirestorePermissionError({
+          path: `layout/dashboard-hero`,
+          operation: 'update',
+          requestResourceData: { error: 'data not shown for brevity' }
+      });
+      errorEmitter.emit('permission-error', permissionError);
       toast({
         variant: "destructive",
         title: "Erro ao Salvar",
@@ -390,7 +389,7 @@ function DashboardClientPage() {
       });
   };
 
-  const fetchCoursesAndProgress = useCallback(async () => {
+  const fetchCoursesAndProgress = useCallback(async (userIsAdmin: boolean) => {
     if (!firestore || !user) return;
     setLoadingData(true);
 
@@ -398,28 +397,14 @@ function DashboardClientPage() {
       const coursesRef = collection(firestore, 'courses');
       let coursesQuery;
 
-      if (isAdmin) {
-        // Admins can see all courses
+      if (userIsAdmin) {
         coursesQuery = query(coursesRef);
       } else {
-        // Regular users only see published courses
         coursesQuery = query(coursesRef, where('status', '==', 'published'));
       }
       
       const coursesSnapshot = await getDocs(coursesQuery);
       const fetchedCourses = coursesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
-
-      if(isAdmin) {
-        // Fetch draft courses for admins if they weren't fetched already
-        const publishedIds = new Set(fetchedCourses.map(c => c.id));
-        const draftsQuery = query(coursesRef, where('status', '==', 'draft'));
-        const draftsSnapshot = await getDocs(draftsQuery);
-        draftsSnapshot.docs.forEach(doc => {
-            if (!publishedIds.has(doc.id)) {
-                fetchedCourses.push({ id: doc.id, ...doc.data() } as Course);
-            }
-        });
-      }
       
       setCourses(fetchedCourses);
 
@@ -429,7 +414,7 @@ function DashboardClientPage() {
       accessSnapshot.docs.forEach(doc => newCourseAccess[doc.id] = true);
       
       fetchedCourses.forEach(course => {
-          if (course.isFree || isAdmin) {
+          if (course.isFree || userIsAdmin) {
               newCourseAccess[course.id] = true;
           }
       });
@@ -461,9 +446,9 @@ function DashboardClientPage() {
     } finally {
         setLoadingData(false);
     }
-}, [firestore, user, toast, isAdmin]);
+  }, [firestore, user, toast]);
 
-    const redeemPremiumLink = useCallback(async (linkId: string) => {
+  const redeemPremiumLink = useCallback(async (linkId: string) => {
     if (!firestore || !user) return;
 
     try {
@@ -516,7 +501,7 @@ function DashboardClientPage() {
             
             await batch.commit();
             toast({ title: "Acesso Liberado!", description: `${grantedCount} novo(s) curso(s) foram adicionados à sua conta.` });
-            fetchCoursesAndProgress();
+            await fetchCoursesAndProgress(isAdmin);
         } else {
             toast({ title: "Tudo Certo!", description: "Você já tem acesso a todos os cursos deste link." });
         }
@@ -532,18 +517,18 @@ function DashboardClientPage() {
     } finally {
         router.replace('/dashboard', { scroll: false });
     }
-  }, [firestore, user, toast, router, fetchCoursesAndProgress]);
+  }, [firestore, user, toast, router, fetchCoursesAndProgress, isAdmin]);
 
   useEffect(() => {
     if (userLoading) {
-        return;
+      return;
     }
     if (!user) {
-        router.push('/login');
-        return;
+      router.push('/login');
+      return;
     }
 
-    const checkAdminAndFetchData = async () => {
+    const checkAdminAndProcess = async () => {
         setLoadingData(true);
         let userIsAdmin = false;
         try {
@@ -556,10 +541,8 @@ function DashboardClientPage() {
             console.error("Failed to check admin status", e);
         } finally {
             setIsAdmin(userIsAdmin);
+            await fetchCoursesAndProgress(userIsAdmin);
             
-            // Now call fetchCoursesAndProgress with the determined admin status
-            await fetchCoursesAndProgress();
-
             const linkId = searchParams.get('linkId');
             if (linkId) {
                 await redeemPremiumLink(linkId);
@@ -567,9 +550,9 @@ function DashboardClientPage() {
         }
     };
     
-    checkAdminAndFetchData();
+    checkAdminAndProcess();
 
-}, [user, userLoading, firestore, router, fetchCoursesAndProgress, redeemPremiumLink, searchParams]);
+  }, [user, userLoading, firestore, router, fetchCoursesAndProgress, redeemPremiumLink, searchParams]);
   
   useEffect(() => {
     const titleEl = titleRef.current;

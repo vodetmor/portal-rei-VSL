@@ -103,7 +103,7 @@ export default function CoursePlayerPage() {
     setIsClient(true);
   }, []);
 
-  const fetchCourseData = useCallback(async () => {
+  const fetchCourseData = useCallback(async (userIsAdmin: boolean) => {
     if (!user || !firestore) {
         if(!userLoading) router.push('/login');
         return;
@@ -112,17 +112,6 @@ export default function CoursePlayerPage() {
     setLoading(true);
 
     try {
-        // Check admin status
-        let userIsAdmin = false;
-        if (user.email === 'admin@reidavsl.com') {
-            userIsAdmin = true;
-        } else {
-            const userDocRef = doc(firestore, 'users', user.uid);
-            const userDocSnap = await getDoc(userDocRef);
-            userIsAdmin = userDocSnap.exists() && userDocSnap.data().role === 'admin';
-        }
-        setIsAdmin(userIsAdmin);
-
         // Check course access
         const accessDocRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId);
         const accessDocSnap = await getDoc(accessDocRef);
@@ -138,6 +127,7 @@ export default function CoursePlayerPage() {
                 setCourseAccessInfo({ grantedAt: accessTimestamp.toISOString() });
             }
         } else if (userIsAdmin) {
+            // Admins always have access, grant a temporary access info for drip content logic
             setCourseAccessInfo({ grantedAt: new Date().toISOString() });
         }
 
@@ -189,10 +179,31 @@ export default function CoursePlayerPage() {
   }, [user, firestore, courseId, router, toast, userLoading]);
 
   useEffect(() => {
-    if (!userLoading && user && firestore) {
-      fetchCourseData();
+    if (userLoading) return;
+    if (!user) {
+        router.push('/login');
+        return;
     }
-  }, [user, userLoading, firestore, fetchCourseData]);
+
+    const checkAdminAndFetch = async () => {
+        let userIsAdmin = false;
+        try {
+            const userDocRef = doc(firestore, 'users', user.uid);
+            const userDocSnap = await getDoc(userDocRef);
+            if (userDocSnap.exists() && userDocSnap.data().role === 'admin') {
+                userIsAdmin = true;
+            }
+        } catch (e) {
+            console.error("Failed to check admin status", e);
+        }
+        setIsAdmin(userIsAdmin);
+        await fetchCourseData(userIsAdmin);
+    };
+
+    if (firestore && user) {
+        checkAdminAndFetch();
+    }
+  }, [user, userLoading, firestore, fetchCourseData, router]);
 
   const enterEditMode = () => {
     setIsEditMode(true);
