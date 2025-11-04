@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
@@ -309,6 +310,7 @@ function ManageUserAccessPage() {
                     <div>
                         <Label htmlFor="admin-switch" className="font-medium text-white">Administrador</Label>
                         <p className="text-sm text-muted-foreground">Concede permissões para gerenciar todo o site.</p>
+                         {isOwner && <p className="text-xs text-primary mt-1">O dono do site não pode ter sua função alterada.</p>}
                     </div>
                     <Switch
                         id="admin-switch"
@@ -316,7 +318,6 @@ function ManageUserAccessPage() {
                         onCheckedChange={onSwitchChange} 
                         disabled={isOwner}
                     />
-                     {isOwner && <p className="text-xs text-primary">O dono do site não pode ser alterado.</p>}
                 </div>
                 <AlertDialogContent>
                     <AlertDialogHeader>

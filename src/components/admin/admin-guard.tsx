@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useUser, useFirestore } from '@/firebase';
@@ -24,7 +25,7 @@ export default function AdminGuard({ children }: { children: React.ReactNode }) 
         return;
       }
       
-      // Force grant admin role if email matches, as a fallback.
+      // Super admin check by email
       if (user.email === 'admin@reidavsl.com') {
         setIsAdmin(true);
         setIsChecking(false);

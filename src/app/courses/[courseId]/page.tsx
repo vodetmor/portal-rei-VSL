@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
@@ -187,14 +188,18 @@ export default function CoursePlayerPage() {
 
     const checkAdminAndFetch = async () => {
         let userIsAdmin = false;
-        try {
-            const userDocRef = doc(firestore, 'users', user.uid);
-            const userDocSnap = await getDoc(userDocRef);
-            if (userDocSnap.exists() && userDocSnap.data().role === 'admin') {
-                userIsAdmin = true;
+        if (user.email === 'admin@reidavsl.com') {
+            userIsAdmin = true;
+        } else {
+            try {
+                const userDocRef = doc(firestore, 'users', user.uid);
+                const userDocSnap = await getDoc(userDocRef);
+                if (userDocSnap.exists() && userDocSnap.data().role === 'admin') {
+                    userIsAdmin = true;
+                }
+            } catch (e) {
+                console.error("Failed to check admin status", e);
             }
-        } catch (e) {
-            console.error("Failed to check admin status", e);
         }
         setIsAdmin(userIsAdmin);
         await fetchCourseData(userIsAdmin);

@@ -1,4 +1,5 @@
 
+
 'use client';
 import { useUser, useFirestore } from '@/firebase';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -389,14 +390,31 @@ function DashboardClientPage() {
       });
   };
 
-  const fetchCoursesAndProgress = useCallback(async (userIsAdmin: boolean) => {
+  const fetchCoursesAndProgress = useCallback(async () => {
     if (!firestore || !user) return;
     setLoadingData(true);
-
+  
+    // Determine admin status first
+    let userIsAdmin = false;
+    if (user.email === 'admin@reidavsl.com') {
+      userIsAdmin = true;
+    } else {
+      try {
+        const userDocRef = doc(firestore, 'users', user.uid);
+        const userDocSnap = await getDoc(userDocRef);
+        if (userDocSnap.exists() && userDocSnap.data().role === 'admin') {
+          userIsAdmin = true;
+        }
+      } catch (e) {
+        // Silently fail, user is not admin
+      }
+    }
+    setIsAdmin(userIsAdmin);
+  
     try {
       const coursesRef = collection(firestore, 'courses');
       let coursesQuery;
-
+  
       if (userIsAdmin) {
         coursesQuery = query(coursesRef);
       } else {
@@ -407,7 +425,7 @@ function DashboardClientPage() {
       const fetchedCourses = coursesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
       
       setCourses(fetchedCourses);
-
+  
       // Fetch course access
       const newCourseAccess: CourseAccess = {};
       const accessSnapshot = await getDocs(collection(firestore, `users/${user.uid}/courseAccess`));
@@ -419,7 +437,7 @@ function DashboardClientPage() {
           }
       });
       setCourseAccess(newCourseAccess);
-
+  
       // Fetch progress for accessible courses
       const accessibleCourseIds = Object.keys(newCourseAccess);
       if (accessibleCourseIds.length > 0) {
@@ -501,7 +519,7 @@ function DashboardClientPage() {
             
             await batch.commit();
             toast({ title: "Acesso Liberado!", description: `${grantedCount} novo(s) curso(s) foram adicionados à sua conta.` });
-            await fetchCoursesAndProgress(isAdmin);
+            await fetchCoursesAndProgress();
         } else {
             toast({ title: "Tudo Certo!", description: "Você já tem acesso a todos os cursos deste link." });
         }
@@ -517,7 +535,7 @@ function DashboardClientPage() {
     } finally {
         router.replace('/dashboard', { scroll: false });
     }
-  }, [firestore, user, toast, router, fetchCoursesAndProgress, isAdmin]);
+  }, [firestore, user, toast, router, fetchCoursesAndProgress]);
 
   useEffect(() => {
     if (userLoading) {
@@ -527,31 +545,13 @@ function DashboardClientPage() {
       router.push('/login');
       return;
     }
-
-    const checkAdminAndProcess = async () => {
-        setLoadingData(true);
-        let userIsAdmin = false;
-        try {
-            const userDocRef = doc(firestore, 'users', user.uid);
-            const userDocSnap = await getDoc(userDocRef);
-            if (userDocSnap.exists() && userDocSnap.data().role === 'admin') {
-                userIsAdmin = true;
-            }
-        } catch (e) {
-            console.error("Failed to check admin status", e);
-        } finally {
-            setIsAdmin(userIsAdmin);
-            await fetchCoursesAndProgress(userIsAdmin);
-            
-            const linkId = searchParams.get('linkId');
-            if (linkId) {
-                await redeemPremiumLink(linkId);
-            }
-        }
-    };
     
-    checkAdminAndProcess();
-
+    fetchCoursesAndProgress();
+    
+    const linkId = searchParams.get('linkId');
+    if (linkId) {
+        redeemPremiumLink(linkId);
+    }
   }, [user, userLoading, firestore, router, fetchCoursesAndProgress, redeemPremiumLink, searchParams]);
   
   useEffect(() => {
