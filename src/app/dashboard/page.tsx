@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { doc, getDoc, collection, getDocs, setDoc, deleteDoc, type DocumentData, updateDoc, addDoc, query, where, writeBatch, serverTimestamp, increment } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { useLayout } from '@/context/layout-context';
-import { ActionToolbar } from '@/components/ui/action-toolbar';
+import { ActionToolbar } from '@/components/admin/action-toolbar';
 import { PageEditActions } from '@/components/admin/page-edit-actions';
 
 import Image from 'next/image';
@@ -72,6 +72,7 @@ function DashboardClientPage() {
   const [courseAccess, setCourseAccess] = useState<CourseAccess>({});
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isAdminCheckComplete, setIsAdminCheckComplete] = useState(false);
   const [userProgress, setUserProgress] = useState<UserProgress>({});
   
   const [isSaving, setIsSaving] = useState(false);
@@ -561,21 +562,23 @@ function DashboardClientPage() {
                 setIsAdmin(false);
             }
         }
+        setIsAdminCheckComplete(true);
       } else {
         setIsAdmin(false);
+        if(!userLoading) {
+            setIsAdminCheckComplete(true);
+        }
       }
     };
 
-    if (user && firestore) {
-      checkAdminAndFetchData();
-    }
-  }, [user, firestore]);
+    checkAdminAndFetchData();
+  }, [user, firestore, userLoading]);
 
    useEffect(() => {
-    if (!userLoading && user && firestore) {
+    if (!userLoading && user && firestore && isAdminCheckComplete) {
       fetchCoursesAndProgress();
     }
-  }, [user, userLoading, firestore, isAdmin, fetchCoursesAndProgress]);
+  }, [user, userLoading, firestore, isAdminCheckComplete, fetchCoursesAndProgress]);
   
   // Effect to set initial content of contentEditable divs & sync state
   useEffect(() => {
@@ -589,7 +592,7 @@ function DashboardClientPage() {
     
   }, [isEditMode, tempHeroTitle, tempHeroSubtitle, tempCtaText]);
 
-  if (userLoading || !user || layoutData.isLoading) {
+  if (userLoading || !user || layoutData.isLoading || !isAdminCheckComplete) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
@@ -906,3 +909,5 @@ export default function DashboardPage() {
     <DashboardClientPage />
   )
 }
+
+    
