@@ -1,8 +1,8 @@
 'use client';
 import { useAuth, useFirestore } from '@/firebase';
 import { onAuthStateChanged, type User } from 'firebase/auth';
-import { doc, getDoc, writeBatch, serverTimestamp, runTransaction, increment } from 'firebase/firestore';
-import { useRouter, useParams, useSearchParams } from 'next/navigation';
+import { doc, getDoc, runTransaction, increment } from 'firebase/firestore';
+import { useRouter, useParams } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { Lock } from 'lucide-react';
@@ -14,7 +14,6 @@ export default function PremiumAccessPage() {
   const firestore = useFirestore();
   const router = useRouter();
   const params = useParams();
-  const searchParams = useSearchParams();
   const { toast } = useToast();
   
   const linkId = params.linkId as string;
@@ -22,8 +21,6 @@ export default function PremiumAccessPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState("Verificando autenticação...");
-
-  const customMessage = searchParams.get('message');
 
   const redeemAccess = useCallback(async (user: User) => {
     if (!firestore || !linkId) return;
@@ -62,7 +59,7 @@ export default function PremiumAccessPage() {
                 if (!accessDoc.exists()) {
                     transaction.set(accessRef, {
                         courseId: courseId,
-                        grantedAt: serverTimestamp(),
+                        grantedAt: new Date(), // Use client-side date for immediate consistency
                         redeemedByLink: linkId,
                     });
                 }
@@ -104,11 +101,10 @@ export default function PremiumAccessPage() {
             // User is signed in, proceed to redeem access.
             await redeemAccess(user);
         } else {
-            // No user is signed in, redirect to login page.
+            // No user is signed in, save the path and redirect to login.
             setStatusMessage("Redirecionando para o login...");
-            const redirectUrl = `/redeem/${linkId}`;
-            const message = encodeURIComponent("Crie uma conta ou faça login para acessar seus cursos.");
-            router.push(`/login?redirect=${encodeURIComponent(redirectUrl)}&message=${message}`);
+            localStorage.setItem("redirectAfterLogin", `/redeem/${linkId}`);
+            router.push(`/login`);
         }
     });
 
@@ -129,17 +125,12 @@ export default function PremiumAccessPage() {
     );
   }
   
-  if (loading) {
-     return (
-        <div className="flex min-h-screen flex-col items-center justify-center text-center px-4">
-            <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent mb-4" />
-            <h1 className="text-2xl font-bold text-white">Processando Acesso Premium</h1>
-            <p className="text-muted-foreground mt-2">{statusMessage}</p>
-        </div>
-    );
-  }
-
-  // This component will mostly show a loading/processing state
-  // as it will either redeem or redirect.
-  return null;
+  // This component primarily shows a loading state while auth is being checked.
+  return (
+    <div className="flex min-h-screen flex-col items-center justify-center text-center px-4">
+        <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent mb-4" />
+        <h1 className="text-2xl font-bold text-white">Processando Acesso Premium</h1>
+        <p className="text-muted-foreground mt-2">{statusMessage}</p>
+    </div>
+  );
 }

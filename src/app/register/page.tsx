@@ -32,7 +32,6 @@ export default function RegisterPage() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const customMessage = params.get('message');
-  const redirectUrl = params.get('redirect');
 
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -44,13 +43,15 @@ export default function RegisterPage() {
 
   useEffect(() => {
     if (user && !user.isAnonymous && !loading) {
-      if (redirectUrl) {
-        router.push(redirectUrl);
+      const redirectPath = localStorage.getItem('redirectAfterLogin');
+      if (redirectPath) {
+        localStorage.removeItem('redirectAfterLogin');
+        router.push(redirectPath);
       } else {
         router.push('/dashboard');
       }
     }
-  }, [user, loading, router, redirectUrl]);
+  }, [user, loading, router]);
 
   const mapFirebaseError = (code: string | undefined) => {
     switch (code) {
@@ -84,8 +85,7 @@ export default function RegisterPage() {
         role: userRole,
       };
 
-      // Non-blocking write with specific error handling
-      setDoc(userDocRef, userDocData)
+      await setDoc(userDocRef, userDocData)
         .catch(async (serverError) => {
             const permissionError = new FirestorePermissionError({
                 path: userDocRef.path,
@@ -100,87 +100,95 @@ export default function RegisterPage() {
     } catch (error: any) {
       const message = mapFirebaseError(error.code);
       setAuthError(message);
-      // This catch block handles errors from createUserWithEmailAndPassword, not setDoc
     }
   };
 
-    if (loading || (user && !user.isAnonymous)) {
+  if (loading) {
     return <div className="flex min-h-screen items-center justify-center">
       <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
     </div>;
   }
+  
+  if (!user || user.isAnonymous) {
+      return (
+        <div className="flex min-h-screen items-center justify-center bg-background p-4">
+          <div className="w-full max-w-sm space-y-6">
+            <div className="text-center">
+              <h1 className="text-3xl font-bold tracking-tight text-white">Criar Conta</h1>
+              <p className="mt-2 text-muted-foreground">Junte-se à nossa comunidade de criadores de VSLs.</p>
+            </div>
 
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold tracking-tight text-white">Criar Conta</h1>
-          <p className="mt-2 text-muted-foreground">Junte-se à nossa comunidade de criadores de VSLs.</p>
+            {customMessage && (
+              <Alert>
+                <AlertDescription className="text-center">
+                  {decodeURIComponent(customMessage)}
+                </AlertDescription>
+              </Alert>
+            )}
+            
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <FormField
+                  control={form.control}
+                  name="email"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-white">Email</FormLabel>
+                      <FormControl>
+                        <Input placeholder="seu@email.com" {...field} className="bg-secondary/50 border-border" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="password"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-white">Senha</FormLabel>
+                      <FormControl>
+                        <div className="relative">
+                          <Input 
+                            type={showPassword ? 'text' : 'password'} 
+                            placeholder="Crie uma senha forte" 
+                            {...field} 
+                            className="bg-secondary/50 border-border pr-10" 
+                          />
+                          <button 
+                            type="button" 
+                            onClick={() => setShowPassword(!showPassword)}
+                            className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-white"
+                          >
+                            {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                          </button>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {authError && <p className="text-sm font-medium text-destructive">{authError}</p>}
+                <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
+                  {form.formState.isSubmitting ? 'Criando...' : 'Criar Conta'}
+                </Button>
+              </form>
+            </Form>
+            <div className="mt-4 text-center text-sm text-muted-foreground">
+              Já tem uma conta?{' '}
+              <Link href={`/login`} className="font-medium text-primary hover:underline">
+                Faça login
+              </Link>
+            </div>
+          </div>
         </div>
-
-        {customMessage && (
-          <Alert>
-            <AlertDescription className="text-center">
-              {decodeURIComponent(customMessage)}
-            </AlertDescription>
-          </Alert>
-        )}
-        
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-white">Email</FormLabel>
-                  <FormControl>
-                    <Input placeholder="seu@email.com" {...field} className="bg-secondary/50 border-border" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel className="text-white">Senha</FormLabel>
-                  <FormControl>
-                    <div className="relative">
-                      <Input 
-                        type={showPassword ? 'text' : 'password'} 
-                        placeholder="Crie uma senha forte" 
-                        {...field} 
-                        className="bg-secondary/50 border-border pr-10" 
-                      />
-                      <button 
-                        type="button" 
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute inset-y-0 right-0 flex items-center pr-3 text-muted-foreground hover:text-white"
-                      >
-                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                      </button>
-                    </div>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            {authError && <p className="text-sm font-medium text-destructive">{authError}</p>}
-            <Button type="submit" className="w-full" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting ? 'Criando...' : 'Criar Conta'}
-            </Button>
-          </form>
-        </Form>
-        <div className="mt-4 text-center text-sm text-muted-foreground">
-          Já tem uma conta?{' '}
-           <Link href={`/login${redirectUrl ? `?redirect=${encodeURIComponent(redirectUrl)}` : ''}`} className="font-medium text-primary hover:underline">
-            Faça login
-          </Link>
+      );
+    }
+    
+    // Show a loading spinner while redirecting a logged-in user
+    return (
+        <div className="flex min-h-screen items-center justify-center">
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
         </div>
-      </div>
-    </div>
-  );
+    );
 }
