@@ -457,8 +457,8 @@ export default function LessonPage() {
       {/* Sidebar */}
       <aside
         className={cn(
-          'fixed top-0 left-0 z-40 h-full w-80 shrink-0 border-r border-border bg-background transition-transform md:relative',
-          isSidebarOpen ? 'translate-x-0' : '-translate-x-full md:-ml-80'
+          'fixed top-0 left-0 z-40 h-full w-80 shrink-0 border-r border-border bg-background transition-transform duration-300 ease-in-out md:relative',
+          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
         <div className="flex h-20 items-center justify-between border-b border-border px-4">
@@ -1025,3 +1025,5 @@ function LessonPageSkeleton() {
     </div>
   )
 }
+
+    
