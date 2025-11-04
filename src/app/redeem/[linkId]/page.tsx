@@ -1,7 +1,7 @@
 'use client';
 import { useAuth, useFirestore } from '@/firebase';
 import { onAuthStateChanged, type User } from 'firebase/auth';
-import { doc, getDoc, runTransaction, increment } from 'firebase/firestore';
+import { doc, getDoc, runTransaction, increment, serverTimestamp, writeBatch } from 'firebase/firestore';
 import { useRouter, useParams } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
 import { useToast } from '@/hooks/use-toast';
@@ -9,7 +9,7 @@ import { Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 
-export default function PremiumAccessPage() {
+export default function RedeemPage() {
   const auth = useAuth();
   const firestore = useFirestore();
   const router = useRouter();
@@ -20,7 +20,7 @@ export default function PremiumAccessPage() {
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [statusMessage, setStatusMessage] = useState("Verificando autenticação...");
+  const [statusMessage, setStatusMessage] = useState("Verificando seu acesso...");
 
   const redeemAccess = useCallback(async (user: User) => {
     if (!firestore || !linkId) return;
@@ -53,22 +53,22 @@ export default function PremiumAccessPage() {
         
         setStatusMessage(`Concedendo acesso a ${courseIdsToGrant.length} curso(s)...`);
 
-        const accessPromises = courseIdsToGrant.map(courseId => {
-            const accessRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId);
-            return transaction.get(accessRef).then(accessDoc => {
-                if (!accessDoc.exists()) {
-                    transaction.set(accessRef, {
-                        courseId: courseId,
-                        grantedAt: new Date(), // Use client-side date for immediate consistency
-                        redeemedByLink: linkId,
-                    });
-                }
-            });
-        });
+        const batch = writeBatch(firestore);
         
-        await Promise.all(accessPromises);
+        for (const courseId of courseIdsToGrant) {
+            const accessRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId);
+            const accessDoc = await transaction.get(accessRef); // Read within transaction
+            if (!accessDoc.exists()) {
+                batch.set(accessRef, {
+                    courseId: courseId,
+                    grantedAt: serverTimestamp(),
+                    redeemedByLink: linkId,
+                });
+            }
+        }
+        
+        await batch.commit();
 
-        // Increment usage and potentially deactivate the link
         const newUses = increment(1);
         if (maxUses > 0 && currentUses + 1 >= maxUses) {
           transaction.update(linkRef, { uses: newUses, active: false });
