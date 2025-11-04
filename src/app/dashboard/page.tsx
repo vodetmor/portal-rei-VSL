@@ -325,54 +325,39 @@ function DashboardClientPage() {
     }
   };
 
-  const fetchCoursesAndProgress = useCallback(async () => {
+  const fetchCoursesAndProgress = useCallback(async (userIsAdmin: boolean) => {
     if (!firestore || !user) return;
     setLoadingData(true);
-  
+    
     try {
-      let userIsAdmin = false;
-      try {
-        const userDocRef = doc(firestore, 'users', user.uid);
-        const userDocSnap = await getDoc(userDocRef);
-        userIsAdmin = userDocSnap.exists() && userDocSnap.data().role === 'admin';
-      } catch (e) {
-        // Non-fatal, assume not admin
-        console.error("Could not check admin status:", e);
-      }
-      setIsAdmin(userIsAdmin);
-  
-      // Secure-by-default query
       const coursesRef = collection(firestore, 'courses');
-      const publishedQuery = query(coursesRef, where('status', '==', 'published'));
-      const publishedSnapshot = await getDocs(publishedQuery);
-      let fetchedCourses = publishedSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
-  
-      // If admin, fetch draft courses and merge
+      let coursesQuery;
+
       if (userIsAdmin) {
-        const draftQuery = query(coursesRef, where('status', '==', 'draft'));
-        const draftSnapshot = await getDocs(draftQuery);
-        const draftCourses = draftSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
-        
-        const allCourseIds = new Set(fetchedCourses.map(c => c.id));
-        draftCourses.forEach(draft => {
-            if (!allCourseIds.has(draft.id)) {
-                fetchedCourses.push(draft);
-            }
-        });
+        // Admins can see all courses (published and draft)
+        coursesQuery = query(coursesRef);
+      } else {
+        // Regular users only see published courses
+        coursesQuery = query(coursesRef, where('status', '==', 'published'));
       }
+      
+      const coursesSnapshot = await getDocs(coursesQuery);
+      const fetchedCourses = coursesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
       setCourses(fetchedCourses);
-  
-      // Determine course access
+
+      // Determine course access for the user
       const newCourseAccess: CourseAccess = {};
       const accessSnapshot = await getDocs(collection(firestore, `users/${user.uid}/courseAccess`));
       accessSnapshot.docs.forEach(doc => newCourseAccess[doc.id] = true);
+      
       fetchedCourses.forEach(course => {
-        if (course.isFree) newCourseAccess[course.id] = true;
-        if (userIsAdmin) newCourseAccess[course.id] = true;
+        if (course.isFree || userIsAdmin) {
+          newCourseAccess[course.id] = true;
+        }
       });
       setCourseAccess(newCourseAccess);
-  
-      // Fetch progress only for accessible courses
+
+      // Fetch progress only for the courses the user has access to
       const accessibleCourseIds = Object.keys(newCourseAccess);
       if (accessibleCourseIds.length > 0) {
         const progressPromises = accessibleCourseIds.map(id => getDoc(doc(firestore, `users/${user.uid}/progress`, id)));
@@ -385,7 +370,6 @@ function DashboardClientPage() {
         });
         setUserProgress(progressData);
       }
-  
     } catch (error: any) {
       console.error("Error fetching courses and progress: ", error);
       if (error.code === 'permission-denied') {
@@ -399,7 +383,7 @@ function DashboardClientPage() {
     } finally {
       setLoadingData(false);
     }
-  }, [firestore, user, toast]);
+}, [firestore, user, toast]);
   
   const handleConfirmDelete = (courseId: string) => {
     if (!firestore) return;
@@ -410,7 +394,8 @@ function DashboardClientPage() {
           title: "Curso Excluído",
           description: "O curso foi removido com sucesso.",
         });
-        fetchCoursesAndProgress();
+        // Refetch courses after deletion
+        fetchCoursesAndProgress(isAdmin);
       })
       .catch((error) => {
         console.error("Error deleting course: ", error);
@@ -516,7 +501,7 @@ function DashboardClientPage() {
             
             await batch.commit();
             toast({ title: "Acesso Liberado!", description: `${grantedCount} novo(s) curso(s) foram adicionados à sua conta.` });
-            await fetchCoursesAndProgress();
+            // The fetchCoursesAndProgress will be called in the main useEffect
         } else {
             toast({ title: "Tudo Certo!", description: "Você já tem acesso a todos os cursos deste link." });
         }
@@ -532,24 +517,43 @@ function DashboardClientPage() {
     } finally {
         router.replace('/dashboard', { scroll: false });
     }
-  }, [firestore, user, toast, router, fetchCoursesAndProgress]);
+  }, [firestore, user, toast, router]);
 
   useEffect(() => {
-    if (userLoading) {
-        return; // Wait until auth state is known
-    }
+    if (userLoading) return;
 
     if (!user) {
-        router.push('/login');
-        return;
+      router.push('/login');
+      return;
     }
     
-    // Once user is confirmed, fetch data.
-    if (firestore) {
-        fetchCoursesAndProgress();
-    }
+    if (!firestore) return;
 
-    // Handle premium link redemption
+    const checkAdminAndFetchData = async () => {
+        let userIsAdmin = false;
+        try {
+            const userDocRef = doc(firestore, 'users', user.uid);
+            const userDocSnap = await getDoc(userDocRef);
+            if (userDocSnap.exists() && userDocSnap.data().role === 'admin') {
+                userIsAdmin = true;
+            }
+        } catch (error: any) {
+            console.error("Could not check admin status:", error);
+            if (error.code === 'permission-denied') {
+                const permissionError = new FirestorePermissionError({
+                    path: `users/${user.uid}`,
+                    operation: 'get',
+                });
+                errorEmitter.emit('permission-error', permissionError);
+            }
+        } finally {
+            setIsAdmin(userIsAdmin);
+            await fetchCoursesAndProgress(userIsAdmin);
+        }
+    };
+
+    checkAdminAndFetchData();
+
     const linkId = searchParams.get('linkId');
     if (linkId) {
         redeemPremiumLink(linkId);
@@ -888,3 +892,5 @@ export default function DashboardPage() {
     <DashboardClientPage />
   )
 }
+
+    
