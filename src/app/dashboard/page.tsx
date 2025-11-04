@@ -327,7 +327,7 @@ function DashboardClientPage() {
 
 
   const fetchCoursesAndProgress = useCallback(async () => {
-    if (!firestore || !user) return; //<- This guard is crucial
+    if (!firestore || !user) return;
     setLoading(true);
 
     try {
@@ -572,8 +572,6 @@ function DashboardClientPage() {
   }, [user, firestore]);
 
    useEffect(() => {
-    // This effect now correctly waits for user authentication to complete
-    // before attempting to fetch data.
     if (!userLoading && user && firestore) {
       fetchCoursesAndProgress();
     }
@@ -921,5 +919,3 @@ export default function DashboardPage() {
     <DashboardClientPage />
   )
 }
-
-    
