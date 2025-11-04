@@ -23,6 +23,13 @@ service cloud.firestore {
     function hasAnyDemoAccess(userId, courseId) {
       return exists(/databases/$(database)/documents/users/$(userId)/demoAccess/$(courseId));
     }
+    
+    function canInteract(courseId, lessonId) {
+      return hasCourseAccess(courseId) 
+          || hasLessonDemoAccess(courseId, lessonId) 
+          || isAdmin() 
+          || isCourseFree(courseId);
+    }
 
     match /users/{userId} {
       allow read: if (request.auth != null && request.auth.uid == userId) || isAdmin();
@@ -66,29 +73,22 @@ service cloud.firestore {
     }
     
     match /courses/{courseId}/lessons/{lessonId} {
-      
-      function canInteract() {
-        return hasCourseAccess(courseId) 
-          || hasLessonDemoAccess(courseId, lessonId) 
-          || isAdmin() 
-          || isCourseFree(courseId);
-      }
 
       match /comments/{commentId} {
-        allow list, read, create, update, delete: if canInteract();
+        allow list, read, create, update, delete: if canInteract(courseId, lessonId);
 
         match /replies/{replyId} {
-          allow list, read, create, update, delete: if canInteract();
+          allow list, read, create, update, delete: if canInteract(courseId, lessonId);
         }
 
         match /likes/{userId} {
-           allow list, read, create, delete: if canInteract();
+           allow list, read, create, delete: if canInteract(courseId, lessonId);
            allow update: if false; 
         }
       }
 
       match /reactions/{reactionId} {
-        allow read, list, write: if canInteract();
+        allow read, list, write: if canInteract(courseId, lessonId);
       }
     }
 
@@ -114,8 +114,8 @@ service cloud.firestore {
     }
 
     match /premiumLinks/{linkId} {
-        allow read: if true;
-        allow write: if isAdmin();
+        allow get: if true;
+        allow list, create, update, delete: if isAdmin();
     }
 
     match /auditLogs/{logId} {
@@ -124,5 +124,3 @@ service cloud.firestore {
     }
   }
 }
-
-    
