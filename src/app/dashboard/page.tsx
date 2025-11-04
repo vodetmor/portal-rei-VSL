@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { doc, getDoc, collection, getDocs, setDoc, deleteDoc, type DocumentData, updateDoc, addDoc, query, where, writeBatch, serverTimestamp, increment } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { useLayout } from '@/context/layout-context';
-import { ActionToolbar } from '@/components/admin/page-edit-actions';
+import { ActionToolbar } from '@/components/ui/action-toolbar';
 import { PageEditActions } from '@/components/admin/page-edit-actions';
 
 import Image from 'next/image';
@@ -88,7 +88,7 @@ function DashboardClientPage() {
   const [tempHeroTextVisible, setTempHeroTextVisible] = useState(layoutData.heroTextVisible);
   
   const [heroImageDesktopFile, setHeroImageDesktopFile] = useState<File | null>(null);
-  const [heroImageMobileFile, setHeroImageMobileFile] = useState<File | null>(null);
+  const [heroImageMobileFile, setHeroImageMobileFile = useState<File | null>(null);
 
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [imageInputMode, setImageInputMode] = useState<'desktop' | 'mobile'>('desktop');
@@ -916,3 +916,4 @@ export default function DashboardPage() {
     <DashboardClientPage />
   )
 }
+
