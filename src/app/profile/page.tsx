@@ -1,13 +1,13 @@
 
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser, useFirestore, useAuth, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider } from 'firebase/auth';
+import { updateProfile, updatePassword, reauthenticateWithCredential, EmailAuthProvider, RecaptchaVerifier, PhoneAuthProvider, multiFactor } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 
@@ -19,7 +19,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
-import { Camera, ShieldCheck, UserCircle, Upload, Link2 } from 'lucide-react';
+import { Camera, ShieldCheck, UserCircle, Upload, Link2, Phone } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 const profileSchema = z.object({
   displayName: z.string().min(3, 'O nome deve ter pelo menos 3 caracteres.'),
@@ -34,8 +35,18 @@ const passwordSchema = z.object({
   path: ['confirmPassword'],
 });
 
+const phoneSchema = z.object({
+    phoneNumber: z.string().regex(/^\+[1-9]\d{1,14}$/, 'Formato inválido. Ex: +5511999999999'),
+});
+
+const otpSchema = z.object({
+    otp: z.string().length(6, 'O código deve ter 6 dígitos.'),
+});
+
 type ProfileFormValues = z.infer<typeof profileSchema>;
 type PasswordFormValues = z.infer<typeof passwordSchema>;
+type PhoneFormValues = z.infer<typeof phoneSchema>;
+type OtpFormValues = z.infer<typeof otpSchema>;
 
 export default function ProfilePage() {
   const { user, loading: userLoading } = useUser();
@@ -54,6 +65,12 @@ export default function ProfilePage() {
   const [imageInputMode, setImageInputMode] = useState<'upload' | 'url'>('upload');
   const [avatarUrlInput, setAvatarUrlInput] = useState('');
   
+  // 2FA State
+  const [mfaEnrollment, setMfaEnrollment] = useState<any>(null);
+  const [verificationId, setVerificationId] = useState<string | null>(null);
+  const recaptchaVerifierRef = useRef<RecaptchaVerifier | null>(null);
+
+
   const profileForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
@@ -69,6 +86,17 @@ export default function ProfilePage() {
         confirmPassword: '',
     }
   });
+  
+  const phoneForm = useForm<PhoneFormValues>({
+    resolver: zodResolver(phoneSchema),
+    defaultValues: { phoneNumber: '' }
+  });
+
+  const otpForm = useForm<OtpFormValues>({
+    resolver: zodResolver(otpSchema),
+    defaultValues: { otp: '' }
+  });
+
 
   useEffect(() => {
     if (!userLoading && !user) {
@@ -78,9 +106,22 @@ export default function ProfilePage() {
       profileForm.reset({ displayName: user.displayName || '' });
       setAvatarPreview(user.photoURL || null);
       setAvatarUrlInput(user.photoURL || '');
+      
+      const enrolledMfa = multiFactor(user).enrolledFactors;
+      setMfaEnrollment(enrolledMfa.length > 0 ? enrolledMfa[0] : null);
     }
   }, [user, userLoading, router, profileForm]);
   
+  useEffect(() => {
+    if (auth && !recaptchaVerifierRef.current) {
+        recaptchaVerifierRef.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
+        'size': 'invisible',
+        'callback': () => {},
+        'expired-callback': () => {}
+      });
+    }
+  }, [auth]);
+
   const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -204,6 +245,58 @@ export default function ProfilePage() {
     }
   };
   
+    const onSendOtp = async (data: PhoneFormValues) => {
+        if (!user || !recaptchaVerifierRef.current) return;
+        try {
+            const session = await multiFactor(user).getSession();
+            const phoneInfoOptions = {
+                phoneNumber: data.phoneNumber,
+                session: session
+            };
+            const phoneAuthProvider = new PhoneAuthProvider(auth);
+            const verId = await phoneAuthProvider.verifyPhoneNumber(phoneInfoOptions, recaptchaVerifierRef.current);
+            setVerificationId(verId);
+            toast({ title: "Código Enviado!", description: "Verifique seu celular para o código de 6 dígitos." });
+        } catch (error) {
+            console.error("Error sending OTP:", error);
+            toast({ variant: "destructive", title: "Erro", description: "Não foi possível enviar o código. Verifique o número e tente novamente." });
+        }
+    };
+    
+    const onVerifyOtp = async (data: OtpFormValues) => {
+        if (!verificationId || !user) return;
+        try {
+            const cred = PhoneAuthProvider.credential(verificationId, data.otp);
+            const multiFactorAssertion = PhoneAuthProvider.credential(verificationId, data.otp);
+            await multiFactor(user).enroll(multiFactorAssertion);
+            
+            const enrolledMfa = multiFactor(user).enrolledFactors;
+            setMfaEnrollment(enrolledMfa.length > 0 ? enrolledMfa[0] : null);
+            setVerificationId(null);
+            otpForm.reset();
+            phoneForm.reset();
+
+            toast({ title: "Sucesso!", description: "A verificação em duas etapas está ativa." });
+
+        } catch (error) {
+            console.error("Error verifying OTP:", error);
+            toast({ variant: "destructive", title: "Erro", description: "Código inválido ou expirado." });
+        }
+    };
+    
+    const unenrollMfa = async () => {
+        if(!user) return;
+        try {
+            await multiFactor(user).unenroll(mfaEnrollment.uid);
+            setMfaEnrollment(null);
+            toast({ title: "2FA Desativado", description: "A verificação em duas etapas foi removida." });
+        } catch (error) {
+            console.error("Error unenrolling MFA:", error);
+            toast({ variant: "destructive", title: "Erro", description: "Não foi possível desativar a verificação em duas etapas." });
+        }
+    }
+
+  
   if (userLoading || !user) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -214,6 +307,7 @@ export default function ProfilePage() {
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-8 md:px-8">
+      <div id="recaptcha-container"></div>
       <div className="mb-8 pt-20">
         <h1 className="text-3xl font-bold text-white">Configurações da Conta</h1>
         <p className="text-muted-foreground">Gerencie suas informações de perfil e segurança.</p>
@@ -299,7 +393,69 @@ export default function ProfilePage() {
         </TabsContent>
 
         {/* Security Tab */}
-        <TabsContent value="security">
+        <TabsContent value="security" className="space-y-6">
+            <Card>
+                <CardHeader>
+                  <CardTitle>Verificação em Duas Etapas (2FA)</CardTitle>
+                  <CardDescription>Adicione uma camada extra de segurança à sua conta usando SMS.</CardDescription>
+                </CardHeader>
+                 <CardContent>
+                    {mfaEnrollment ? (
+                        <div className="space-y-4">
+                             <Alert variant="default" className="border-green-500/50 bg-green-500/10">
+                                <ShieldCheck className="h-4 w-4 text-green-500" />
+                                <AlertTitle className="text-green-400">2FA Ativado</AlertTitle>
+                                <AlertDescription className="text-muted-foreground">
+                                    Sua conta está protegida com verificação via SMS para o número: {mfaEnrollment.phoneNumber}.
+                                </AlertDescription>
+                            </Alert>
+                             <Button variant="destructive" onClick={unenrollMfa}>Desativar 2FA</Button>
+                        </div>
+                    ) : verificationId ? (
+                        <Form {...otpForm}>
+                            <form onSubmit={otpForm.handleSubmit(onVerifyOtp)} className="space-y-4">
+                                <FormField
+                                    control={otpForm.control}
+                                    name="otp"
+                                    render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Código de Verificação</FormLabel>
+                                        <FormControl>
+                                            <Input placeholder="123456" {...field} />
+                                        </FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                    )}
+                                />
+                                <Button type="submit">Verificar Código</Button>
+                            </form>
+                        </Form>
+                    ) : (
+                         <Form {...phoneForm}>
+                            <form onSubmit={phoneForm.handleSubmit(onSendOtp)} className="space-y-4">
+                                <FormField
+                                    control={phoneForm.control}
+                                    name="phoneNumber"
+                                    render={({ field }) => (
+                                        <FormItem>
+                                            <FormLabel>Número de Celular</FormLabel>
+                                            <div className="relative">
+                                                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                                                <FormControl>
+                                                    <Input placeholder="+5511999999999" {...field} className="pl-9"/>
+                                                </FormControl>
+                                            </div>
+                                            <FormMessage />
+                                        </FormItem>
+                                    )}
+                                />
+                                <Button type="submit">Enviar Código</Button>
+                            </form>
+                        </Form>
+                    )}
+                </CardContent>
+            </Card>
+
           <Card>
             <Form {...passwordForm}>
               <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)}>
@@ -355,3 +511,5 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+    
