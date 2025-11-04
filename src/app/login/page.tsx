@@ -1,3 +1,4 @@
+
 'use client';
 import { useAuth, useUser } from '@/firebase';
 import { signInWithEmailAndPassword } from 'firebase/auth';
@@ -40,12 +41,8 @@ export default function LoginPage() {
   useEffect(() => {
     if (user && !user.isAnonymous && !loading) {
         const redirectPath = localStorage.getItem('redirectAfterLogin');
-        if (redirectPath) {
-          localStorage.removeItem('redirectAfterLogin');
-          router.push(redirectPath);
-        } else {
-          router.push('/dashboard');
-        }
+        localStorage.removeItem('redirectAfterLogin'); // Limpa após o uso
+        router.push(redirectPath || '/dashboard');
     }
   }, [user, loading, router]);
 

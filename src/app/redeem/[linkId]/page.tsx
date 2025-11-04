@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useAuth, useFirestore } from '@/firebase';
@@ -58,14 +59,14 @@ export default function RedeemPage() {
         setStatusMessage(`Concedendo acesso a ${courseIdsToGrant.length} curso(s)...`);
 
         const accessCheckPromises = courseIdsToGrant.map(courseId => 
-            transaction.get(doc(firestore, `users/${user.uid}/courseAccess`, courseId))
+            getDoc(doc(firestore, `users/${user.uid}/courseAccess`, courseId))
         );
         const accessDocs = await Promise.all(accessCheckPromises);
         
         const coursesToActuallyGrant = courseIdsToGrant.filter((_, index) => !accessDocs[index].exists());
         
         if (coursesToActuallyGrant.length > 0) {
-            const batch = writeBatch(transaction.firestore);
+            const batch = writeBatch(firestore);
             coursesToActuallyGrant.forEach(courseId => {
                 const accessRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId);
                  batch.set(accessRef, {
@@ -99,17 +100,16 @@ export default function RedeemPage() {
 
   useEffect(() => {
     if (!auth || !linkId) {
-      setError("Ocorreu um erro de inicialização. Tente recarregar a página.");
-      setLoading(false);
+      setStatusMessage("Erro de configuração. Tente recarregar.");
       return;
     };
 
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       if (user) {
-        // Se o usuário está logado, inicia o processo de resgate.
+        // Usuário está logado, podemos prosseguir com o resgate.
         redeemAccess(user);
       } else {
-        // Se o usuário não está logado, redireciona para o login.
+        // Usuário não está logado, redireciona para a tela de login.
         setStatusMessage("Redirecionando para a área de acesso...");
         localStorage.setItem("redirectAfterLogin", `/redeem/${linkId}`);
         router.push(`/login`);
@@ -132,9 +132,8 @@ export default function RedeemPage() {
     );
   }
   
-  // A tela de carregamento é exibida até que o onAuthStateChanged resolva
-  // e inicie o resgate ou o redirecionamento.
-  if(loading) {
+  // Exibe a tela de carregamento enquanto o onAuthStateChanged está em execução.
+  if (loading) {
     return (
         <div className="flex min-h-screen flex-col items-center justify-center text-center px-4">
             <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent mb-4" />
@@ -144,6 +143,6 @@ export default function RedeemPage() {
     );
   }
 
-  // Se o carregamento terminou e não houve erro, o redirecionamento já terá ocorrido.
+  // O redirecionamento já terá ocorrido se o carregamento terminar sem erro.
   return null;
 }

@@ -1,3 +1,4 @@
+
 'use client';
 import { Button } from '@/components/ui/button';
 import { useAuth, useUser, useFirestore } from '@/firebase';
@@ -44,12 +45,8 @@ export default function RegisterPage() {
   useEffect(() => {
     if (user && !user.isAnonymous && !loading) {
       const redirectPath = localStorage.getItem('redirectAfterLogin');
-      if (redirectPath) {
-        localStorage.removeItem('redirectAfterLogin');
-        router.push(redirectPath);
-      } else {
-        router.push('/dashboard');
-      }
+      localStorage.removeItem('redirectAfterLogin'); // Limpa após o uso
+      router.push(redirectPath || '/dashboard');
     }
   }, [user, loading, router]);
 
