@@ -345,6 +345,7 @@ export default function LessonPage() {
     if (!firestore || !user || !courseId || !lessonId || !hasFullAccess) return;
 
     const progressRef = doc(firestore, 'users', user.uid, 'progress', courseId as string);
+    const newCompletedLesson = { [lessonId]: new Date().toISOString() };
 
     try {
         await setDoc(progressRef, {
@@ -355,7 +356,16 @@ export default function LessonPage() {
             courseId: courseId
         }, { merge: true });
 
+        // Optimistically update local state
+        setUserProgress(prev => ({
+            ...prev,
+            completedLessons: {
+                ...prev?.completedLessons,
+                ...newCompletedLesson
+            }
+        }));
         setIsCurrentLessonCompleted(true);
+
 
         if (nextLesson) {
           router.push(`/courses/${nextLesson.courseId}/${nextLesson.lessonId}`);
