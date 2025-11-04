@@ -1,7 +1,7 @@
 
 'use client';
 import { useAuth, useUser, useFirestore } from '@/firebase';
-import { createUserWithEmailAndPassword, signInWithEmailAndPassword } from 'firebase/auth';
+import { createUserWithEmailAndPassword, signInWithEmailAndPassword, GoogleAuthProvider, signInWithPopup } from 'firebase/auth';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { useRouter, useParams } from 'next/navigation';
 import { useEffect, useState, useCallback } from 'react';
@@ -23,10 +23,16 @@ const authSchema = z.object({
 
 type AuthFormValues = z.infer<typeof authSchema>;
 
-interface PremiumLinkData {
-    name: string;
-    courseIds: string[];
-    courses: { id: string; title: string; }[];
+function GoogleIcon(props: React.SVGProps<SVGSVGElement>) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="24px" height="24px" {...props}>
+            <path fill="#FFC107" d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12s5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24s8.955,20,20,20s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z" />
+            <path fill="#FF3D00" d="M6.306,14.691l6.571,4.819C14.655,15.108,18.961,12,24,12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C16.318,4,9.656,8.337,6.306,14.691z" />
+            <path fill="#4CAF50" d="M24,44c5.166,0,9.86-1.977,13.409-5.192l-6.19-5.238C29.211,35.091,26.715,36,24,36c-5.222,0-9.618-3.317-11.28-7.946l-6.522,5.025C9.505,39.556,16.227,44,24,44z"
+d="M43.611,20.083H42V20H24v8h11.303c-1.649,4.657-6.08,8-11.303,8c-6.627,0-12-5.373-12-12s5.373-12,12-12c3.059,0,5.842,1.154,7.961,3.039l5.657-5.657C34.046,6.053,29.268,4,24,4C12.955,4,4,12.955,4,24s8.955,20,20,20s20-8.955,20-20C44,22.659,43.862,21.35,43.611,20.083z"/>
+            <path fill="#1976D2" d="M43.611,20.083H42V20H24v8h11.303c-0.792,2.237-2.231,4.166-4.087,5.571l6.19,5.238C44.193,35.536,46,30.028,46,24C46,22.345,45.535,20.78,44.86,19.355L43.611,20.083z"/>
+        </svg>
+    )
 }
 
 export default function PremiumAccessPage() {
@@ -39,77 +45,27 @@ export default function PremiumAccessPage() {
   
   const linkId = params.linkId as string;
   
-  const [linkData, setLinkData] = useState<PremiumLinkData | null>(null);
   const [loadingLink, setLoadingLink] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
-  const [formMode, setFormMode] = useState<'login' | 'register'>('register');
+  const [formMode, setFormMode] = useState<'register' | 'login'>('register');
 
   const form = useForm<AuthFormValues>({
     resolver: zodResolver(authSchema),
     defaultValues: { email: '', password: '' },
   });
 
-  const fetchLinkData = useCallback(async () => {
-    if (!firestore || !linkId) return;
-
-    setLoadingLink(true);
-    setError(null);
-    try {
-      const linkRef = doc(firestore, 'premiumLinks', linkId);
-      const linkSnap = await getDoc(linkRef);
-
-      if (!linkSnap.exists()) {
-        setError("Este link de acesso é inválido ou expirou.");
-        return;
-      }
-
-      const link = linkSnap.data();
-      const coursePromises = (link.courseIds || []).map((id: string) => getDoc(doc(firestore, 'courses', id)));
-      const courseSnaps = await Promise.all(coursePromises);
-      const courses = courseSnaps
-        .filter(snap => snap.exists() && snap.data()?.status === 'published')
-        .map(snap => ({ id: snap.id, title: snap.data()?.title || 'Curso Desconhecido' }));
-
-      setLinkData({
-        name: link.name,
-        courseIds: link.courseIds,
-        courses: courses,
-      });
-
-    } catch (err: any) {
-        if (err.code === 'permission-denied') {
-            const permissionError = new FirestorePermissionError({ path: `premiumLinks/${linkId}`, operation: 'get' });
-            errorEmitter.emit('permission-error', permissionError);
-            setError("Você não tem permissão para visualizar este link. Faça o login para continuar.");
-        } else {
-            console.error(err);
-            setError("Ocorreu um erro ao verificar o link de acesso.");
-        }
-    } finally {
-      setLoadingLink(false);
-    }
-  }, [firestore, linkId]);
-
   useEffect(() => {
-    // This effect handles the core logic based on authentication state
     if (userLoading) {
-      // Still checking auth state, do nothing yet. The loading spinner will show.
       return;
     }
-
     if (user) {
-      // User is logged in, redirect to the dashboard to handle redemption securely.
       router.push(`/dashboard?linkId=${linkId}`);
     } else {
-      // No user is logged in. It's now safe to fetch public link data if we wanted to,
-      // but for max security, we will just show the login form.
-      // We can fetch minimal data here if rules were public.
-      // For now, just stop the main loading spinner.
       setLoadingLink(false);
     }
-  }, [user, userLoading, router, linkId, fetchLinkData]);
+  }, [user, userLoading, router, linkId]);
 
 
   const mapFirebaseError = (code: string) => {
@@ -126,9 +82,36 @@ export default function PremiumAccessPage() {
           return "Senha fraca. A senha deve ter pelo menos 6 caracteres.";
       case 'auth/too-many-requests':
         return "Muitas tentativas. Tente mais tarde.";
+       case 'auth/popup-closed-by-user':
+        return "O pop-up de login foi fechado. Tente novamente.";
       default:
         return 'Ocorreu um erro. Tente novamente mais tarde.';
     }
+  };
+
+  const handleSocialSignIn = async (provider: GoogleAuthProvider) => {
+      if (!auth || !firestore) return;
+      setAuthError(null);
+      try {
+          const result = await signInWithPopup(auth, provider);
+          const user = result.user;
+
+          const userDocRef = doc(firestore, 'users', user.uid);
+          const userDocSnap = await getDoc(userDocRef);
+
+          if (!userDocSnap.exists()) {
+              await setDoc(userDocRef, {
+                  email: user.email,
+                  displayName: user.displayName,
+                  photoURL: user.photoURL,
+                  role: 'user',
+              });
+          }
+          // Redirection handled by useEffect
+      } catch (error: any) {
+          const message = mapFirebaseError(error.code);
+          setAuthError(message);
+      }
   };
 
   const onSubmit = async (data: AuthFormValues) => {
@@ -153,10 +136,6 @@ export default function PremiumAccessPage() {
                 errorEmitter.emit('permission-error', permissionError);
             });
         }
-        
-        // After successful login/signup, the useEffect will detect the user change and redirect to the dashboard.
-        // No manual redirect is needed here.
-
     } catch (error: any) {
         const message = mapFirebaseError(error.code);
         setAuthError(message);
@@ -164,14 +143,10 @@ export default function PremiumAccessPage() {
     }
   };
   
-  // This is the main loading gate. It waits for the initial user check.
-  if (userLoading || user) {
+  if (userLoading || loadingLink || user) {
     return <div className="flex min-h-screen items-center justify-center"><div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" /></div>;
   }
   
-  // If we are here, it means userLoading is false AND user is null.
-  // We show the login/register form.
-
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
       <div className="w-full max-w-sm space-y-8">
@@ -183,6 +158,24 @@ export default function PremiumAccessPage() {
             <p className="mt-2 text-muted-foreground">
                 {formMode === 'login' ? 'Faça login para resgatar seu acesso.' : 'Crie uma conta para resgatar seu acesso.'}
             </p>
+        </div>
+        
+        <div className="grid gap-4">
+          <Button variant="outline" className="w-full" onClick={() => handleSocialSignIn(new GoogleAuthProvider())}>
+            <GoogleIcon className="mr-2 h-6 w-6" />
+            Continuar com Google
+          </Button>
+        </div>
+
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-background px-2 text-muted-foreground">
+              Ou continue com
+            </span>
+          </div>
         </div>
 
         <Form {...form}>
@@ -216,9 +209,9 @@ export default function PremiumAccessPage() {
         </Form>
 
         <div className="mt-4 text-center text-sm text-muted-foreground">
-          {formMode === 'login' ? "Não tem uma conta?" : "Já tem uma conta?"}{' '}
+          {formMode === 'register' ? "Já tem uma conta?" : "Não tem uma conta?"}{' '}
           <button onClick={() => setFormMode(formMode === 'login' ? 'register' : 'login')} className="font-medium text-primary hover:underline">
-            {formMode === 'login' ? 'Cadastre-se' : 'Faça login'}
+            {formMode === 'register' ? 'Faça login' : 'Cadastre-se'}
           </button>
         </div>
 
@@ -226,3 +219,5 @@ export default function PremiumAccessPage() {
     </div>
   );
 }
+
+    
