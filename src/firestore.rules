@@ -17,6 +17,11 @@ service cloud.firestore {
     function hasLessonDemoAccess(courseId, lessonId) {
         return exists(/databases/$(database)/documents/users/$(request.auth.uid)/demoAccess/$(courseId)/lessons/$(lessonId));
     }
+    
+    // Helper function to check if a user has any demo access within a course
+    function hasAnyDemoAccess(userId, courseId) {
+      return exists(/databases/$(database)/documents/users/$(userId)/demoAccess/$(courseId));
+    }
 
     // Helper function to determine if a user can interact with lesson content (comment, like, etc.)
     function canInteract(courseId, lessonId) {
@@ -69,7 +74,7 @@ service cloud.firestore {
     // Course documents can be listed by any authenticated user if they filter by published status.
     // A single course document can be read if it's published, or if the user is an admin.
     match /courses/{courseId} {
-      allow get: if (request.auth != null && resource.data.status == 'published') || isAdmin() || (resource.data.isFree == true);
+      allow get: if (request.auth != null && resource.data.status == 'published') || isAdmin() || (resource.data.isFree == true) || (resource.data.isDemoEnabled == true && hasAnyDemoAccess(request.auth.uid, courseId));
       allow list: if (request.auth != null && request.query.where[0][2] == "published") || isAdmin();
       allow write: if isAdmin();
     }
