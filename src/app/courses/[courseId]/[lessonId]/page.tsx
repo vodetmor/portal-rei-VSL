@@ -173,19 +173,44 @@ export default function LessonPage() {
 
   const { data: reactions, isLoading: reactionsLoading } = useCollection<LessonReaction>(reactionsQuery);
 
-  const fetchLessonData = useCallback(async () => {
+  const grantDemoAccess = useCallback(async (uid: string, cid: string, lid: string) => {
     if (!firestore) return;
+    const demoId = `${cid}_${lid}`;
+    const demoDocRef = doc(firestore, `users/${uid}/demoAccess`, demoId);
+    try {
+        await setDoc(demoDocRef, { granted: true, timestamp: serverTimestamp() }, { merge: true });
+    } catch (error) {
+        console.error("Failed to grant demo access:", error);
+    }
+  }, [firestore]);
+
+
+  const fetchLessonData = useCallback(async () => {
+    if (!firestore || !courseId || !lessonId) return;
+
+    let currentUser = auth?.currentUser;
+    if (!currentUser && !userLoading) {
+        try {
+            const userCredential = await signInAnonymously(auth);
+            currentUser = userCredential.user;
+        } catch (error) {
+            console.error("Anonymous sign-in failed", error);
+            toast({ variant: 'destructive', title: 'Erro de autenticação', description: 'Não foi possível acessar o conteúdo.' });
+            return;
+        }
+    }
+
+    if (!currentUser) return;
+
     setLoading(true);
     setIsCurrentLessonCompleted(false);
 
     try {
       // Step 1: Fetch user role first, as it determines other fetches
       let userIsAdmin = false;
-      if (user) {
-        const userDocRef = doc(firestore, 'users', user.uid);
-        const userDocSnap = await getDoc(userDocRef);
-        userIsAdmin = userDocSnap.exists() && userDocSnap.data().role === 'admin';
-      }
+      const userDocRef = doc(firestore, 'users', currentUser.uid);
+      const userDocSnap = await getDoc(userDocRef);
+      userIsAdmin = userDocSnap.exists() && userDocSnap.data().role === 'admin';
       setIsAdmin(userIsAdmin);
 
       // Step 2: Fetch course data
@@ -199,13 +224,11 @@ export default function LessonPage() {
       }
       const courseData = { id: courseDocSnap.id, ...courseDocSnap.data() } as Course;
       
-      // Step 2.1: If course is a draft, only admins can see it
       if (courseData.status === 'draft' && !userIsAdmin) {
         toast({ variant: 'destructive', title: 'Curso em Breve', description: 'Este curso ainda não foi publicado.' });
         router.push('/dashboard');
         return;
       }
-
       setCourse(courseData);
 
       // Step 3: Find the current lesson and module
@@ -225,7 +248,6 @@ export default function LessonPage() {
         router.push(`/courses/${courseId}`);
         return;
       }
-      
       setCurrentLesson(foundLesson);
       setCurrentModule(foundModule);
 
@@ -235,8 +257,8 @@ export default function LessonPage() {
         fullAccess = true;
       } else if (courseData.isFree) {
         fullAccess = true;
-      } else if (user) {
-        const accessDocRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId as string);
+      } else {
+        const accessDocRef = doc(firestore, `users/${currentUser.uid}/courseAccess`, courseId as string);
         const accessDocSnap = await getDoc(accessDocRef);
         if (accessDocSnap.exists()) {
           fullAccess = true;
@@ -248,24 +270,19 @@ export default function LessonPage() {
       }
       setHasFullAccess(fullAccess);
 
-
-      // Step 5: Check if the specific lesson is viewable
+      // Step 5: Check if the specific lesson is viewable and grant demo access if needed
       const canViewDemo = courseData.isDemoEnabled && (foundLesson.isDemo || foundModule.isDemo);
-      if (!fullAccess && !canViewDemo) {
-        if (user) {
-          toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você não tem permissão para ver esta aula.' });
-          router.push(`/courses/${courseId}`);
-        } else {
-          // For non-logged in users, we can just silently stop here without a toast
-          // as they are expected to have limited access.
-          router.push(`/courses/${courseId}`);
-        }
+      if (!fullAccess && canViewDemo) {
+          await grantDemoAccess(currentUser.uid, courseId as string, lessonId as string);
+      } else if (!fullAccess && !canViewDemo) {
+        toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você não tem permissão para ver esta aula.' });
+        router.push(`/courses/${courseId}`);
         return;
       }
       
       // Step 6: Fetch progress if the user has full access
-      if(fullAccess && user) {
-        const progressDocRef = doc(firestore, `users/${user.uid}/progress`, courseId as string);
+      if(fullAccess && currentUser) {
+        const progressDocRef = doc(firestore, `users/${currentUser.uid}/progress`, courseId as string);
         const progressDocSnap = await getDoc(progressDocRef);
         if (progressDocSnap.exists()) {
           const progressData = progressDocSnap.data() as UserProgress;
@@ -293,6 +310,7 @@ export default function LessonPage() {
       }
 
     } catch (error: any) {
+        console.error("Error fetching lesson data:", error);
         const permissionError = new FirestorePermissionError({
             path: `courses/${courseId} or related user data`,
             operation: 'get',
@@ -301,7 +319,7 @@ export default function LessonPage() {
     } finally {
       setLoading(false);
     }
-  }, [courseId, lessonId, user, userLoading, firestore, router, toast]);
+  }, [courseId, lessonId, auth, userLoading, firestore, router, toast, grantDemoAccess]);
 
   useEffect(() => {
     setIsClient(true);
@@ -609,7 +627,7 @@ export default function LessonPage() {
                         <h2 className="text-xl font-bold text-white">Comunidade</h2>
                     </CardHeader>
                     <CardContent>
-                       {hasFullAccess ? (
+                       {user ? (
                           <CommentsSection
                             firestore={firestore}
                             auth={auth}

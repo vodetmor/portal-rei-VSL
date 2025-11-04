@@ -92,6 +92,17 @@
       },
       "required": ["courseId", "grantedAt"]
     },
+    "DemoAccess": {
+      "$schema": "http://json-schema.org/draft-07-schema#",
+      "title": "DemoAccess",
+      "type": "object",
+      "description": "Represents a user's access grant to a specific demo lesson.",
+      "properties": {
+        "granted": { "type": "boolean" },
+        "timestamp": { "type": "string", "format": "date-time" }
+      },
+      "required": ["granted", "timestamp"]
+    },
     "Video": {
       "$schema": "http://json-schema.org/draft-07-schema#",
       "title": "Video",
@@ -152,14 +163,26 @@
       "description": "Represents a unique link that grants access to one or more courses.",
       "properties": {
         "id": { "type": "string", "description": "Unique identifier for the link (the token)." },
-        "name": { "type": "string", "description": "A descriptive name for the link, for admin use." },
+        "linkName": { "type": "string", "description": "A descriptive name for the link, for admin use." },
         "courseIds": {
           "type": "array",
           "description": "An array of course IDs that this link grants access to.",
           "items": { "type": "string" }
+        },
+        "maxUses": {
+            "type": "number",
+            "description": "Maximum number of times the link can be used. 0 for unlimited."
+        },
+        "uses": {
+            "type": "number",
+            "description": "Current number of times the link has been used."
+        },
+        "active": {
+            "type": "boolean",
+            "description": "Whether the link is currently active."
         }
       },
-      "required": ["id", "name", "courseIds"]
+      "required": ["id", "linkName", "courseIds", "uses", "active"]
     },
     "AuditLog": {
         "$schema": "http://json-schema.org/draft-07/schema#",
@@ -341,6 +364,18 @@
         }
       },
       {
+        "path": "/users/{userId}/demoAccess/{demoId}",
+        "definition": {
+          "entityName": "DemoAccess",
+          "schema": { "$ref": "#/backend/entities/DemoAccess" },
+          "description": "Stores a record of a user's access to a specific demo lesson. The demoId is a concatenation of courseId and lessonId.",
+          "params": [
+            { "name": "userId", "description": "The ID of the user." },
+            { "name": "demoId", "description": "The unique identifier for the demo access, typically `courseId_lessonId`." }
+          ]
+        }
+      },
+      {
         "path": "/users/{userId}/progress/{courseId}",
         "definition": {
             "entityName": "Progress",
@@ -407,9 +442,6 @@
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to store data for the 'Portfólio Hades' application, focusing on separation of concerns, security, and scalability. User management has been added with a specific subcollection for course access to allow granular control. The `premiumLinks` collection has been added to manage the new premium access system, linking tokens to course bundles.\n\n**Users:** Stored in the `/users` collection.\n**Course Access:** A subcollection `/users/{userId}/courseAccess` explicitly grants users access to courses.\n**Premium Links:** A new collection `/premiumLinks` stores the generated tokens and the course IDs they grant access to.\n**Audit Logs:** A new collection `/auditLogs` has been added to track all administrative actions for security and monitoring purposes.\n**Progress:** A new subcollection `/users/{userId}/progress` tracks user completion of lessons within each course, enabling progress bars and detailed admin views."
+    "reasoning": "The Firestore structure is designed to store data for the 'Portfólio Hades' application, focusing on separation of concerns, security, and scalability. User management has been added with a specific subcollection for course access to allow granular control. The `premiumLinks` collection has been added to manage the new premium access system, linking tokens to course bundles.\n\n**Users:** Stored in the `/users` collection.\n**Course Access:** A subcollection `/users/{userId}/courseAccess` explicitly grants users access to courses.\n**Demo Access:** A new subcollection `/users/{userId}/demoAccess` grants access to specific demo lessons to prevent repeated reads on the main course document.\n**Premium Links:** A new collection `/premiumLinks` stores the generated tokens and the course IDs they grant access to.\n**Audit Logs:** A new collection `/auditLogs` has been added to track all administrative actions for security and monitoring purposes.\n**Progress:** A new subcollection `/users/{userId}/progress` tracks user completion of lessons within each course, enabling progress bars and detailed admin views."
   }
 }
-
-    
-    
