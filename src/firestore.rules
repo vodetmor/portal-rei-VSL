@@ -24,15 +24,6 @@ service cloud.firestore {
         return exists(/databases/$(database)/documents/users/$(userId)/demoAccess/$(courseId));
     }
 
-    // Helper function to determine if a user can interact with lesson content (comment, like, etc.)
-    function canInteract(courseId, lessonId) {
-        let course = get(/databases/$(database)/documents/courses/$(courseId)).data;
-        return hasCourseAccess(courseId) 
-            || isAdmin() 
-            || course.isFree == true
-            || (course.isDemoEnabled == true && hasAnyDemoAccess(request.auth.uid, courseId));
-    }
-
     // User documents can be read by their owner or an admin.
     // Admins can list all users.
     // Users can only create their own document. Admins can update any user document.
@@ -85,14 +76,14 @@ service cloud.firestore {
       
       // Comments, Replies, and Likes can be managed by any user with valid interaction rights.
       match /comments/{commentId} {
-        allow list, read, create, update, delete: if canInteract(courseId, lessonId);
+        allow list, read, create, update, delete: if hasCourseAccess(courseId) || isAdmin() || hasLessonDemoAccess(courseId, lessonId);
 
         match /replies/{replyId} {
-          allow list, read, create, update, delete: if canInteract(courseId, lessonId);
+          allow list, read, create, update, delete: if hasCourseAccess(courseId) || isAdmin() || hasLessonDemoAccess(courseId, lessonId);
         }
 
         match /likes/{userId} {
-          allow list, read, create, delete: if canInteract(courseId, lessonId);
+          allow list, read, create, delete: if hasCourseAccess(courseId) || isAdmin() || hasLessonDemoAccess(courseId, lessonId);
         }
       }
 
