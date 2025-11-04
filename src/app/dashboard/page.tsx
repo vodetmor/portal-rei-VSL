@@ -325,66 +325,6 @@ function DashboardClientPage() {
     }
   };
 
-  const fetchCoursesAndProgress = useCallback(async (userIsAdmin: boolean) => {
-    if (!firestore || !user) return;
-    setLoadingData(true);
-    
-    try {
-      const coursesRef = collection(firestore, 'courses');
-      let coursesQuery;
-
-      if (userIsAdmin) {
-        // Admins can see all courses (published and draft)
-        coursesQuery = query(coursesRef);
-      } else {
-        // Regular users only see published courses
-        coursesQuery = query(coursesRef, where('status', '==', 'published'));
-      }
-      
-      const coursesSnapshot = await getDocs(coursesQuery);
-      const fetchedCourses = coursesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
-      setCourses(fetchedCourses);
-
-      // Determine course access for the user
-      const newCourseAccess: CourseAccess = {};
-      const accessSnapshot = await getDocs(collection(firestore, `users/${user.uid}/courseAccess`));
-      accessSnapshot.docs.forEach(doc => newCourseAccess[doc.id] = true);
-      
-      fetchedCourses.forEach(course => {
-        if (course.isFree || userIsAdmin) {
-          newCourseAccess[course.id] = true;
-        }
-      });
-      setCourseAccess(newCourseAccess);
-
-      // Fetch progress only for the courses the user has access to
-      const accessibleCourseIds = Object.keys(newCourseAccess);
-      if (accessibleCourseIds.length > 0) {
-        const progressPromises = accessibleCourseIds.map(id => getDoc(doc(firestore, `users/${user.uid}/progress`, id)));
-        const progressSnaps = await Promise.all(progressPromises);
-        const progressData: UserProgress = {};
-        progressSnaps.forEach(snap => {
-          if (snap.exists()) {
-            progressData[snap.id] = snap.data() as UserProgress[string];
-          }
-        });
-        setUserProgress(progressData);
-      }
-    } catch (error: any) {
-      console.error("Error fetching courses and progress: ", error);
-      if (error.code === 'permission-denied') {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({
-          path: `courses`,
-          operation: 'list'
-        }));
-      }
-      toast({ variant: "destructive", title: "Erro ao Carregar", description: "Não foi possível carregar os cursos." });
-      setCourses([]);
-    } finally {
-      setLoadingData(false);
-    }
-}, [firestore, user, toast]);
-  
   const handleConfirmDelete = (courseId: string) => {
     if (!firestore) return;
     const courseRef = doc(firestore, 'courses', courseId);
@@ -448,7 +388,70 @@ function DashboardClientPage() {
       });
   };
 
-  const redeemPremiumLink = useCallback(async (linkId: string) => {
+    const fetchCoursesAndProgress = useCallback(async (isUserAdmin: boolean) => {
+        if (!firestore || !user) return;
+        setLoadingData(true);
+
+        try {
+            const coursesRef = collection(firestore, 'courses');
+            let coursesQuery;
+
+            if (isUserAdmin) {
+                coursesQuery = query(coursesRef);
+            } else {
+                coursesQuery = query(coursesRef, where('status', '==', 'published'));
+            }
+            
+            const coursesSnapshot = await getDocs(coursesQuery);
+            const fetchedCourses = coursesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
+            
+            // For admins, fetch draft courses separately if the main query was for published
+            if (isUserAdmin) {
+                setCourses(fetchedCourses);
+            } else {
+                 setCourses(fetchedCourses);
+            }
+
+
+            const newCourseAccess: CourseAccess = {};
+            const accessSnapshot = await getDocs(collection(firestore, `users/${user.uid}/courseAccess`));
+            accessSnapshot.docs.forEach(doc => newCourseAccess[doc.id] = true);
+            
+            fetchedCourses.forEach(course => {
+                if (course.isFree || isUserAdmin) {
+                newCourseAccess[course.id] = true;
+                }
+            });
+            setCourseAccess(newCourseAccess);
+
+            const accessibleCourseIds = Object.keys(newCourseAccess);
+            if (accessibleCourseIds.length > 0) {
+                const progressPromises = accessibleCourseIds.map(id => getDoc(doc(firestore, `users/${user.uid}/progress`, id)));
+                const progressSnaps = await Promise.all(progressPromises);
+                const progressData: UserProgress = {};
+                progressSnaps.forEach(snap => {
+                if (snap.exists()) {
+                    progressData[snap.id] = snap.data() as UserProgress[string];
+                }
+                });
+                setUserProgress(progressData);
+            }
+        } catch (error: any) {
+            console.error("Error fetching courses and progress: ", error);
+            if (error.code === 'permission-denied') {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({
+                path: `courses`,
+                operation: 'list'
+                }));
+            }
+            toast({ variant: "destructive", title: "Erro ao Carregar", description: "Não foi possível carregar os cursos." });
+            setCourses([]);
+        } finally {
+            setLoadingData(false);
+        }
+    }, [firestore, user, toast]);
+
+    const redeemPremiumLink = useCallback(async (linkId: string) => {
     if (!firestore || !user) return;
 
     try {
@@ -501,7 +504,7 @@ function DashboardClientPage() {
             
             await batch.commit();
             toast({ title: "Acesso Liberado!", description: `${grantedCount} novo(s) curso(s) foram adicionados à sua conta.` });
-            // The fetchCoursesAndProgress will be called in the main useEffect
+            fetchCoursesAndProgress(isAdmin);
         } else {
             toast({ title: "Tudo Certo!", description: "Você já tem acesso a todos os cursos deste link." });
         }
@@ -517,18 +520,19 @@ function DashboardClientPage() {
     } finally {
         router.replace('/dashboard', { scroll: false });
     }
-  }, [firestore, user, toast, router]);
+  }, [firestore, user, toast, router, fetchCoursesAndProgress, isAdmin]);
 
   useEffect(() => {
     if (userLoading) return;
-
     if (!user) {
-      router.push('/login');
-      return;
+        router.push('/login');
+        return;
     }
-    
-    if (!firestore) return;
+  },[user, userLoading, router]);
 
+  useEffect(() => {
+    if (!user || !firestore) return;
+    
     const checkAdminAndFetchData = async () => {
         let userIsAdmin = false;
         try {
@@ -537,15 +541,8 @@ function DashboardClientPage() {
             if (userDocSnap.exists() && userDocSnap.data().role === 'admin') {
                 userIsAdmin = true;
             }
-        } catch (error: any) {
-            console.error("Could not check admin status:", error);
-            if (error.code === 'permission-denied') {
-                const permissionError = new FirestorePermissionError({
-                    path: `users/${user.uid}`,
-                    operation: 'get',
-                });
-                errorEmitter.emit('permission-error', permissionError);
-            }
+        } catch (error) {
+            // Non-blocking, default to false
         } finally {
             setIsAdmin(userIsAdmin);
             await fetchCoursesAndProgress(userIsAdmin);
@@ -553,14 +550,13 @@ function DashboardClientPage() {
     };
 
     checkAdminAndFetchData();
-
+    
     const linkId = searchParams.get('linkId');
     if (linkId) {
         redeemPremiumLink(linkId);
     }
-}, [user, userLoading, firestore, router, fetchCoursesAndProgress, redeemPremiumLink, searchParams]);
+  }, [user, firestore, fetchCoursesAndProgress, searchParams, redeemPremiumLink]);
   
-  // Effect to set initial content of contentEditable divs & sync state
   useEffect(() => {
     const titleEl = titleRef.current;
     const subtitleEl = subtitleRef.current;
