@@ -1,3 +1,4 @@
+
 'use client';
 import { useUser, useFirestore } from '@/firebase';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -326,16 +327,14 @@ function DashboardClientPage() {
 
 
   const fetchCoursesAndProgress = useCallback(async () => {
-    if (!firestore || !user) return;
+    if (!firestore || !user) return; //<- This guard is crucial
     setLoading(true);
 
     try {
         let coursesQuery;
         if (isAdmin) {
-            // Admins can see all courses
             coursesQuery = query(collection(firestore, 'courses'));
         } else {
-            // Regular users only see published courses
             coursesQuery = query(collection(firestore, 'courses'), where('status', '==', 'published'));
         }
         
@@ -351,7 +350,6 @@ function DashboardClientPage() {
             accessSnapshot.docs.forEach(doc => {
                 newCourseAccess[doc.id] = true;
             });
-            // Also grant access to all free courses
             allFetchedCourses.forEach(course => {
                 if (course.isFree) {
                     newCourseAccess[course.id] = true;
@@ -574,10 +572,12 @@ function DashboardClientPage() {
   }, [user, firestore]);
 
    useEffect(() => {
-    if (user && firestore) {
+    // This effect now correctly waits for user authentication to complete
+    // before attempting to fetch data.
+    if (!userLoading && user && firestore) {
       fetchCoursesAndProgress();
     }
-  }, [user, firestore, isAdmin, fetchCoursesAndProgress]);
+  }, [user, userLoading, firestore, isAdmin, fetchCoursesAndProgress]);
   
   // Effect to set initial content of contentEditable divs & sync state
   useEffect(() => {
@@ -921,3 +921,5 @@ export default function DashboardPage() {
     <DashboardClientPage />
   )
 }
+
+    
