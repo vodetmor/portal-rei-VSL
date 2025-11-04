@@ -19,11 +19,15 @@ export default function RedeemPage() {
   const linkId = params.linkId as string;
   
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState("Verificando seu acesso...");
+  const [error, setError] = useState<string | null>(null);
 
   const redeemAccess = useCallback(async (user: User) => {
-    if (!firestore || !linkId) return;
+    if (!firestore || !linkId) {
+        setError("Ocorreu um erro interno. Tente novamente.");
+        setLoading(false);
+        return;
+    };
 
     setStatusMessage("Verificando link de acesso...");
     const linkRef = doc(firestore, 'premiumLinks', linkId);
@@ -57,7 +61,8 @@ export default function RedeemPage() {
         
         for (const courseId of courseIdsToGrant) {
             const accessRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId);
-            const accessDoc = await transaction.get(accessRef); // Read within transaction
+            // We check for existence within the transaction
+            const accessDoc = await transaction.get(accessRef);
             if (!accessDoc.exists()) {
                 batch.set(accessRef, {
                     courseId: courseId,
@@ -67,8 +72,12 @@ export default function RedeemPage() {
             }
         }
         
-        await batch.commit();
+        // Only commit if there are changes
+        if (batch.length > 0) {
+             await batch.commit();
+        }
 
+        // Update the link usage
         const newUses = increment(1);
         if (maxUses > 0 && currentUses + 1 >= maxUses) {
           transaction.update(linkRef, { uses: newUses, active: false });
@@ -90,8 +99,8 @@ export default function RedeemPage() {
 
   useEffect(() => {
     if (!auth || !linkId) {
-        if(!auth) setError("Serviço de autenticação indisponível.");
-        if(!linkId) setError("ID do link não encontrado.");
+        if (!auth) setError("Serviço de autenticação indisponível.");
+        if (!linkId) setError("ID do link não encontrado.");
         setLoading(false);
         return;
     };
@@ -102,9 +111,9 @@ export default function RedeemPage() {
             await redeemAccess(user);
         } else {
             // No user is signed in, save the path and redirect to login.
-            setStatusMessage("Redirecionando para o login...");
+            setStatusMessage("Redirecionando para a área de acesso...");
             localStorage.setItem("redirectAfterLogin", `/redeem/${linkId}`);
-            router.push(`/login`);
+            router.push(`/login?message=${encodeURIComponent("Crie uma conta para acessar seus cursos")}`);
         }
     });
 
@@ -125,11 +134,10 @@ export default function RedeemPage() {
     );
   }
   
-  // This component primarily shows a loading state while auth is being checked.
   return (
     <div className="flex min-h-screen flex-col items-center justify-center text-center px-4">
         <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent mb-4" />
-        <h1 className="text-2xl font-bold text-white">Processando Acesso Premium</h1>
+        <h1 className="text-2xl font-bold text-white">Um momento...</h1>
         <p className="text-muted-foreground mt-2">{statusMessage}</p>
     </div>
   );

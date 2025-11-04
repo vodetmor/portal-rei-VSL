@@ -29,9 +29,6 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const customMessage = params.get('message');
   
-  // Do not get redirectUrl from params anymore, we'll use localStorage
-  // const redirectUrl = params.get('redirect');
-
   const form = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: {
@@ -74,7 +71,6 @@ export default function LoginPage() {
     try {
       await signInWithEmailAndPassword(auth, data.email, data.password);
       // The useEffect will handle redirection once the user state updates.
-      // The logic is now inside the useEffect to also handle users who land here already logged in.
     } catch (error: any) {
       const message = mapFirebaseError(error.code);
       setAuthError(message);
@@ -88,7 +84,6 @@ export default function LoginPage() {
     </div>;
   }
   
-  // Render form if user is not logged in
   if (!user || user.isAnonymous) {
       return (
         <div className="flex min-h-screen items-center justify-center bg-background px-4">
