@@ -5,7 +5,6 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useFirestore, useUser, useAuth, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { doc, getDoc, updateDoc, serverTimestamp, setDoc, addDoc, collection, query, orderBy, deleteDoc, writeBatch, runTransaction, increment } from 'firebase/firestore';
-import { signInAnonymously } from 'firebase/auth';
 import ReactPlayer from 'react-player/lazy';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -194,21 +193,20 @@ export default function LessonPage() {
 
 
   const fetchLessonData = useCallback(async () => {
-    if (!firestore || !courseId || !lessonId) return;
-
-    let currentUser = auth?.currentUser;
-    if (!currentUser && !userLoading) {
-        try {
-            const userCredential = await signInAnonymously(auth);
-            currentUser = userCredential.user;
-        } catch (error) {
-            console.error("Anonymous sign-in failed", error);
-            toast({ variant: 'destructive', title: 'Erro de autenticação', description: 'Não foi possível acessar o conteúdo.' });
-            return;
+    if (!firestore || !courseId || !lessonId || !user) {
+        // If user is null after loading is complete, redirect them
+        if (!userLoading) {
+            toast({
+                title: "Acesso Necessário",
+                description: "Você precisa fazer login para acessar esta aula.",
+                variant: "destructive"
+            });
+            const currentPath = `/courses/${courseId}/${lessonId}`;
+            localStorage.setItem('redirectAfterLogin', currentPath);
+            router.push('/login');
         }
+        return;
     }
-
-    if (!currentUser) return;
 
     setLoading(true);
     setIsCurrentLessonCompleted(false);
@@ -216,7 +214,7 @@ export default function LessonPage() {
     try {
       // Step 1: Fetch user role first, as it determines other fetches
       let userIsAdmin = false;
-      const userDocRef = doc(firestore, 'users', currentUser.uid);
+      const userDocRef = doc(firestore, 'users', user.uid);
       const userDocSnap = await getDoc(userDocRef);
       userIsAdmin = userDocSnap.exists() && userDocSnap.data().role === 'admin';
       setIsAdmin(userIsAdmin);
@@ -266,7 +264,7 @@ export default function LessonPage() {
       } else if (courseData.isFree) {
         fullAccess = true;
       } else {
-        const accessDocRef = doc(firestore, `users/${currentUser.uid}/courseAccess`, courseId as string);
+        const accessDocRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId as string);
         const accessDocSnap = await getDoc(accessDocRef);
         if (accessDocSnap.exists()) {
           fullAccess = true;
@@ -281,7 +279,7 @@ export default function LessonPage() {
       // Step 5: Check if the specific lesson is viewable and grant demo access if needed
       const canViewDemo = courseData.isDemoEnabled && (foundLesson.isDemo || foundModule.isDemo);
       if (!fullAccess && canViewDemo) {
-          await grantDemoAccess(currentUser.uid, courseId as string, lessonId as string);
+          await grantDemoAccess(user.uid, courseId as string, lessonId as string);
       } else if (!fullAccess && !canViewDemo) {
         toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você não tem permissão para ver esta aula.' });
         router.push(`/courses/${courseId}`);
@@ -289,8 +287,8 @@ export default function LessonPage() {
       }
       
       // Step 6: Fetch progress if the user has full access
-      if(fullAccess && currentUser) {
-        const progressDocRef = doc(firestore, `users/${currentUser.uid}/progress`, courseId as string);
+      if(fullAccess && user) {
+        const progressDocRef = doc(firestore, `users/${user.uid}/progress`, courseId as string);
         const progressDocSnap = await getDoc(progressDocRef);
         if (progressDocSnap.exists()) {
           const progressData = progressDocSnap.data() as UserProgress;
@@ -327,13 +325,11 @@ export default function LessonPage() {
     } finally {
       setLoading(false);
     }
-  }, [courseId, lessonId, auth, userLoading, firestore, router, toast, grantDemoAccess]);
+  }, [courseId, lessonId, user, userLoading, firestore, router, toast, grantDemoAccess]);
+
 
   useEffect(() => {
     setIsClient(true);
-  }, []);
-  
-  useEffect(() => {
     fetchLessonData();
   }, [fetchLessonData]);
 
@@ -376,13 +372,9 @@ export default function LessonPage() {
 
     let currentUser = auth.currentUser;
     if (!currentUser) {
-        try {
-            const userCredential = await signInAnonymously(auth);
-            currentUser = userCredential.user;
-        } catch (error) {
-            toast({ variant: "destructive", title: "Erro", description: "Não foi possível registrar sua reação." });
-            return;
-        }
+        // This case should ideally not be hit due to the page guard
+        toast({ variant: "destructive", title: "Erro", description: "Você precisa estar logado para reagir." });
+        return;
     }
 
     const reactionRef = doc(firestore, `courses/${courseId}/lessons/${lessonId}/reactions`, currentUser.uid);
@@ -706,18 +698,9 @@ function CommentsSection({ firestore, auth, user, courseId, lessonId, isAdmin }:
   }, [comments]);
 
   const handlePostComment = async () => {
-    if (!newComment.trim() || !auth) return;
-
-    let currentUser = auth.currentUser;
-    if (!currentUser) {
-        try {
-            const userCredential = await signInAnonymously(auth);
-            currentUser = userCredential.user;
-        } catch (error) {
-            toast({ variant: "destructive", title: "Erro", description: "Não foi possível postar seu comentário." });
-            return;
-        }
-    }
+    if (!newComment.trim() || !auth || !auth.currentUser) return;
+    
+    const currentUser = auth.currentUser;
 
     const commentData = {
       userId: currentUser.uid,
@@ -798,17 +781,9 @@ function CommentItem({ comment, firestore, auth, user, courseId, lessonId, isAdm
   const { toast } = useToast();
 
   const toggleLike = async () => {
-    if (!auth) return;
-    let currentUser = auth.currentUser;
-    if (!currentUser) {
-        try {
-            const userCredential = await signInAnonymously(auth);
-            currentUser = userCredential.user;
-        } catch (error) {
-            toast({ variant: "destructive", title: "Erro", description: "Não foi possível curtir o comentário." });
-            return;
-        }
-    }
+    if (!auth || !auth.currentUser) return;
+    
+    const currentUser = auth.currentUser;
 
     const likeRef = doc(firestore, `courses/${courseId}/lessons/${lessonId}/comments/${comment.id}/likes`, currentUser.uid);
     const commentRef = doc(firestore, `courses/${courseId}/lessons/${lessonId}/comments`, comment.id);
@@ -922,18 +897,9 @@ function RepliesSection({ firestore, auth, user, courseId, lessonId, commentId, 
   const { data: replies, isLoading: repliesLoading } = useCollection<CommentReply>(repliesQuery);
   
   const handlePostReply = async () => {
-    if (!newReply.trim() || !auth) return;
-
-    let currentUser = auth.currentUser;
-    if (!currentUser) {
-        try {
-            const userCredential = await signInAnonymously(auth);
-            currentUser = userCredential.user;
-        } catch (error) {
-            toast({ variant: "destructive", title: "Erro", description: "Não foi possível postar sua resposta." });
-            return;
-        }
-    }
+    if (!newReply.trim() || !auth || !auth.currentUser) return;
+    
+    const currentUser = auth.currentUser;
 
     const replyData = {
       userId: currentUser.uid,
