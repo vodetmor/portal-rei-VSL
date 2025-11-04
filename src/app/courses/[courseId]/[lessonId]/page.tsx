@@ -193,20 +193,22 @@ export default function LessonPage() {
 
 
   const fetchLessonData = useCallback(async () => {
-    if (!firestore || !courseId || !lessonId || !user) {
-        // If user is null after loading is complete, redirect them
-        if (!userLoading) {
-            toast({
-                title: "Acesso Necessário",
-                description: "Você precisa fazer login para acessar esta aula.",
-                variant: "destructive"
-            });
-            const currentPath = `/courses/${courseId}/${lessonId}`;
-            localStorage.setItem('redirectAfterLogin', currentPath);
-            router.push('/login');
-        }
+    if (userLoading) return; // Wait until user status is resolved
+
+    if (!user) {
+        toast({
+            title: "Acesso Necessário",
+            description: "Você precisa fazer login para acessar esta aula.",
+            variant: "destructive"
+        });
+        const currentPath = `/courses/${courseId}/${lessonId}`;
+        localStorage.setItem('redirectAfterLogin', currentPath);
+        router.push('/login');
         return;
     }
+    
+    if (!firestore || !courseId || !lessonId) return;
+
 
     setLoading(true);
     setIsCurrentLessonCompleted(false);
@@ -317,11 +319,13 @@ export default function LessonPage() {
 
     } catch (error: any) {
         console.error("Error fetching lesson data:", error);
-        const permissionError = new FirestorePermissionError({
-            path: `courses/${courseId} or related user data`,
-            operation: 'get',
-        });
-        errorEmitter.emit('permission-error', permissionError);
+        if (error.code === 'permission-denied') {
+            const permissionError = new FirestorePermissionError({
+                path: `courses/${courseId} or related user data`,
+                operation: 'get',
+            });
+            errorEmitter.emit('permission-error', permissionError);
+        }
     } finally {
       setLoading(false);
     }
@@ -1017,5 +1021,3 @@ function LessonPageSkeleton() {
     </div>
   )
 }
-
-    

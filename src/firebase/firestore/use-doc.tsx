@@ -40,7 +40,7 @@ export interface UseDocResult<T> {
  * @returns {UseDocResult<T>} Object with data, isLoading, error.
  */
 export function useDoc<T = any>(
-  memoizedDocRef: DocumentReference<DocumentData> | null | undefined,
+  memoizedDocRef: (DocumentReference<DocumentData> & {__memo?: boolean}) | null | undefined,
 ): UseDocResult<T> {
   type StateDataType = WithId<T> | null;
 
@@ -89,6 +89,10 @@ export function useDoc<T = any>(
 
     return () => unsubscribe();
   }, [memoizedDocRef]);
+
+  if(memoizedDocRef && !memoizedDocRef.__memo) {
+    throw new Error('useDoc query was not properly memoized using useMemoFirebase. This will cause infinite render loops.');
+  }
 
   return { data, isLoading, error };
 }
