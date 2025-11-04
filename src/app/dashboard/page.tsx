@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { doc, getDoc, collection, getDocs, setDoc, deleteDoc, type DocumentData, updateDoc, addDoc, query, where, writeBatch, serverTimestamp, increment } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { useLayout } from '@/context/layout-context';
-import { ActionToolbar } from '@/components/admin/action-toolbar';
+import { ActionToolbar } from '@/components/ui/action-toolbar';
 import { PageEditActions } from '@/components/admin/page-edit-actions';
 
 import Image from 'next/image';
@@ -586,11 +586,16 @@ function DashboardClientPage() {
     const subtitleEl = subtitleRef.current;
     const ctaEl = ctaRef.current;
   
-    if (titleEl && isEditMode) titleEl.innerHTML = tempHeroTitle;
-    if (subtitleEl && isEditMode) subtitleEl.innerHTML = tempHeroSubtitle;
-    if (ctaEl && isEditMode) ctaEl.innerHTML = tempCtaText;
-    
-  }, [isEditMode, tempHeroTitle, tempHeroSubtitle, tempCtaText]);
+    if (isEditMode) {
+      if (titleEl) titleEl.innerHTML = tempHeroTitle;
+      if (subtitleEl) subtitleEl.innerHTML = tempHeroSubtitle;
+      if (ctaEl) ctaEl.innerHTML = tempCtaText;
+    } else {
+      if (titleEl) titleEl.innerHTML = layoutData.heroTitle;
+      if (subtitleEl) subtitleEl.innerHTML = layoutData.heroSubtitle;
+      if (ctaEl) ctaEl.innerHTML = layoutData.ctaText;
+    }
+  }, [isEditMode, tempHeroTitle, tempHeroSubtitle, tempCtaText, layoutData]);
 
   if (userLoading || !user || layoutData.isLoading || !isAdminCheckComplete) {
     return (
@@ -669,7 +674,6 @@ function DashboardClientPage() {
                           "prose prose-xl prose-invert max-w-none",
                           isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
                       )}
-                      dangerouslySetInnerHTML={{ __html: isEditMode ? tempHeroTitle : layoutData.heroTitle }}
                   />
                   {isEditMode && activeEditor === 'hero-title-editor' && (
                     <ActionToolbar
@@ -703,7 +707,6 @@ function DashboardClientPage() {
                           "prose prose-lg prose-invert max-w-none",
                           isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
                       )}
-                      dangerouslySetInnerHTML={{ __html: isEditMode ? tempHeroSubtitle : layoutData.heroSubtitle }}
                   />
                   {isEditMode && activeEditor === 'hero-subtitle-editor' && (
                       <ActionToolbar
@@ -909,5 +912,3 @@ export default function DashboardPage() {
     <DashboardClientPage />
   )
 }
-
-    
