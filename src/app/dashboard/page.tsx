@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { doc, getDoc, collection, getDocs, setDoc, deleteDoc, type DocumentData, updateDoc, addDoc, query, where, writeBatch, serverTimestamp, increment } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { useLayout } from '@/context/layout-context';
-import { ActionToolbar } from '@/components/ui/action-toolbar';
+import { ActionToolbar } from '@/components/admin/action-toolbar';
 import { PageEditActions } from '@/components/admin/page-edit-actions';
 
 import Image from 'next/image';
@@ -335,7 +335,9 @@ function DashboardClientPage() {
           description: "O curso foi removido com sucesso.",
         });
         // Refetch courses after deletion
-        fetchCoursesAndProgress(isAdmin);
+        if (user) {
+            fetchCoursesAndProgress(isAdmin);
+        }
       })
       .catch((error) => {
         console.error("Error deleting course: ", error);
@@ -388,38 +390,27 @@ function DashboardClientPage() {
       });
   };
 
-    const fetchCoursesAndProgress = useCallback(async (isUserAdmin: boolean) => {
+    const fetchCoursesAndProgress = useCallback(async (userIsAdmin: boolean) => {
         if (!firestore || !user) return;
         setLoadingData(true);
 
         try {
             const coursesRef = collection(firestore, 'courses');
-            let coursesQuery;
-
-            if (isUserAdmin) {
-                coursesQuery = query(coursesRef);
-            } else {
-                coursesQuery = query(coursesRef, where('status', '==', 'published'));
-            }
+            const coursesQuery = userIsAdmin 
+                ? query(coursesRef) 
+                : query(coursesRef, where('status', '==', 'published'));
             
             const coursesSnapshot = await getDocs(coursesQuery);
             const fetchedCourses = coursesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
-            
-            // For admins, fetch draft courses separately if the main query was for published
-            if (isUserAdmin) {
-                setCourses(fetchedCourses);
-            } else {
-                 setCourses(fetchedCourses);
-            }
-
+            setCourses(fetchedCourses);
 
             const newCourseAccess: CourseAccess = {};
             const accessSnapshot = await getDocs(collection(firestore, `users/${user.uid}/courseAccess`));
             accessSnapshot.docs.forEach(doc => newCourseAccess[doc.id] = true);
             
             fetchedCourses.forEach(course => {
-                if (course.isFree || isUserAdmin) {
-                newCourseAccess[course.id] = true;
+                if (course.isFree || userIsAdmin) {
+                    newCourseAccess[course.id] = true;
                 }
             });
             setCourseAccess(newCourseAccess);
@@ -430,9 +421,9 @@ function DashboardClientPage() {
                 const progressSnaps = await Promise.all(progressPromises);
                 const progressData: UserProgress = {};
                 progressSnaps.forEach(snap => {
-                if (snap.exists()) {
-                    progressData[snap.id] = snap.data() as UserProgress[string];
-                }
+                    if (snap.exists()) {
+                        progressData[snap.id] = snap.data() as UserProgress[string];
+                    }
                 });
                 setUserProgress(progressData);
             }
@@ -504,7 +495,9 @@ function DashboardClientPage() {
             
             await batch.commit();
             toast({ title: "Acesso Liberado!", description: `${grantedCount} novo(s) curso(s) foram adicionados à sua conta.` });
-            fetchCoursesAndProgress(isAdmin);
+            if (user) {
+                fetchCoursesAndProgress(isAdmin);
+            }
         } else {
             toast({ title: "Tudo Certo!", description: "Você já tem acesso a todos os cursos deste link." });
         }
@@ -528,12 +521,8 @@ function DashboardClientPage() {
         router.push('/login');
         return;
     }
-  },[user, userLoading, router]);
 
-  useEffect(() => {
-    if (!user || !firestore) return;
-    
-    const checkAdminAndFetchData = async () => {
+    const checkAdminAndProcess = async () => {
         let userIsAdmin = false;
         try {
             const userDocRef = doc(firestore, 'users', user.uid);
@@ -541,21 +530,22 @@ function DashboardClientPage() {
             if (userDocSnap.exists() && userDocSnap.data().role === 'admin') {
                 userIsAdmin = true;
             }
-        } catch (error) {
-            // Non-blocking, default to false
+        } catch (e) {
+            console.error("Failed to check admin status", e);
         } finally {
             setIsAdmin(userIsAdmin);
             await fetchCoursesAndProgress(userIsAdmin);
+
+            const linkId = searchParams.get('linkId');
+            if (linkId) {
+                await redeemPremiumLink(linkId);
+            }
         }
     };
-
-    checkAdminAndFetchData();
     
-    const linkId = searchParams.get('linkId');
-    if (linkId) {
-        redeemPremiumLink(linkId);
-    }
-  }, [user, firestore, fetchCoursesAndProgress, searchParams, redeemPremiumLink]);
+    checkAdminAndProcess();
+
+  },[user, userLoading, firestore, router, fetchCoursesAndProgress, searchParams, redeemPremiumLink]);
   
   useEffect(() => {
     const titleEl = titleRef.current;
@@ -888,5 +878,3 @@ export default function DashboardPage() {
     <DashboardClientPage />
   )
 }
-
-    
