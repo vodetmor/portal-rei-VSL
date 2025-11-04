@@ -12,14 +12,14 @@ import { ptBR } from 'date-fns/locale';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { CheckCircle, Circle, Lock, ArrowRight, X, Download, Link2, FileText, Check, ThumbsUp, ThumbsDown, MessageSquare, CornerUpLeft, Send, Heart, MoreVertical, Pin, Trash2, Menu, ShoppingCart, ChevronRight } from 'lucide-react';
+import { CheckCircle, Circle, Lock, ArrowRight, X, Download, Link2, FileText, Check, ThumbsUp, ThumbsDown, MessageSquare, CornerUpLeft, Send, Heart, MoreVertical, Pin, Trash2, Menu, ShoppingCart, ChevronRight, BookOpen } from 'lucide-react';
 import Link from 'next/link';
 import { useToast } from '@/hooks/use-toast';
 import { Progress } from '@/components/ui/progress';
 import { cn } from '@/lib/utils';
 import { addDays, parseISO } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BookOpen, MessagesSquare } from 'lucide-react';
+import { MessagesSquare } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Textarea } from '@/components/ui/textarea';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
@@ -345,8 +345,7 @@ export default function LessonPage() {
     if (!firestore || !user || !courseId || !lessonId || !hasFullAccess) return;
 
     const progressRef = doc(firestore, 'users', user.uid, 'progress', courseId as string);
-    const newCompletedLesson = { [lessonId]: new Date().toISOString() };
-
+    
     try {
         await setDoc(progressRef, {
             completedLessons: {
@@ -463,11 +462,11 @@ export default function LessonPage() {
 
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen bg-background">
+    <div className="flex h-screen bg-background">
       {/* Sidebar */}
       <aside
         className={cn(
-          'fixed top-0 left-0 z-40 h-full w-80 shrink-0 border-r border-border bg-background transition-transform duration-300 ease-in-out md:relative md:translate-x-0',
+          'fixed top-0 left-0 z-40 h-full w-80 shrink-0 border-r border-border bg-background transition-transform duration-300 ease-in-out',
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
@@ -475,7 +474,7 @@ export default function LessonPage() {
           <Link href={`/courses/${courseId}`} className="font-bold text-white truncate hover:text-primary">
             {course.title}
           </Link>
-           <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setIsSidebarOpen(false)}>
+           <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(false)}>
               <X className="h-5 w-5" />
           </Button>
         </div>
@@ -525,7 +524,7 @@ export default function LessonPage() {
         </div>
       </aside>
 
-      <div className={cn("flex min-w-0 flex-1 flex-col transition-all duration-300 ease-in-out", isSidebarOpen ? 'md:ml-0' : 'md:-ml-80')}>
+      <div className={cn("flex min-w-0 flex-1 flex-col transition-all duration-300 ease-in-out", isSidebarOpen && 'md:ml-80')}>
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto">
           {/* Header */}
