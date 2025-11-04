@@ -20,14 +20,11 @@ export default function RedeemPage() {
       if (user) {
         // User is logged in. Redirect to dashboard to handle redemption securely.
         setMessage("Usuário autenticado. Redirecionando para o painel...");
-        router.push(`/dashboard?linkId=${linkId}`);
+        router.replace(`/dashboard?linkId=${linkId}`);
       } else {
         // User is not logged in. Redirect to the premium access page which handles login/register.
-        // It's better to go to the login page directly with a redirect param.
-        const redirectTo = `/login?redirect=/redeem/${linkId}`;
         setMessage("Você precisa fazer login para resgatar o acesso. Redirecionando...");
-        localStorage.setItem("redirectAfterLogin", `/redeem/${linkId}`);
-        router.push(`/login`);
+        router.replace(`/premium/${linkId}`);
       }
     });
 
