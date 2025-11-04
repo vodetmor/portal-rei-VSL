@@ -44,7 +44,7 @@ export default function PremiumAccessPage() {
   const [error, setError] = useState<string | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
-  const [formMode, setFormMode] = useState<'login' | 'register'>('login');
+  const [formMode, setFormMode] = useState<'login' | 'register'>('register');
 
   const form = useForm<AuthFormValues>({
     resolver: zodResolver(authSchema),
