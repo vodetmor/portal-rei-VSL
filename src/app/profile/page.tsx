@@ -114,15 +114,20 @@ export default function ProfilePage() {
   
   useEffect(() => {
     if (auth && !recaptchaVerifierRef.current) {
-        recaptchaVerifierRef.current = new RecaptchaVerifier(auth, 'recaptcha-container', {
-        'size': 'invisible',
-        'callback': () => {},
-        'expired-callback': () => {}
-      });
-      // Render the reCAPTCHA widget when the component mounts
-      recaptchaVerifierRef.current.render();
+      // Ensure the container exists before initializing.
+      const recaptchaContainer = document.getElementById('recaptcha-container');
+      if (recaptchaContainer) {
+        recaptchaVerifierRef.current = new RecaptchaVerifier(auth, recaptchaContainer, {
+          'size': 'invisible',
+          'callback': () => {},
+          'expired-callback': () => {}
+        });
+        // Render the reCAPTCHA widget when the component mounts
+        recaptchaVerifierRef.current.render();
+      }
     }
-  }, [auth]);
+  }, [auth, activeTab]); // Re-run if auth or the activeTab changes (to re-init on tab switch if needed)
+
 
   const handleAvatarFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -309,7 +314,6 @@ export default function ProfilePage() {
 
   return (
     <div className="container mx-auto max-w-4xl px-4 py-8 md:px-8">
-      <div id="recaptcha-container"></div>
       <div className="mb-8 pt-20">
         <h1 className="text-3xl font-bold text-white">Configurações da Conta</h1>
         <p className="text-muted-foreground">Gerencie suas informações de perfil e segurança.</p>
@@ -456,6 +460,10 @@ export default function ProfilePage() {
                         </Form>
                     )}
                 </CardContent>
+                <CardFooter>
+                  {/* This div is essential for RecaptchaVerifier to find its container */}
+                  <div id="recaptcha-container"></div>
+                </CardFooter>
             </Card>
 
           <Card>
@@ -513,5 +521,3 @@ export default function ProfilePage() {
     </div>
   );
 }
-
-    
