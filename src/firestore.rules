@@ -23,8 +23,8 @@ service cloud.firestore {
     // Helper function to check if a course demo is enabled and the lesson is a demo lesson
     function isDemoLesson(courseId, lessonId) {
         let course = get(/databases/$(database)/documents/courses/$(courseId)).data;
-        // This is expensive, but necessary for this rule structure.
-        // Consider denormalizing `isDemo` status to the lesson document itself if performance becomes an issue.
+        // This is an expensive operation. A better approach would be to denormalize
+        // the 'isDemo' status directly onto the lesson document itself if performance becomes an issue.
         let isLessonInDemoModule = course.modules.filter(m => m.isDemo == true && m.lessons.find(l => l.id == lessonId) != null).size() > 0;
         let isDemoLessonItself = course.modules.flatMap(m => m.lessons).find(l => l.id == lessonId && l.isDemo == true) != null;
         
@@ -42,7 +42,7 @@ service cloud.firestore {
       allow delete: if isAdmin();
     }
 
-    // Course access records can be read by their owner.
+    // Course access records can be read/listed by their owner or an admin.
     // They can be written by the owner (for premium links) or managed by admins.
     match /users/{userId}/courseAccess/{courseId} {
         allow read, list: if (request.auth != null && request.auth.uid == userId) || isAdmin();
