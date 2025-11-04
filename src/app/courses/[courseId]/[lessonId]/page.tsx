@@ -449,7 +449,7 @@ export default function LessonPage() {
 
 
   return (
-    <div className="flex flex-col md:flex-row h-screen bg-background">
+    <div className="flex flex-col md:flex-row min-h-screen bg-background">
       {/* Sidebar */}
       <aside
         className={cn(
@@ -513,9 +513,9 @@ export default function LessonPage() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Main Content */}
-        <main className="flex-1 overflow-y-auto pt-20">
+        <main className="flex-1 overflow-y-auto">
           {/* Header */}
-          <header className="flex h-20 items-center justify-between border-b border-border bg-background/80 backdrop-blur-sm px-4 fixed top-0 left-0 md:left-80 right-0 z-30">
+          <header className="flex h-20 items-center justify-between border-b border-border bg-background/80 backdrop-blur-sm px-4 md:sticky top-0 z-30">
             <div className="flex items-center gap-2">
               <Button variant="ghost" size="icon" className="md:hidden" onClick={() => setIsSidebarOpen(true)}>
                   <Menu className="h-5 w-5" />

@@ -80,10 +80,12 @@ export function Header() {
 	return (
 		<header
 			className={cn(
-				'fixed top-0 left-0 right-0 z-[100] transition-all ease-out duration-300',
-                scrolled || isLessonPage
-                ? 'h-16 bg-background/80 border-b border-border backdrop-blur-md'
-                : 'h-20 bg-transparent border-b border-transparent'
+				'left-0 right-0 z-[100] transition-all ease-out duration-300',
+                isLessonPage 
+                    ? 'static h-20 bg-background/80 border-b border-border' 
+                    : scrolled 
+                        ? 'fixed top-0 h-16 bg-background/80 border-b border-border backdrop-blur-md'
+                        : 'fixed top-0 h-20 bg-transparent border-b border-transparent'
 			)}
 		>
 			<nav
