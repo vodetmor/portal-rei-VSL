@@ -1,3 +1,4 @@
+
 'use client';
     
 import { useState, useEffect } from 'react';
@@ -44,7 +45,7 @@ export function useDoc<T = any>(
   type StateDataType = WithId<T> | null;
 
   const [data, setData] = useState<StateDataType>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<FirestoreError | Error | null>(null);
 
   useEffect(() => {
@@ -57,7 +58,6 @@ export function useDoc<T = any>(
 
     setIsLoading(true);
     setError(null);
-    // Optional: setData(null); // Clear previous data instantly
 
     const unsubscribe = onSnapshot(
       memoizedDocRef,
@@ -65,29 +65,30 @@ export function useDoc<T = any>(
         if (snapshot.exists()) {
           setData({ ...(snapshot.data() as T), id: snapshot.id });
         } else {
-          // Document does not exist
           setData(null);
         }
-        setError(null); // Clear any previous error on successful snapshot (even if doc doesn't exist)
+        setError(null);
         setIsLoading(false);
       },
       (serverError: FirestoreError) => {
-        const contextualError = new FirestorePermissionError({
-          operation: 'get',
-          path: memoizedDocRef.path,
-        })
+        if (serverError.code === 'permission-denied') {
+            const contextualError = new FirestorePermissionError({
+              operation: 'get',
+              path: memoizedDocRef.path,
+            });
+            setError(contextualError);
+            errorEmitter.emit('permission-error', contextualError);
+        } else {
+            setError(serverError);
+        }
 
-        setError(contextualError)
-        setData(null)
-        setIsLoading(false)
-
-        // trigger global error propagation
-        errorEmitter.emit('permission-error', contextualError);
+        setData(null);
+        setIsLoading(false);
       }
     );
 
     return () => unsubscribe();
-  }, [memoizedDocRef]); // Re-run if the memoizedDocRef changes.
+  }, [memoizedDocRef]);
 
   return { data, isLoading, error };
 }
