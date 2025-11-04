@@ -175,9 +175,18 @@ export default function LessonPage() {
 
   const grantDemoAccess = useCallback(async (uid: string, cid: string, lid: string) => {
     if (!firestore) return;
-    const demoDocRef = doc(firestore, `users/${uid}/demoAccess/${cid}/lessons/${lid}`);
+    const batch = writeBatch(firestore);
+
+    // Create the lesson-specific access document
+    const lessonDemoRef = doc(firestore, `users/${uid}/demoAccess/${cid}/lessons/${lid}`);
+    batch.set(lessonDemoRef, { granted: true, timestamp: serverTimestamp() });
+
+    // Create the course-level marker document (if it doesn't exist)
+    const courseDemoRef = doc(firestore, `users/${uid}/demoAccess`, cid);
+    batch.set(courseDemoRef, { lastAccessed: serverTimestamp() }, { merge: true });
+
     try {
-        await setDoc(demoDocRef, { granted: true, timestamp: serverTimestamp() }, { merge: true });
+        await batch.commit();
     } catch (error) {
         console.error("Failed to grant demo access:", error);
     }
@@ -1042,3 +1051,5 @@ function LessonPageSkeleton() {
     </div>
   )
 }
+
+    

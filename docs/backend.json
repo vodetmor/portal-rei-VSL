@@ -96,12 +96,12 @@
       "$schema": "http://json-schema.org/draft-07-schema#",
       "title": "DemoAccess",
       "type": "object",
-      "description": "Represents a user's access grant to a specific demo lesson.",
+      "description": "Represents a user's access grant to a specific demo lesson or a marker for demo access to a course.",
       "properties": {
-        "granted": { "type": "boolean" },
-        "timestamp": { "type": "string", "format": "date-time" }
-      },
-      "required": ["granted", "timestamp"]
+        "granted": { "type": "boolean", "description": "True if this document represents a specific lesson access." },
+        "timestamp": { "type": "string", "format": "date-time", "description": "Timestamp of when access was first granted." },
+        "lastAccessed": { "type": "string", "format": "date-time", "description": "Timestamp of the last demo access within this course." }
+      }
     },
     "Video": {
       "$schema": "http://json-schema.org/draft-07-schema#",
@@ -364,6 +364,18 @@
         }
       },
       {
+        "path": "/users/{userId}/demoAccess/{courseId}",
+        "definition": {
+          "entityName": "DemoAccess",
+          "schema": { "$ref": "#/backend/entities/DemoAccess" },
+          "description": "A marker document indicating a user has accessed a demo within a specific course.",
+          "params": [
+            { "name": "userId", "description": "The ID of the user." },
+            { "name": "courseId", "description": "The ID of the course containing the demo." }
+          ]
+        }
+      },
+      {
         "path": "/users/{userId}/demoAccess/{courseId}/lessons/{lessonId}",
         "definition": {
           "entityName": "DemoAccess",
@@ -443,6 +455,8 @@
         }
       }
     ],
-    "reasoning": "The Firestore structure is designed to store data for the 'Portfólio Hades' application, focusing on separation of concerns, security, and scalability. User management has been added with a specific subcollection for course access to allow granular control. The `premiumLinks` collection has been added to manage the new premium access system, linking tokens to course bundles.\n\n**Users:** Stored in the `/users` collection.\n**Course Access:** A subcollection `/users/{userId}/courseAccess` explicitly grants users access to courses.\n**Demo Access:** A new subcollection `/users/{userId}/demoAccess` grants access to specific demo lessons to prevent repeated reads on the main course document.\n**Premium Links:** A new collection `/premiumLinks` stores the generated tokens and the course IDs they grant access to.\n**Audit Logs:** A new collection `/auditLogs` has been added to track all administrative actions for security and monitoring purposes.\n**Progress:** A new subcollection `/users/{userId}/progress` tracks user completion of lessons within each course, enabling progress bars and detailed admin views."
+    "reasoning": "The Firestore structure is designed to store data for the 'Portfólio Hades' application, focusing on separation of concerns, security, and scalability. User management has been added with a specific subcollection for course access to allow granular control. The `premiumLinks` collection has been added to manage the new premium access system, linking tokens to course bundles.\n\n**Users:** Stored in the `/users` collection.\n**Course Access:** A subcollection `/users/{userId}/courseAccess` explicitly grants users access to courses.\n**Demo Access:** The structure for demo access has been changed to `users/{userId}/demoAccess/{courseId}/lessons/{lessonId}` to allow for more granular and efficient security rules. A marker document is also created at `users/{userId}/demoAccess/{courseId}` to indicate that the user has some form of demo access within that course, which simplifies rules for accessing the main course page.\n**Premium Links:** A new collection `/premiumLinks` stores the generated tokens and the course IDs they grant access to.\n**Audit Logs:** A new collection `/auditLogs` has been added to track all administrative actions for security and monitoring purposes.\n**Progress:** A new subcollection `/users/{userId}/progress` tracks user completion of lessons within each course, enabling progress bars and detailed admin views."
   }
 }
+
+    

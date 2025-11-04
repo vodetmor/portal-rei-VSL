@@ -19,7 +19,11 @@ service cloud.firestore {
     function hasLessonDemoAccess(courseId, lessonId) {
       return request.auth != null && exists(/databases/$(database)/documents/users/$(request.auth.uid)/demoAccess/$(courseId)/lessons/$(lessonId));
     }
-    
+
+    function hasAnyDemoAccess(userId, courseId) {
+      return exists(/databases/$(database)/documents/users/$(userId)/demoAccess/$(courseId));
+    }
+
     match /users/{userId} {
       allow read: if (request.auth != null && request.auth.uid == userId) || isAdmin();
       allow list: if isAdmin();
@@ -33,8 +37,11 @@ service cloud.firestore {
         allow write: if (request.auth != null && request.auth.uid == userId) || isAdmin();
     }
     
-    match /users/{userId}/demoAccess/{courseId}/lessons/{lessonId} {
+    match /users/{userId}/demoAccess/{courseId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
+      match /lessons/{lessonId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
     }
 
     match /users/{userId}/progress/{courseId} {
@@ -49,13 +56,17 @@ service cloud.firestore {
 
     match /courses/{courseId} {
       allow list: if request.auth != null;
-      allow read: if isAdmin() || hasCourseAccess(courseId) || isCourseFree(courseId) || resource.data.status == 'published';
+      allow read: if 
+        isAdmin() || 
+        hasCourseAccess(courseId) || 
+        isCourseFree(courseId) || 
+        (request.auth != null && hasAnyDemoAccess(request.auth.uid, courseId)) ||
+        resource.data.status == 'published';
       allow write: if isAdmin();
     }
     
     match /courses/{courseId}/lessons/{lessonId} {
       
-      // Centralized function to check all valid forms of access.
       function canInteract() {
         return hasCourseAccess(courseId) 
           || hasLessonDemoAccess(courseId, lessonId) 
@@ -113,3 +124,5 @@ service cloud.firestore {
     }
   }
 }
+
+    
