@@ -1,4 +1,5 @@
 'use client';
+
 import { useAuth, useFirestore } from '@/firebase';
 import { onAuthStateChanged, type User } from 'firebase/auth';
 import { doc, getDoc, runTransaction, increment, serverTimestamp, writeBatch } from 'firebase/firestore';
@@ -24,10 +25,10 @@ export default function RedeemPage() {
 
   const redeemAccess = useCallback(async (user: User) => {
     if (!firestore || !linkId) {
-        setError("Ocorreu um erro interno. Tente novamente.");
-        setLoading(false);
-        return;
-    };
+      setError("Ocorreu um erro interno. Tente novamente.");
+      setLoading(false);
+      return;
+    }
 
     setStatusMessage("Validando o link de acesso...");
     const linkRef = doc(firestore, 'premiumLinks', linkId);
@@ -36,22 +37,22 @@ export default function RedeemPage() {
       await runTransaction(firestore, async (transaction) => {
         const linkSnap = await transaction.get(linkRef);
         if (!linkSnap.exists() || !linkSnap.data()?.active) {
-            throw new Error("Este link de acesso é inválido ou expirou.");
+          throw new Error("Este link de acesso é inválido ou expirou.");
         }
 
         const currentLinkData = linkSnap.data();
-        const maxUses = currentLinkData.maxUses || 0; // 0 for unlimited
+        const maxUses = currentLinkData.maxUses || 0;
         const currentUses = currentLinkData.uses || 0;
 
         if (maxUses > 0 && currentUses >= maxUses) {
-            throw new Error("Este link já atingiu o número máximo de usos.");
+          throw new Error("Este link já atingiu o número máximo de usos.");
         }
         
         const courseIdsToGrant: string[] = currentLinkData.courseIds || [];
         
         if (courseIdsToGrant.length === 0) {
-            toast({ title: "Nenhum curso encontrado", description: "Este link não está associado a nenhum curso."});
-            return; 
+          toast({ title: "Nenhum curso encontrado", description: "Este link não está associado a nenhum curso."});
+          return; 
         }
         
         setStatusMessage(`Concedendo acesso a ${courseIdsToGrant.length} curso(s)...`);
@@ -98,21 +99,21 @@ export default function RedeemPage() {
 
   useEffect(() => {
     if (!auth || !linkId) {
-        setLoading(false);
-        setError("Ocorreu um erro de inicialização.");
-        return;
+      setError("Ocorreu um erro de inicialização. Tente recarregar a página.");
+      setLoading(false);
+      return;
     };
 
     const unsubscribe = onAuthStateChanged(auth, (user) => {
-        if (user) {
-            // Usuário está logado, pode prosseguir com o resgate
-            redeemAccess(user);
-        } else {
-            // Usuário não está logado, redireciona para login
-            setStatusMessage("Redirecionando para a área de acesso...");
-            localStorage.setItem("redirectAfterLogin", `/redeem/${linkId}`);
-            router.push(`/login`);
-        }
+      if (user) {
+        // Se o usuário está logado, inicia o processo de resgate.
+        redeemAccess(user);
+      } else {
+        // Se o usuário não está logado, redireciona para o login.
+        setStatusMessage("Redirecionando para a área de acesso...");
+        localStorage.setItem("redirectAfterLogin", `/redeem/${linkId}`);
+        router.push(`/login`);
+      }
     });
 
     return () => unsubscribe();
@@ -131,6 +132,8 @@ export default function RedeemPage() {
     );
   }
   
+  // A tela de carregamento é exibida até que o onAuthStateChanged resolva
+  // e inicie o resgate ou o redirecionamento.
   if(loading) {
     return (
         <div className="flex min-h-screen flex-col items-center justify-center text-center px-4">
@@ -142,6 +145,5 @@ export default function RedeemPage() {
   }
 
   // Se o carregamento terminou e não houve erro, o redirecionamento já terá ocorrido.
-  // Este retorno é apenas um fallback.
   return null;
 }
