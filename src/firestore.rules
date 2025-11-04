@@ -3,10 +3,9 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Helper function to check if the user is an admin
+    // Helper function to check if the user is an admin by checking their role in their user document.
     function isAdmin() {
-      // Use a simple, direct check against the admin email for performance.
-      return request.auth != null && request.auth.token.email == 'admin@reidavsl.com';
+      return request.auth != null && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
     }
 
     // Helper function to check if a user has been granted access to a specific course.
@@ -66,8 +65,8 @@ service cloud.firestore {
     // Course documents can be listed by any authenticated user if they filter by published status.
     // A single course document can be read if it's published, or if the user is an admin.
     match /courses/{courseId} {
-      allow get: if (request.auth != null && resource.data.status == 'published') || isAdmin();
-      allow list: if (request.auth != null && request.query.where.get("status", "") == "published") || isAdmin();
+      allow get: if (request.auth != null && resource.data.status == 'published') || isAdmin() || (resource.data.isFree == true) || (resource.data.isDemoEnabled == true && hasAnyDemoAccess(request.auth.uid, courseId));
+      allow list: if (request.auth != null && request.query.where[0][2] == "published") || isAdmin();
       allow write: if isAdmin();
     }
     
