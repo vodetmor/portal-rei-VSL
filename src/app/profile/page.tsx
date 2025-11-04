@@ -119,6 +119,8 @@ export default function ProfilePage() {
         'callback': () => {},
         'expired-callback': () => {}
       });
+      // Render the reCAPTCHA widget when the component mounts
+      recaptchaVerifierRef.current.render();
     }
   }, [auth]);
 
@@ -285,9 +287,9 @@ export default function ProfilePage() {
     };
     
     const unenrollMfa = async () => {
-        if(!user) return;
+        if(!user || !mfaEnrollment) return;
         try {
-            await multiFactor(user).unenroll(mfaEnrollment.uid);
+            await multiFactor(user).unenroll(mfaEnrollment);
             setMfaEnrollment(null);
             toast({ title: "2FA Desativado", description: "A verificação em duas etapas foi removida." });
         } catch (error) {
@@ -406,7 +408,7 @@ export default function ProfilePage() {
                                 <ShieldCheck className="h-4 w-4 text-green-500" />
                                 <AlertTitle className="text-green-400">2FA Ativado</AlertTitle>
                                 <AlertDescription className="text-muted-foreground">
-                                    Sua conta está protegida com verificação via SMS para o número: {mfaEnrollment.phoneNumber}.
+                                    Sua conta está protegida com verificação via SMS para o número: {mfaEnrollment.displayName}.
                                 </AlertDescription>
                             </Alert>
                              <Button variant="destructive" onClick={unenrollMfa}>Desativar 2FA</Button>
@@ -511,3 +513,5 @@ export default function ProfilePage() {
     </div>
   );
 }
+
+    
