@@ -70,14 +70,14 @@ service cloud.firestore {
 
     // Course documents
     match /courses/{courseId} {
-      allow get: if (resource.data.status == 'published') 
-                  || isAdmin() 
-                  || hasCourseAccess(courseId) 
-                  || (resource.data.isFree == true) 
-                  || (resource.data.isDemoEnabled == true && hasAnyDemoAccess(request.auth.uid, courseId));
+      allow get: if (resource.data.status == 'published')
+                || isAdmin()
+                || hasCourseAccess(courseId)
+                || (resource.data.isFree == true)
+                || (resource.data.isDemoEnabled == true && hasAnyDemoAccess(request.auth.uid, courseId));
       
-      // Admins can list all courses. Authenticated users can list published ones.
-      allow list: if request.auth != null;
+      // Admins can list all courses. Authenticated users can only list published ones.
+      allow list: if (isAdmin() || (request.auth != null && request.query.where[0][2] == "published"));
       
       // Only admins can create, update, or delete courses.
       allow write: if isAdmin();

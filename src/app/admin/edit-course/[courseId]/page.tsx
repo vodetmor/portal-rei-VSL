@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
@@ -148,7 +149,7 @@ function EditCoursePageContent() {
           id: m.id || uuidv4(),
           isDemo: m.isDemo || false,
           releaseDelayDays: m.releaseDelayDays || 0,
-          lessons: (m.lessons || []).map(l => ({ ...l, id: l.id || uuidv4(), description: l.description || '', videoUrl: l.videoUrl || '', isDemo: l.isDemo || false, releaseDelayDays: l.releaseDelayDays || 0, complementaryMaterials: (l.complementaryMaterials || []).map(cm => ({...cm, id: cm.id || uuidv4()})) }))
+          lessons: (m.lessons || []).map(l => ({ ...l, id: l.id || uuidv4(), description: l.description || '', videoUrl: l.videoUrl || '', isDemo: l.isDemo || false, releaseDelayDays: Number(l.releaseDelayDays || 0), complementaryMaterials: (l.complementaryMaterials || []).map(cm => ({...cm, id: cm.id || uuidv4()})) }))
         })));
       } else {
         toast({ variant: "destructive", title: "Erro", description: "Curso não encontrado." });

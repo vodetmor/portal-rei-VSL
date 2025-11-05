@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useEffect, useState, useCallback, useMemo, ReactNode } from 'react';
@@ -430,7 +431,7 @@ export default function LessonPage() {
 
 
   const isModuleUnlocked = useCallback((module: Module) => {
-    if (isAdmin || !isClient || course?.isFree) return true;
+    if (!isClient || isAdmin || course?.isFree) return true;
     if (!courseAccessInfo) return false;
     
     const delay = module.releaseDelayDays || 0;
@@ -467,18 +468,19 @@ export default function LessonPage() {
       <aside
         className={cn(
           'fixed top-20 left-0 z-40 h-[calc(100vh-5rem)] w-80 shrink-0 border-r border-border bg-background transition-transform duration-300 ease-in-out',
-          isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
+          isSidebarOpen ? 'translate-x-0' : '-translate-x-full',
+          'md:translate-x-0' 
         )}
       >
         <div className="flex h-20 items-center justify-between border-b border-border px-4">
           <Link href={`/courses/${courseId}`} className="font-bold text-white truncate hover:text-primary">
             {course.title}
           </Link>
-           <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(false)}>
+           <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(false)} className="md:hidden">
               <X className="h-5 w-5" />
           </Button>
         </div>
-        <div className="h-[calc(100vh-5rem)] overflow-y-auto">
+        <div className="h-[calc(100vh-10rem)] overflow-y-auto">
           <Accordion type="single" collapsible defaultValue={currentModule?.id} className="w-full">
             {course.modules.map(module => {
               const unlocked = isModuleUnlocked(module);
@@ -528,9 +530,9 @@ export default function LessonPage() {
         {/* Main Content */}
         <main className="flex-1 overflow-y-auto">
           {/* Header */}
-          <header className="flex h-20 items-center justify-between border-b border-border bg-background/80 backdrop-blur-sm px-4 static top-0 z-30">
+          <header className="flex h-20 items-center justify-between border-b border-border bg-background/80 backdrop-blur-sm px-4 sticky top-0 z-30">
             <div className="flex items-center gap-2">
-              <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)}>
+              <Button variant="ghost" size="icon" onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="md:hidden">
                   <Menu className="h-5 w-5" />
               </Button>
               <div className='hidden md:flex items-center gap-2'>
@@ -644,7 +646,7 @@ export default function LessonPage() {
                         <h2 className="text-xl font-bold text-white">Comunidade</h2>
                     </CardHeader>
                     <CardContent>
-                       {user ? (
+                       {user && hasFullAccess ? (
                           <CommentsSection
                             firestore={firestore}
                             auth={auth}

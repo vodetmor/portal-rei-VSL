@@ -46,6 +46,8 @@ interface Course extends DocumentData {
   status: 'draft' | 'published';
   heroAlignment?: "left" | "center" | "end";
   heroTextVisible?: boolean;
+  isFree?: boolean;
+  isDemoEnabled?: boolean;
 }
 
 interface CourseAccessInfo {
@@ -105,36 +107,18 @@ export default function CoursePlayerPage() {
   }, []);
 
   const fetchCourseData = useCallback(async (userIsAdmin: boolean) => {
-    if (!user || !firestore) {
-        if(!userLoading) router.push('/login');
+    if (!firestore || !courseId) return;
+    if (!user) {
+        if (!userLoading) router.push('/login');
         return;
-    };
+    }
 
     setLoading(true);
 
     try {
-        // Check course access
-        const accessDocRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId);
-        const accessDocSnap = await getDoc(accessDocRef);
-
-        if (!accessDocSnap.exists() && !userIsAdmin) {
-            toast({ variant: "destructive", title: "Acesso Negado", description: "Você não tem acesso a este curso." });
-            router.push('/dashboard');
-            return;
-        }
-        if(accessDocSnap.exists()){
-            const accessTimestamp = accessDocSnap.data().grantedAt?.toDate();
-            if (accessTimestamp) {
-                setCourseAccessInfo({ grantedAt: accessTimestamp.toISOString() });
-            }
-        } else if (userIsAdmin) {
-            // Admins always have access, grant a temporary access info for drip content logic
-            setCourseAccessInfo({ grantedAt: new Date().toISOString() });
-        }
-
-        // Fetch course data
         const courseRef = doc(firestore, 'courses', courseId);
         const courseSnap = await getDoc(courseRef);
+        
         if (!courseSnap.exists()) {
             toast({ variant: "destructive", title: "Erro", description: "Curso não encontrado." });
             router.push('/dashboard');
@@ -148,6 +132,25 @@ export default function CoursePlayerPage() {
             return;
         }
         
+        const accessDocRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId);
+        const accessDocSnap = await getDoc(accessDocRef);
+        const hasFullAccess = accessDocSnap.exists() || userIsAdmin || courseData.isFree;
+
+        if (!hasFullAccess && !courseData.isDemoEnabled) {
+            toast({ variant: "destructive", title: "Acesso Negado", description: "Você não tem acesso a este curso." });
+            router.push('/dashboard');
+            return;
+        }
+        
+        if (accessDocSnap.exists()) {
+            const accessTimestamp = accessDocSnap.data().grantedAt?.toDate();
+            if (accessTimestamp) {
+                setCourseAccessInfo({ grantedAt: accessTimestamp.toISOString() });
+            }
+        } else if (userIsAdmin || courseData.isFree) {
+            setCourseAccessInfo({ grantedAt: new Date().toISOString() });
+        }
+
         setCourse(courseData);
         setTempTitle(courseData.title);
         setTempSubtitle(courseData.subtitle || 'Rei da VSL®');
@@ -158,12 +161,13 @@ export default function CoursePlayerPage() {
         setHeroImageUrlInputMobile(courseData.heroImageUrlMobile || '');
         setTempHeroAlignment(courseData.heroAlignment || 'left');
         setTempHeroTextVisible(courseData.heroTextVisible !== undefined ? courseData.heroTextVisible : true);
-
-        // Fetch user progress
-        const progressRef = doc(firestore, `users/${user.uid}/progress`, courseId);
-        const progressSnap = await getDoc(progressRef);
-        if (progressSnap.exists()) {
-            setUserProgress(progressSnap.data() as UserProgress);
+        
+        if (hasFullAccess) {
+            const progressRef = doc(firestore, `users/${user.uid}/progress`, courseId);
+            const progressSnap = await getDoc(progressRef);
+            if (progressSnap.exists()) {
+                setUserProgress(progressSnap.data() as UserProgress);
+            }
         }
     } catch (error: any) {
         console.error('Error fetching course data:', error);
@@ -177,7 +181,7 @@ export default function CoursePlayerPage() {
     } finally {
         setLoading(false);
     }
-  }, [user, firestore, courseId, router, toast, userLoading]);
+}, [user, firestore, courseId, router, toast, userLoading]);
 
   useEffect(() => {
     if (userLoading) return;
@@ -337,7 +341,7 @@ export default function CoursePlayerPage() {
   };
 
   const isModuleUnlocked = useCallback((module: Module): boolean => {
-    if (isAdmin || !isClient) return true;
+    if (!isClient || isAdmin || course?.isFree) return true;
     if (!courseAccessInfo) return false;
 
     const delay = module.releaseDelayDays || 0;
@@ -351,10 +355,10 @@ export default function CoursePlayerPage() {
       console.error("Error parsing date for module unlock check", e);
       return false;
     }
-  }, [isAdmin, isClient, courseAccessInfo]);
+  }, [isAdmin, isClient, courseAccessInfo, course?.isFree]);
 
   const getDaysUntilRelease = (module: Module): number | null => {
-    if (!courseAccessInfo || isAdmin || !isClient) return null;
+    if (!courseAccessInfo || isAdmin || !isClient || course?.isFree) return null;
     
     const delay = module.releaseDelayDays || 0;
     if (delay === 0) return null;
@@ -363,7 +367,7 @@ export default function CoursePlayerPage() {
         const grantedDate = parseISO(courseAccessInfo.grantedAt);
         const releaseDate = addDays(grantedDate, delay);
         const daysRemaining = differenceInDays(releaseDate, new Date());
-        return daysRemaining >= 0 ? daysRemaining : null;
+        return daysRemaining > 0 ? daysRemaining : 0;
     } catch (e) {
         console.error("Error parsing date for days until release", e);
         return null;
