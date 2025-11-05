@@ -23,19 +23,22 @@ service cloud.firestore {
 
         // Iterate through modules and lessons to find the specific lesson and check its demo status.
         let isDemo = false;
-        let modules = course.data.modules;
+        let modules = course.modules; // Direct access to array
         
         // This loop is for security rules, not client code. It's safe.
         for (let i = 0; i < modules.size(); i++) {
             let module = modules[i];
-            let lessons = module.get('lessons', []);
-            for (let j = 0; j < lessons.size(); j++) {
-                let lesson = lessons[j];
-                if (lesson.id == lessonId) {
-                    if (module.isDemo == true || lesson.isDemo == true) {
-                        isDemo = true;
+            if (module.lessons != null) { // Check if lessons array exists
+                let lessons = module.lessons;
+                for (let j = 0; j < lessons.size(); j++) {
+                    let lesson = lessons[j];
+                    if (lesson.id == lessonId) {
+                        // A lesson is a demo if itself is a demo or its parent module is a demo
+                        if (module.isDemo == true || lesson.isDemo == true) {
+                            isDemo = true;
+                        }
+                        break; 
                     }
-                    break;
                 }
             }
             if (isDemo) {
@@ -97,11 +100,9 @@ service cloud.firestore {
 
     // Course documents
     match /courses/{courseId} {
-      allow get: if (resource.data.status == 'published')
+      allow get: if (resource.data.status == 'published' && request.auth != null)
                 || isAdmin()
-                || hasCourseAccess(courseId)
-                || (resource.data.isFree == true)
-                || (resource.data.isDemoEnabled == true && hasAnyDemoAccess(request.auth.uid, courseId));
+                || hasCourseAccess(courseId);
       
       // Admins can list all courses. Authenticated users can only list published ones.
       allow list: if (isAdmin() || (request.auth != null && request.query.where[0][2] == "published"));
