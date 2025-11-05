@@ -196,8 +196,10 @@ export default function LessonPage() {
 
 
   const fetchLessonData = useCallback(async () => {
-    // This function will only run if user is not loading and is defined.
-    if (!user || !firestore || !courseId || !lessonId) return;
+    if (!user || !firestore || !courseId || !lessonId) {
+        // If user is null (logged out), stop execution to prevent permission errors
+        return;
+    }
 
     setLoading(true);
     setCanView(false);
