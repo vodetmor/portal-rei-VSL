@@ -168,9 +168,9 @@ export default function LessonPage() {
   }, [currentLesson]);
 
   const reactionsQuery = useMemoFirebase(() => {
-    if (!firestore || !courseId || !lessonId || !canView) return null;
+    if (!firestore || !courseId || !lessonId || userLoading || !canView) return null;
     return collection(firestore, `courses/${courseId}/lessons/${lessonId}/reactions`);
-  }, [firestore, courseId, lessonId, canView]);
+  }, [firestore, courseId, lessonId, userLoading, canView]);
 
   const { data: reactions, isLoading: reactionsLoading } = useCollection<LessonReaction>(reactionsQuery);
 
@@ -195,22 +195,8 @@ export default function LessonPage() {
 
 
   const fetchLessonData = useCallback(async () => {
-    if (userLoading) return; // Wait until user status is resolved
-
-    if (!user) {
-        toast({
-            title: "Acesso Necessário",
-            description: "Você precisa fazer login para acessar esta aula.",
-            variant: "destructive"
-        });
-        const currentPath = `/courses/${courseId}/${lessonId}`;
-        localStorage.setItem('redirectAfterLogin', currentPath);
-        router.push('/login');
-        return;
-    }
-    
-    if (!firestore || !courseId || !lessonId) return;
-
+    // This function will only run if user is not loading and is defined.
+    if (!user || !firestore || !courseId || !lessonId) return;
 
     setLoading(true);
     setCanView(false);
@@ -336,8 +322,14 @@ export default function LessonPage() {
     } finally {
       setLoading(false);
     }
-  }, [courseId, lessonId, user, userLoading, firestore, router, toast, grantDemoAccess]);
+  }, [courseId, lessonId, user, firestore, router, toast, grantDemoAccess]);
 
+  // Effect to redirect if user logs out
+  useEffect(() => {
+    if (!userLoading && !user) {
+      router.push('/login');
+    }
+  }, [user, userLoading, router]);
 
   useEffect(() => {
     setIsClient(true);
@@ -345,8 +337,12 @@ export default function LessonPage() {
     if (typeof window !== 'undefined' && window.innerWidth >= 768) {
       setIsSidebarOpen(true);
     }
-    fetchLessonData();
-  }, [fetchLessonData]);
+    
+    // Only fetch data if user state is resolved and user exists
+    if (!userLoading && user) {
+      fetchLessonData();
+    }
+  }, [user, userLoading, fetchLessonData]);
 
  const markAsCompleted = async () => {
     if (!firestore || !user || !courseId || !lessonId || !hasFullAccess) return;
@@ -456,6 +452,15 @@ export default function LessonPage() {
     return <LessonPageSkeleton />;
   }
 
+  if (!user) {
+    return (
+        <div className="flex min-h-screen flex-col items-center justify-center bg-background text-center px-4">
+            <h1 className="text-2xl font-bold text-white">Redirecionando...</h1>
+            <p className="text-muted-foreground mt-2">Você precisa estar logado para acessar esta página.</p>
+        </div>
+    );
+  }
+  
   if (!course || !currentLesson) {
     return (
         <div className="flex min-h-screen flex-col items-center justify-center bg-background text-center px-4">
