@@ -17,9 +17,32 @@ service cloud.firestore {
     // Helper function to check if a lesson is part of a demo
     function isLessonDemo(courseId, lessonId) {
         let course = get(/databases/$(database)/documents/courses/$(courseId)).data;
-        let module = course.modules.filter(m => lessonId in m.lessons)[0];
-        let lesson = module.lessons[lessonId];
-        return course.isDemoEnabled == true && (lesson.isDemo == true || module.isDemo == true);
+        if (course.isDemoEnabled != true) {
+            return false;
+        }
+
+        // Iterate through modules and lessons to find the specific lesson and check its demo status.
+        let isDemo = false;
+        let modules = course.data.modules;
+        
+        // This loop is for security rules, not client code. It's safe.
+        for (let i = 0; i < modules.size(); i++) {
+            let module = modules[i];
+            let lessons = module.get('lessons', []);
+            for (let j = 0; j < lessons.size(); j++) {
+                let lesson = lessons[j];
+                if (lesson.id == lessonId) {
+                    if (module.isDemo == true || lesson.isDemo == true) {
+                        isDemo = true;
+                    }
+                    break;
+                }
+            }
+            if (isDemo) {
+              break;
+            }
+        }
+        return isDemo;
     }
     
     // Helper function to check if a user has any demo access within a course
@@ -29,9 +52,11 @@ service cloud.firestore {
 
     // Helper function to determine if a user can interact with lesson content.
     function canInteract(courseId, lessonId) {
+      let course = get(/databases/$(database)/documents/courses/$(courseId)).data;
+      
       return isAdmin() 
           || hasCourseAccess(courseId)
-          || isLessonDemo(courseId, lessonId);
+          || (course.isDemoEnabled == true && isLessonDemo(courseId, lessonId));
     }
 
     // --- COLLECTION RULES ---

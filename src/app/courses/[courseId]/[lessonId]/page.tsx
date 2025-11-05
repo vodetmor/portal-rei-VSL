@@ -2,6 +2,7 @@
 
 'use client';
 
+import * as React from 'react';
 import { useEffect, useState, useCallback, useMemo, ReactNode } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { useFirestore, useUser, useAuth, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
@@ -491,7 +492,7 @@ export default function LessonPage() {
               <X className="h-5 w-5" />
           </Button>
         </div>
-        <div className="h-[calc(100vh-10rem)] overflow-y-auto">
+        <div className="h-[calc(100%-10rem)] overflow-y-auto">
           <Accordion type="single" collapsible defaultValue={currentModule?.id} className="w-full">
             {course.modules.map(module => {
               const unlocked = isModuleUnlocked(module);
