@@ -14,9 +14,12 @@ service cloud.firestore {
       return request.auth != null && exists(/databases/$(database)/documents/users/$(request.auth.uid)/courseAccess/$(courseId));
     }
     
-    // Helper function to check if a user has accessed a specific demo lesson
-    function hasLessonDemoAccess(courseId, lessonId) {
-        return exists(/databases/$(database)/documents/users/$(request.auth.uid)/demoAccess/$(courseId)/lessons/$(lessonId));
+    // Helper function to check if a lesson is part of a demo
+    function isLessonDemo(courseId, lessonId) {
+        let course = get(/databases/$(database)/documents/courses/$(courseId)).data;
+        let module = course.modules.filter(m => lessonId in m.lessons)[0];
+        let lesson = module.lessons[lessonId];
+        return course.isDemoEnabled == true && (lesson.isDemo == true || module.isDemo == true);
     }
     
     // Helper function to check if a user has any demo access within a course
@@ -25,11 +28,10 @@ service cloud.firestore {
     }
 
     // Helper function to determine if a user can interact with lesson content.
-    // Admins, enrolled users, or users with specific demo access can interact.
     function canInteract(courseId, lessonId) {
       return isAdmin() 
-          || hasCourseAccess(courseId) 
-          || hasLessonDemoAccess(courseId, lessonId);
+          || hasCourseAccess(courseId)
+          || isLessonDemo(courseId, lessonId);
     }
 
     // --- COLLECTION RULES ---

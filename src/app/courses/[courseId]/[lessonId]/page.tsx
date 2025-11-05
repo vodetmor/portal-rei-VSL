@@ -152,6 +152,7 @@ export default function LessonPage() {
   const [isCurrentLessonCompleted, setIsCurrentLessonCompleted] = useState(false);
   const [isClient, setIsClient] = useState(false);
   const [hasFullAccess, setHasFullAccess] = useState(false); 
+  const [canView, setCanView] = useState(false);
   
   const youtubeEmbedUrl = useMemo(() => {
     if (!currentLesson || !currentLesson.videoUrl || !currentLesson.videoUrl.includes('youtube.com')) {
@@ -167,9 +168,9 @@ export default function LessonPage() {
   }, [currentLesson]);
 
   const reactionsQuery = useMemoFirebase(() => {
-    if (!firestore || !courseId || !lessonId) return null;
+    if (!firestore || !courseId || !lessonId || !canView) return null;
     return collection(firestore, `courses/${courseId}/lessons/${lessonId}/reactions`);
-  }, [firestore, courseId, lessonId]);
+  }, [firestore, courseId, lessonId, canView]);
 
   const { data: reactions, isLoading: reactionsLoading } = useCollection<LessonReaction>(reactionsQuery);
 
@@ -212,6 +213,7 @@ export default function LessonPage() {
 
 
     setLoading(true);
+    setCanView(false);
     setIsCurrentLessonCompleted(false);
 
     try {
@@ -281,9 +283,13 @@ export default function LessonPage() {
 
       // Step 5: Check if the specific lesson is viewable and grant demo access if needed
       const canViewDemo = courseData.isDemoEnabled && (foundLesson.isDemo || foundModule.isDemo);
+      
+      const isLessonViewable = fullAccess || canViewDemo;
+      setCanView(isLessonViewable);
+
       if (!fullAccess && canViewDemo) {
           await grantDemoAccess(user.uid, courseId as string, lessonId as string);
-      } else if (!fullAccess && !canViewDemo) {
+      } else if (!isLessonViewable) {
         toast({ variant: 'destructive', title: 'Acesso Negado', description: 'Você não tem permissão para ver esta aula.' });
         router.push(`/courses/${courseId}`);
         return;
@@ -386,7 +392,7 @@ export default function LessonPage() {
  };
  
  const toggleReaction = async (reactionType: 'like' | 'dislike') => {
-    if (!firestore || !auth || !courseId || !lessonId) return;
+    if (!firestore || !auth || !courseId || !lessonId || !canView) return;
 
     let currentUser = auth.currentUser;
     if (!currentUser) {
@@ -586,21 +592,23 @@ export default function LessonPage() {
                 </div>
               ) : (
                 <div className="h-full w-full flex flex-col items-center justify-center bg-secondary/30 text-center p-4">
-                    <FileText className="h-16 w-16 text-primary mb-4" />
+                    <BookOpen className="h-16 w-16 text-primary mb-4" />
                     <h3 className="text-xl font-bold text-white">Aula de Leitura</h3>
                     <p className="text-muted-foreground mt-2">Esta aula consiste em texto e materiais complementares. Explore o conteúdo abaixo.</p>
                 </div>
               )}
             </div>
             
-            <div className="mt-6 flex items-center justify-end gap-2">
-                <Button variant={userReaction === 'like' ? 'default' : 'outline'} onClick={() => toggleReaction('like')}>
-                  <ThumbsUp className="mr-2 h-4 w-4" /> {likeCount}
-                </Button>
-                <Button variant={userReaction === 'dislike' ? 'destructive' : 'outline'} onClick={() => toggleReaction('dislike')}>
-                  <ThumbsDown className="mr-2 h-4 w-4" /> {dislikeCount}
-                </Button>
-            </div>
+            {canView && (
+              <div className="mt-6 flex items-center justify-end gap-2">
+                  <Button variant={userReaction === 'like' ? 'default' : 'outline'} onClick={() => toggleReaction('like')}>
+                    <ThumbsUp className="mr-2 h-4 w-4" /> {likeCount}
+                  </Button>
+                  <Button variant={userReaction === 'dislike' ? 'destructive' : 'outline'} onClick={() => toggleReaction('dislike')}>
+                    <ThumbsDown className="mr-2 h-4 w-4" /> {dislikeCount}
+                  </Button>
+              </div>
+            )}
 
             <Tabs defaultValue="description" className="mt-8">
               <TabsList>
