@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { doc, getDoc, collection, getDocs, setDoc, deleteDoc, type DocumentData, updateDoc, addDoc, query, where, writeBatch, serverTimestamp, increment } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { useLayout } from '@/context/layout-context';
-import { ActionToolbar } from '@/components/admin/action-toolbar';
+import { ActionToolbar } from '@/components/ui/action-toolbar';
 import { PageEditActions } from '@/components/admin/page-edit-actions';
 
 import Image from 'next/image';
@@ -382,7 +382,7 @@ function DashboardClientPage() {
       });
   };
 
-  const fetchCoursesAndProgress = useCallback(async (userIsAdmin: boolean) => {
+  const fetchCoursesAndProgress = useCallback(async (userIsAdmin?: boolean) => {
     if (!firestore || !user) return;
     setLoadingData(true);
   
@@ -518,7 +518,7 @@ function DashboardClientPage() {
   }, [firestore, user, toast, router, fetchCoursesAndProgress]);
 
  useEffect(() => {
-    if (userLoading) {
+    if (userLoading || !firestore) {
       return;
     }
     if (!user) {
@@ -720,7 +720,7 @@ function DashboardClientPage() {
                                 onCheckedChange={setTempHeroTextVisible}
                             />
                         </div>
-                        <Tabs value={imageInputMode} onValueChange={(value) => setImageInputMode(value as 'desktop' | 'mobile')} className="w-full">
+                         <Tabs value={imageInputMode} onValueChange={(value) => setImageInputMode(value as 'desktop' | 'mobile')} className="w-full">
                             <TabsList className="grid w-full grid-cols-2">
                                 <TabsTrigger value="desktop"><Monitor className="mr-2 h-4 w-4" /> Computador</TabsTrigger>
                                 <TabsTrigger value="mobile"><Smartphone className="mr-2 h-4 w-4" /> Celular</TabsTrigger>
@@ -862,3 +862,5 @@ export default function DashboardPage() {
     <DashboardClientPage />
   )
 }
+
+    
