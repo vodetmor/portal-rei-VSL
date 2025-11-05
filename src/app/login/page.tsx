@@ -105,7 +105,6 @@ export default function LoginPage() {
     } catch (error: any) {
         const message = mapFirebaseError(error.code);
         setAuthError(message);
-        console.error('Error signing in with Google', error);
     }
   }
 
@@ -118,7 +117,6 @@ export default function LoginPage() {
     } catch (error: any) {
       const message = mapFirebaseError(error.code);
       setAuthError(message);
-      console.error('Error signing in', error);
     }
   };
 
