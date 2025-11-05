@@ -8,7 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { doc, getDoc, collection, getDocs, setDoc, deleteDoc, type DocumentData, updateDoc, addDoc, query, where, writeBatch, serverTimestamp, increment } from 'firebase/firestore';
 import { getStorage, ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
 import { useLayout } from '@/context/layout-context';
-import { ActionToolbar } from '@/components/ui/action-toolbar';
+import { ActionToolbar } from '@/components/admin/action-toolbar';
 import { PageEditActions } from '@/components/admin/page-edit-actions';
 
 import Image from 'next/image';
@@ -518,7 +518,9 @@ function DashboardClientPage() {
   }, [firestore, user, toast, router, fetchCoursesAndProgress]);
 
  useEffect(() => {
-    if (userLoading) return;
+    if (userLoading) {
+      return;
+    }
     if (!user) {
       router.push('/login');
       return;
@@ -526,9 +528,9 @@ function DashboardClientPage() {
 
     const checkAdminAndFetch = async () => {
       let userIsAdmin = false;
-      if (user.email === 'admin@reidavsl.com') {
+      if (user?.email === 'admin@reidavsl.com') {
           userIsAdmin = true;
-      } else {
+      } else if(user && firestore) {
           try {
               const userDocRef = doc(firestore, 'users', user.uid);
               const userDocSnap = await getDoc(userDocRef);
