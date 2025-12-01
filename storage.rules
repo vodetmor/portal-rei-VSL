@@ -1,0 +1,30 @@
+
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // Helper function to check if a user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // Allow authenticated users to upload to specific paths for course and layout images.
+    // This prevents unauthorized uploads to other parts of your bucket.
+    match /layout/{allPaths=**} {
+      allow write: if isAuthenticated();
+    }
+
+    match /courses/{allPaths=**} {
+      allow write: if isAuthenticated();
+    }
+    
+    match /avatars/{allPaths=**} {
+       allow write: if isAuthenticated();
+    }
+
+    // Allow public read access to all files.
+    // This is generally safe for media files like images that are meant to be displayed in the app.
+    allow read: if true;
+  }
+}

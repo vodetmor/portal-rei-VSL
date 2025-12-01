@@ -95,7 +95,7 @@ service cloud.firestore {
     // Course documents: Published courses can be listed/viewed by any authenticated user.
     // Admins can do anything. Users with access can view even if not published.
     match /courses/{courseId} {
-      allow get: if (request.auth.uid != null && resource.data.status == 'published') || isAdmin() || hasCourseAccess(courseId);
+      allow get: if (request.auth != null && resource.data.status == 'published') || isAdmin() || hasCourseAccess(courseId);
       allow list: if (request.auth.uid != null && (request.query.where.size() == 0 || request.query.where[0][2] == "published")) || isAdmin();
       allow write: if isAdmin();
 
