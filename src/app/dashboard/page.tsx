@@ -166,23 +166,28 @@ function DashboardClientPage() {
     setOpenCollapsible(null);
   };
 
-  const uploadImage = async (file: File, path: string): Promise<string> => {
-    const storage = getStorage();
-    const storageRef = ref(storage, `${path}/${Date.now()}-${file.name}`);
-    const uploadTask = uploadBytesResumable(storageRef, file);
-
+  const uploadImage = useCallback((file: File, path: string): Promise<string> => {
     return new Promise((resolve, reject) => {
-        uploadTask.on('state_changed',
-            (snapshot) => setUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
-            (error) => {
-                console.error("Upload failed:", error);
-                toast({ variant: "destructive", title: "Erro de Upload", description: "Não foi possível enviar a imagem." });
-                reject(error);
-            },
-            () => getDownloadURL(uploadTask.snapshot.ref).then(resolve).catch(reject)
-        );
+      const storage = getStorage();
+      const storageRef = ref(storage, `${path}/${Date.now()}-${file.name}`);
+      const uploadTask = uploadBytesResumable(storageRef, file);
+
+      uploadTask.on('state_changed',
+        (snapshot) => setUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
+        (error) => {
+          console.error("Upload failed:", error);
+          toast({ variant: "destructive", title: "Erro de Upload", description: "Não foi possível enviar a imagem." });
+          reject(error);
+        },
+        () => {
+          getDownloadURL(uploadTask.snapshot.ref)
+            .then(resolve)
+            .catch(reject);
+        }
+      );
     });
-  };
+  }, [toast]);
+
 
   const handleSaveChanges = async () => {
     if (!firestore) return;

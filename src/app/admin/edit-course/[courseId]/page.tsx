@@ -265,6 +265,28 @@ function EditCoursePageContent() {
     }
   };
 
+  const uploadImage = useCallback((file: File, path: string): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const storage = getStorage();
+      const storageRef = ref(storage, `courses/${courseId}/${path}/${Date.now()}-${file.name}`);
+      const uploadTask = uploadBytesResumable(storageRef, file);
+
+      uploadTask.on('state_changed',
+        (snapshot) => setUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
+        (error) => {
+          console.error(`Upload failed for ${path}:`, error);
+          toast({ variant: "destructive", title: "Erro de Upload", description: "Não foi possível enviar a imagem." });
+          reject(error);
+        },
+        () => {
+          getDownloadURL(uploadTask.snapshot.ref)
+            .then(resolve)
+            .catch(reject);
+        }
+      );
+    });
+  }, [courseId, toast]);
+
   const handleSave = async (status: 'draft' | 'published' = 'draft') => {
     if (!firestore || !courseId || !adminUser) return;
     setIsSaving(true);
@@ -273,33 +295,18 @@ function EditCoursePageContent() {
     try {
       let finalHeroImageUrlDesktop = course?.heroImageUrlDesktop || DEFAULT_HERO_IMAGE_DESKTOP;
       let finalHeroImageUrlMobile = course?.heroImageUrlMobile || DEFAULT_HERO_IMAGE_MOBILE;
-
-      const uploadImage = async (file: File, path: string) => {
-          const storage = getStorage();
-          const storageRef = ref(storage, `courses/${courseId}/hero/${path}/${Date.now()}-${file.name}`);
-          const uploadTask = uploadBytesResumable(storageRef, file);
-          
-          return new Promise<string>((resolve, reject) => {
-              uploadTask.on('state_changed',
-                  (snapshot) => setUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
-                  (error) => reject(error),
-                  () => getDownloadURL(uploadTask.snapshot.ref).then(resolve)
-              );
-          });
-      };
       
       if (heroImageDesktopFile) {
-          finalHeroImageUrlDesktop = await uploadImage(heroImageDesktopFile, 'desktop');
+          finalHeroImageUrlDesktop = await uploadImage(heroImageDesktopFile, 'hero/desktop');
       } else if (heroImageUrlInputDesktop) {
           finalHeroImageUrlDesktop = heroImageUrlInputDesktop;
       }
 
       if (heroImageMobileFile) {
-          finalHeroImageUrlMobile = await uploadImage(heroImageMobileFile, 'mobile');
+          finalHeroImageUrlMobile = await uploadImage(heroImageMobileFile, 'hero/mobile');
       } else if (heroImageUrlInputMobile) {
           finalHeroImageUrlMobile = heroImageUrlInputMobile;
       }
-
 
       const courseRef = doc(firestore, 'courses', courseId);
       const modulesToSave = modules.map(({ ...rest }) => ({
@@ -359,6 +366,8 @@ function EditCoursePageContent() {
     } finally {
       setIsSaving(false);
       setUploadProgress(null);
+      setHeroImageDesktopFile(null);
+      setHeroImageMobileFile(null);
     }
   };
 
