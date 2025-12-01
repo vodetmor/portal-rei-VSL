@@ -613,8 +613,10 @@ function DashboardClientPage() {
                       contentEditable={isEditMode}
                       suppressContentEditableWarning={true}
                       onFocus={() => setActiveEditor('hero-title-editor')}
-                      onBlur={() => setActiveEditor(null)}
-                      onInput={(e) => setTempHeroTitle(e.currentTarget.innerHTML)}
+                      onBlur={(e) => {
+                        setActiveEditor(null);
+                        setTempHeroTitle(e.currentTarget.innerHTML);
+                      }}
                       className={cn(
                           "text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl",
                           "prose prose-xl prose-invert max-w-none",
@@ -644,8 +646,10 @@ function DashboardClientPage() {
                       contentEditable={isEditMode}
                       suppressContentEditableWarning={true}
                       onFocus={() => setActiveEditor('hero-subtitle-editor')}
-                      onBlur={() => setActiveEditor(null)}
-                      onInput={(e) => setTempHeroSubtitle(e.currentTarget.innerHTML)}
+                       onBlur={(e) => {
+                        setActiveEditor(null);
+                        setTempHeroSubtitle(e.currentTarget.innerHTML);
+                      }}
                       className={cn(
                           "max-w-2xl text-lg text-muted-foreground md:text-xl",
                           "prose prose-lg prose-invert max-w-none",
@@ -671,7 +675,7 @@ function DashboardClientPage() {
                   <div
                       contentEditable={true}
                       suppressContentEditableWarning={true}
-                      onInput={(e) => setTempCtaText(e.currentTarget.innerHTML)}
+                      onBlur={(e) => setTempCtaText(e.currentTarget.innerHTML)}
                       className="inline-block px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-md text-lg font-semibold outline-none focus:ring-2 focus:ring-ring"
                       dangerouslySetInnerHTML={{ __html: tempCtaText }}
                   >

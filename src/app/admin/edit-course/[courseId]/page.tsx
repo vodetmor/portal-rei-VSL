@@ -1,5 +1,4 @@
 
-
 'use client';
 
 import { useEffect, useState, useCallback, useRef } from 'react';
@@ -102,7 +101,6 @@ function EditCoursePageContent() {
   const [tempIsDemoEnabled, setTempIsDemoEnabled] = useState(false);
   const [tempIsFree, setTempIsFree] = useState(false);
   const [modules, setModules] = useState<Module[]>([]);
-  const descriptionRef = useRef<HTMLDivElement>(null);
   const [activeEditor, setActiveEditor] = useState<string | null>(null);
 
   // States for banner editing
@@ -171,12 +169,6 @@ function EditCoursePageContent() {
   useEffect(() => {
     fetchCourse();
   }, [fetchCourse]);
-
-   useEffect(() => {
-        if (descriptionRef.current) {
-            descriptionRef.current.innerHTML = tempDescription;
-        }
-    }, [tempDescription]);
 
 
   const addModule = () => {
@@ -512,7 +504,6 @@ function EditCoursePageContent() {
                             )}
                             <div
                                 id="course-description"
-                                ref={descriptionRef}
                                 contentEditable
                                 suppressContentEditableWarning
                                 onFocus={() => setActiveEditor('course-description')}
@@ -521,6 +512,7 @@ function EditCoursePageContent() {
                                     setTempDescription(e.currentTarget.innerHTML);
                                 }}
                                 className="mt-1 min-h-[120px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 prose prose-sm prose-invert max-w-none"
+                                dangerouslySetInnerHTML={{ __html: tempDescription }}
                             />
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4">
@@ -925,14 +917,6 @@ function LessonEditor({ lesson, moduleId, onUpdate, onRemove, applyFormat, isDem
     const isDriveLink = lesson.videoUrl && lesson.videoUrl.includes('drive.google.com');
 
     const [activeEditor, setActiveEditor] = useState<string | null>(null);
-    const lessonDescriptionRef = useRef<HTMLDivElement>(null);
-
-
-    useEffect(() => {
-        if (lessonDescriptionRef.current) {
-            lessonDescriptionRef.current.innerHTML = lesson.description || '';
-        }
-    }, [lesson.description]);
 
 
     const handleVideoFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -1046,7 +1030,6 @@ function LessonEditor({ lesson, moduleId, onUpdate, onRemove, applyFormat, isDem
                 )}
                 <div
                     id={`lesson-desc-${lesson.id}`}
-                    ref={lessonDescriptionRef}
                     contentEditable
                     suppressContentEditableWarning
                     onFocus={() => setActiveEditor(lesson.id)}
@@ -1055,6 +1038,7 @@ function LessonEditor({ lesson, moduleId, onUpdate, onRemove, applyFormat, isDem
                         onUpdate(moduleId, lesson.id, 'description', e.currentTarget.innerHTML);
                     }}
                     className="mt-1 min-h-[100px] w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 prose prose-sm prose-invert max-w-none"
+                    dangerouslySetInnerHTML={{ __html: lesson.description || '' }}
                 />
             </div>
 
