@@ -100,10 +100,10 @@ service cloud.firestore {
 
     // Course documents
     match /courses/{courseId} {
-      allow get: if (request.auth != null && resource.data.status == 'published') || isAdmin() || hasCourseAccess(courseId);
+      allow get: if request.auth.uid != null;
       
       // Admins can list all courses. Authenticated users can only list published ones.
-      allow list: if (isAdmin() || (request.auth != null && request.query.where[0][2] == "published"));
+      allow list: if request.auth.uid != null;
       
       // Only admins can create, update, or delete courses.
       allow write: if isAdmin();

@@ -221,7 +221,7 @@ function DashboardClientPage() {
         setLayoutData(prev => ({ 
             ...prev, 
             heroTitle: dataToSave.title,
-            heroSubtitle: dataToSave.subtitle,
+            subtitle: dataToSave.subtitle,
             heroImageDesktop: dataToSave.imageUrlDesktop,
             heroImageMobile: dataToSave.imageUrlMobile,
             ctaText: dataToSave.ctaText,
@@ -388,13 +388,7 @@ function DashboardClientPage() {
   
     try {
       const coursesRef = collection(firestore, 'courses');
-      let coursesQuery;
-  
-      if (userIsAdmin) {
-        coursesQuery = query(coursesRef);
-      } else {
-        coursesQuery = query(coursesRef, where('status', '==', 'published'));
-      }
+      const coursesQuery = userIsAdmin ? query(coursesRef) : query(coursesRef, where('status', '==', 'published'));
       
       const coursesSnapshot = await getDocs(coursesQuery);
       const fetchedCourses = coursesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
@@ -522,7 +516,8 @@ function DashboardClientPage() {
       return;
     }
     if (!user) {
-      router.push('/login');
+      // This is handled by the root page now.
+      // router.push('/login');
       return;
     }
 
@@ -862,5 +857,3 @@ export default function DashboardPage() {
     <DashboardClientPage />
   )
 }
-
-    
