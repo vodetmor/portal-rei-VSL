@@ -221,7 +221,7 @@ function DashboardClientPage() {
         setLayoutData(prev => ({ 
             ...prev, 
             heroTitle: dataToSave.title,
-            subtitle: dataToSave.subtitle,
+            heroSubtitle: dataToSave.subtitle,
             heroImageDesktop: dataToSave.imageUrlDesktop,
             heroImageMobile: dataToSave.imageUrlMobile,
             ctaText: dataToSave.ctaText,
@@ -249,10 +249,10 @@ function DashboardClientPage() {
         description: "Não foi possível salvar as alterações. Verifique as permissões.",
       });
     } finally {
-      setIsSaving(false);
-      setUploadProgress(null);
-      setHeroImageDesktopFile(null);
-      setHeroImageMobileFile(null);
+        setIsSaving(false);
+        setUploadProgress(null);
+        setHeroImageDesktopFile(null);
+        setHeroImageMobileFile(null);
     }
   };
 
