@@ -172,14 +172,23 @@ function DashboardClientPage() {
       const storageRef = ref(storage, `${path}/${Date.now()}-${file.name}`);
       const uploadTask = uploadBytesResumable(storageRef, file);
 
+      // Timeout after 30 seconds to prevent infinite hanging
+      const timeoutId = setTimeout(() => {
+          uploadTask.cancel();
+          reject(new Error("Upload timed out"));
+          toast({ variant: "destructive", title: "Tempo Esgotado", description: "O upload demorou muito e foi cancelado." });
+      }, 30000);
+
       uploadTask.on('state_changed',
         (snapshot) => setUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
         (error) => {
+          clearTimeout(timeoutId);
           console.error("Upload failed:", error);
           toast({ variant: "destructive", title: "Erro de Upload", description: "Não foi possível enviar a imagem." });
           reject(error);
         },
         () => {
+          clearTimeout(timeoutId);
           getDownloadURL(uploadTask.snapshot.ref)
             .then(resolve)
             .catch(reject);
