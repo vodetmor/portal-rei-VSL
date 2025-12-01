@@ -333,7 +333,7 @@ function DashboardClientPage() {
           description: "O curso foi removido com sucesso.",
         });
         if (user) {
-            fetchCoursesAndProgress();
+            fetchCoursesAndProgress(isAdmin);
         }
       })
       .catch((error) => {
@@ -388,11 +388,12 @@ function DashboardClientPage() {
   };
 
   const fetchCoursesAndProgress = useCallback(async (userIsAdmin?: boolean) => {
-    if (!firestore || !user) return;
+    if (!firestore || !user) return; // Guard clause
     setLoadingData(true);
   
     try {
       const coursesRef = collection(firestore, 'courses');
+      // Adjust query based on admin status
       const coursesQuery = userIsAdmin ? query(coursesRef) : query(coursesRef, where('status', '==', 'published'));
       
       const coursesSnapshot = await getDocs(coursesQuery);
@@ -400,11 +401,12 @@ function DashboardClientPage() {
       
       setCourses(fetchedCourses);
   
-      // Fetch course access
+      // Fetch user's explicit course access grants
       const newCourseAccess: CourseAccess = {};
       const accessSnapshot = await getDocs(collection(firestore, `users/${user.uid}/courseAccess`));
       accessSnapshot.docs.forEach(doc => newCourseAccess[doc.id] = true);
       
+      // Implicitly grant access for free courses or if user is admin
       fetchedCourses.forEach(course => {
           if (course.isFree || userIsAdmin) {
               newCourseAccess[course.id] = true;
@@ -412,7 +414,7 @@ function DashboardClientPage() {
       });
       setCourseAccess(newCourseAccess);
   
-      // Fetch progress for accessible courses
+      // Fetch progress only for courses the user has access to
       const accessibleCourseIds = Object.keys(newCourseAccess);
       if (accessibleCourseIds.length > 0) {
           const progressPromises = accessibleCourseIds.map(id => getDoc(doc(firestore, `users/${user.uid}/progress`, id)));
@@ -424,6 +426,8 @@ function DashboardClientPage() {
               }
           });
           setUserProgress(progressData);
+      } else {
+        setUserProgress({});
       }
     } catch (error: any) {
         console.error("Error fetching courses and progress: ", error);
@@ -493,12 +497,7 @@ function DashboardClientPage() {
             
             await batch.commit();
             toast({ title: "Acesso Liberado!", description: `${grantedCount} novo(s) curso(s) foram adicionados à sua conta.` });
-            if (user) {
-              const userDocRef = doc(firestore, 'users', user.uid);
-              const userDocSnap = await getDoc(userDocRef);
-              const userIsAdmin = userDocSnap.exists() && userDocSnap.data().role === 'admin';
-              await fetchCoursesAndProgress(userIsAdmin);
-            }
+            await fetchCoursesAndProgress(isAdmin);
         } else {
             toast({ title: "Tudo Certo!", description: "Você já tem acesso a todos os cursos deste link." });
         }
@@ -514,22 +513,26 @@ function DashboardClientPage() {
     } finally {
         router.replace('/dashboard', { scroll: false });
     }
-  }, [firestore, user, toast, router, fetchCoursesAndProgress]);
+  }, [firestore, user, toast, router, fetchCoursesAndProgress, isAdmin]);
 
  useEffect(() => {
+    // If auth state is still loading, do nothing.
     if (userLoading || !firestore) {
       return;
     }
+
+    // If auth state is resolved and there's no user, redirect to login.
     if (!user) {
       router.push('/login');
       return;
     }
 
+    // Auth is resolved and we have a user object.
     const checkAdminAndFetch = async () => {
       let userIsAdmin = false;
-      if (user?.email === 'admin@reidavsl.com') {
+      if (user.email === 'admin@reidavsl.com') {
           userIsAdmin = true;
-      } else if(user && firestore) {
+      } else {
           try {
               const userDocRef = doc(firestore, 'users', user.uid);
               const userDocSnap = await getDoc(userDocRef);
@@ -540,14 +543,16 @@ function DashboardClientPage() {
       }
       setIsAdmin(userIsAdmin);
       await fetchCoursesAndProgress(userIsAdmin);
+      
+      // Handle link redemption only after user role and courses are known
+      const linkId = searchParams.get('linkId');
+      if (linkId) {
+          redeemPremiumLink(linkId);
+      }
     };
 
     checkAdminAndFetch();
     
-    const linkId = searchParams.get('linkId');
-    if (linkId) {
-        redeemPremiumLink(linkId);
-    }
   }, [user, userLoading, firestore, router, fetchCoursesAndProgress, redeemPremiumLink, searchParams]);
 
 
