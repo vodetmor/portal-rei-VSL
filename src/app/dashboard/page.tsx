@@ -516,7 +516,7 @@ function DashboardClientPage() {
       return;
     }
     if (!user) {
-      // This is handled by the root page now.
+      router.push('/login');
       return;
     }
 
@@ -856,5 +856,3 @@ export default function DashboardPage() {
     <DashboardClientPage />
   )
 }
-
-    

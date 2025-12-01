@@ -65,10 +65,10 @@ service cloud.firestore {
     }
 
     // Course documents can be listed by any authenticated user if they filter by published status.
-    // A single course document can be read if it's published, or if the user is an admin.
+    // A single course document can be read if it's published, or if the user is an admin or has access.
     match /courses/{courseId} {
-      allow get: if (request.auth != null && resource.data.status == 'published') || isAdmin() || (resource.data.isFree == true) || (resource.data.isDemoEnabled == true && hasAnyDemoAccess(request.auth.uid, courseId));
-      allow list: if (request.auth != null && request.query.where[0][2] == "published") || isAdmin();
+      allow get: if (request.auth.uid != null && resource.data.status == 'published') || isAdmin() || hasCourseAccess(courseId);
+      allow list: if isAdmin() || (request.auth.uid != null && request.query.where[0][2] == "published");
       allow write: if isAdmin();
     }
     
@@ -122,7 +122,7 @@ service cloud.firestore {
 
     // Premium links can be managed by admins and read by any authenticated user.
     match /premiumLinks/{linkId} {
-        allow get: if request.auth != null;
+        allow get: if request.auth.uid != null;
         allow list, create, update, delete: if isAdmin();
     }
 
