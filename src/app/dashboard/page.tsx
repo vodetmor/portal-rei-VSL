@@ -42,13 +42,13 @@ interface Course extends DocumentData {
 }
 
 interface UserProgress {
-    [courseId: string]: {
-        completedLessons: Record<string, any>;
-    }
+  [courseId: string]: {
+    completedLessons: Record<string, any>;
+  }
 }
 
 interface CourseAccess {
-    [courseId: string]: boolean;
+  [courseId: string]: boolean;
 }
 
 
@@ -74,7 +74,7 @@ function DashboardClientPage() {
   const [loadingData, setLoadingData] = useState(true);
   const [userProgress, setUserProgress] = useState<UserProgress>({});
   const [isAdmin, setIsAdmin] = useState(false);
-  
+
   const [isSaving, setIsSaving] = useState(false);
   const [activeEditor, setActiveEditor] = useState<string | null>(null);
 
@@ -87,7 +87,7 @@ function DashboardClientPage() {
   const [tempCtaText, setTempCtaText] = useState(layoutData.ctaText);
   const [heroAlignment, setHeroAlignment] = useState(layoutData.heroAlignment);
   const [tempHeroTextVisible, setTempHeroTextVisible] = useState(layoutData.heroTextVisible);
-  
+
   const [heroImageDesktopFile, setHeroImageDesktopFile] = useState<File | null>(null);
   const [heroImageMobileFile, setHeroImageMobileFile] = useState<File | null>(null);
 
@@ -97,20 +97,20 @@ function DashboardClientPage() {
   const [tempHeroImageUrlInputMobile, setTempHeroImageUrlInputMobile] = useState('');
 
   const [openCollapsible, setOpenCollapsible] = useState<string | null>(null);
-  
+
   const coursesSectionRef = useRef<HTMLDivElement>(null);
 
   const calculateProgress = (courseId: string) => {
     const course = courses.find(c => c.id === courseId);
     const progress = userProgress[courseId];
     if (!course || !progress) return 0;
-    
+
     const totalLessons = course.modules?.reduce((acc, mod) => acc + (mod.lessons?.length || 0), 0) || 0;
     if (totalLessons === 0) return 0;
 
     const completedCount = Object.keys(progress.completedLessons).length;
     return (completedCount / totalLessons) * 100;
-};
+  };
 
 
   const applyFormat = (command: string) => {
@@ -119,30 +119,30 @@ function DashboardClientPage() {
 
     const editorElement = document.getElementById(editorId);
     if (!editorElement || !editorElement.isContentEditable) return;
-    
+
     // For applying color, we'll wrap the selection in a span
     if (command === 'foreColor') {
       const selection = window.getSelection();
       if (!selection || selection.rangeCount === 0) return;
       const range = selection.getRangeAt(0);
       const selectedText = range.toString();
-  
+
       if (selectedText) {
         const span = document.createElement('span');
         span.className = 'text-primary';
         span.textContent = selectedText;
-  
+
         range.deleteContents();
         range.insertNode(span);
       }
       return;
     }
-  
+
     // For other commands like bold, italic, just use execCommand
     document.execCommand(command, false, undefined);
   };
-  
-  
+
+
   const enterEditMode = () => {
     setTempHeroTitle(layoutData.heroTitle);
     setTempHeroSubtitle(layoutData.heroSubtitle);
@@ -169,18 +169,23 @@ function DashboardClientPage() {
   const uploadImage = useCallback((file: File, path: string): Promise<string> => {
     return new Promise((resolve, reject) => {
       const storage = getStorage();
+      console.log("Using storage bucket:", storage.app.options.storageBucket);
       const storageRef = ref(storage, `${path}/${Date.now()}-${file.name}`);
       const uploadTask = uploadBytesResumable(storageRef, file);
 
       // Timeout after 30 seconds to prevent infinite hanging
       const timeoutId = setTimeout(() => {
-          uploadTask.cancel();
-          reject(new Error("Upload timed out"));
-          toast({ variant: "destructive", title: "Tempo Esgotado", description: "O upload demorou muito e foi cancelado." });
+        uploadTask.cancel();
+        reject(new Error("Upload timed out"));
+        toast({ variant: "destructive", title: "Tempo Esgotado", description: "O upload demorou muito e foi cancelado." });
       }, 30000);
 
       uploadTask.on('state_changed',
-        (snapshot) => setUploadProgress((snapshot.bytesTransferred / snapshot.totalBytes) * 100),
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+          console.log(`Upload is ${progress}% done`);
+          setUploadProgress(progress);
+        },
         (error) => {
           clearTimeout(timeoutId);
           console.error("Upload failed:", error);
@@ -204,69 +209,80 @@ function DashboardClientPage() {
     setUploadProgress(null);
 
     try {
-        let finalHeroImageUrlDesktop = tempHeroImageDesktop;
-        if (heroImageDesktopFile) {
-            finalHeroImageUrlDesktop = await uploadImage(heroImageDesktopFile, 'layout/dashboard-hero/desktop');
-        } else if (tempHeroImageUrlInputDesktop) {
-            finalHeroImageUrlDesktop = tempHeroImageUrlInputDesktop;
-        }
+      let finalHeroImageUrlDesktop = tempHeroImageDesktop;
+      if (heroImageDesktopFile) {
+        finalHeroImageUrlDesktop = await uploadImage(heroImageDesktopFile, 'layout/dashboard-hero/desktop');
+      } else if (tempHeroImageUrlInputDesktop) {
+        finalHeroImageUrlDesktop = tempHeroImageUrlInputDesktop;
+      }
 
-        let finalHeroImageUrlMobile = tempHeroImageMobile;
-        if (heroImageMobileFile) {
-            finalHeroImageUrlMobile = await uploadImage(heroImageMobileFile, 'layout/dashboard-hero/mobile');
-        } else if (tempHeroImageUrlInputMobile) {
-            finalHeroImageUrlMobile = tempHeroImageUrlInputMobile;
-        }
+      let finalHeroImageUrlMobile = tempHeroImageMobile;
+      if (heroImageMobileFile) {
+        finalHeroImageUrlMobile = await uploadImage(heroImageMobileFile, 'layout/dashboard-hero/mobile');
+      } else if (tempHeroImageUrlInputMobile) {
+        finalHeroImageUrlMobile = tempHeroImageUrlInputMobile;
+      }
 
-        const dataToSave = {
-            title: tempHeroTitle,
-            subtitle: tempHeroSubtitle,
-            imageUrlDesktop: finalHeroImageUrlDesktop,
-            imageUrlMobile: finalHeroImageUrlMobile,
-            ctaText: tempCtaText,
-            heroAlignment: heroAlignment,
-            heroTextVisible: tempHeroTextVisible,
-        };
-        
-        const layoutRef = doc(firestore, 'layout', 'dashboard-hero');
-      
-        await setDoc(layoutRef, dataToSave, { merge: true });
-        
-        setLayoutData(prev => ({ 
-            ...prev, 
-            heroTitle: dataToSave.title,
-            heroSubtitle: dataToSave.subtitle,
-            heroImageDesktop: dataToSave.imageUrlDesktop,
-            heroImageMobile: dataToSave.imageUrlMobile,
-            ctaText: dataToSave.ctaText,
-            heroAlignment: dataToSave.heroAlignment,
-            heroTextVisible: dataToSave.heroTextVisible,
-        }));
+      const dataToSave = {
+        title: tempHeroTitle,
+        subtitle: tempHeroSubtitle,
+        imageUrlDesktop: finalHeroImageUrlDesktop,
+        imageUrlMobile: finalHeroImageUrlMobile,
+        ctaText: tempCtaText,
+        heroAlignment: heroAlignment,
+        heroTextVisible: tempHeroTextVisible,
+      };
 
-        toast({
-            title: "Sucesso!",
-            description: "As alterações do layout foram salvas.",
-        });
-        setIsEditMode(false);
-        setActiveEditor(null);
-    } catch (error) {
+      const layoutRef = doc(firestore, 'layout', 'dashboard-hero');
+
+      await setDoc(layoutRef, dataToSave, { merge: true });
+
+      setLayoutData(prev => ({
+        ...prev,
+        heroTitle: dataToSave.title,
+        heroSubtitle: dataToSave.subtitle,
+        heroImageDesktop: dataToSave.imageUrlDesktop,
+        heroImageMobile: dataToSave.imageUrlMobile,
+        ctaText: dataToSave.ctaText,
+        heroAlignment: dataToSave.heroAlignment,
+        heroTextVisible: dataToSave.heroTextVisible,
+      }));
+
+      toast({
+        title: "Sucesso!",
+        description: "As alterações do layout foram salvas.",
+      });
+      setIsEditMode(false);
+      setActiveEditor(null);
+    } catch (error: any) {
       console.error("Error saving layout:", error);
-      const permissionError = new FirestorePermissionError({
+
+      if (error.code === 'permission-denied') {
+        const permissionError = new FirestorePermissionError({
           path: `layout/dashboard-hero`,
           operation: 'update',
           requestResourceData: { error: 'data not shown for brevity' }
-      });
-      errorEmitter.emit('permission-error', permissionError);
-      toast({
-        variant: "destructive",
-        title: "Erro ao Salvar",
-        description: "Não foi possível salvar as alterações. Verifique as permissões.",
-      });
+        });
+        errorEmitter.emit('permission-error', permissionError);
+        toast({
+          variant: "destructive",
+          title: "Erro de Permissão",
+          description: "Você não tem permissão para salvar alterações.",
+        });
+      } else if (error.message === "Upload timed out" || error.code === 'storage/canceled') {
+        // Already handled by toast in uploadImage or timeout
+      } else {
+        toast({
+          variant: "destructive",
+          title: "Erro ao Salvar",
+          description: "Ocorreu um erro inesperado. Tente novamente.",
+        });
+      }
     } finally {
-        setIsSaving(false);
-        setUploadProgress(null);
-        setHeroImageDesktopFile(null);
-        setHeroImageMobileFile(null);
+      setIsSaving(false);
+      setUploadProgress(null);
+      setHeroImageDesktopFile(null);
+      setHeroImageMobileFile(null);
     }
   };
 
@@ -277,37 +293,37 @@ function DashboardClientPage() {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onloadend = () => {
-          if (device === 'desktop') {
-            setHeroImageDesktopFile(file);
-            setTempHeroImageDesktop(reader.result as string);
-          } else {
-            setHeroImageMobileFile(file);
-            setTempHeroImageMobile(reader.result as string);
-          }
+        if (device === 'desktop') {
+          setHeroImageDesktopFile(file);
+          setTempHeroImageDesktop(reader.result as string);
+        } else {
+          setHeroImageMobileFile(file);
+          setTempHeroImageMobile(reader.result as string);
+        }
       };
     }
   };
 
   const handleHeroUrlChange = (e: React.ChangeEvent<HTMLInputElement>, device: 'desktop' | 'mobile') => {
     const url = e.target.value;
-     if (device === 'desktop') {
-        setTempHeroImageUrlInputDesktop(url);
-        if (url.startsWith('http')) setTempHeroImageDesktop(url);
+    if (device === 'desktop') {
+      setTempHeroImageUrlInputDesktop(url);
+      if (url.startsWith('http')) setTempHeroImageDesktop(url);
     } else {
-        setTempHeroImageUrlInputMobile(url);
-        if (url.startsWith('http')) setTempHeroImageMobile(url);
+      setTempHeroImageUrlInputMobile(url);
+      if (url.startsWith('http')) setTempHeroImageMobile(url);
     }
   };
 
   const handleRemoveHeroImage = (device: 'desktop' | 'mobile') => {
     if (device === 'desktop') {
-        setTempHeroImageDesktop(layoutData.defaults.heroImageDesktop);
-        setTempHeroImageUrlInputDesktop('');
-        setHeroImageDesktopFile(null);
+      setTempHeroImageDesktop(layoutData.defaults.heroImageDesktop);
+      setTempHeroImageUrlInputDesktop('');
+      setHeroImageDesktopFile(null);
     } else {
-        setTempHeroImageMobile(layoutData.defaults.heroImageMobile);
-        setTempHeroImageUrlInputMobile('');
-        setHeroImageMobileFile(null);
+      setTempHeroImageMobile(layoutData.defaults.heroImageMobile);
+      setTempHeroImageUrlInputMobile('');
+      setHeroImageMobileFile(null);
     }
   };
 
@@ -342,7 +358,7 @@ function DashboardClientPage() {
           description: "O curso foi removido com sucesso.",
         });
         if (user) {
-            fetchCoursesAndProgress(isAdmin);
+          fetchCoursesAndProgress(isAdmin);
         }
       })
       .catch((error) => {
@@ -383,9 +399,9 @@ function DashboardClientPage() {
       .catch((error) => {
         console.error("Error creating new course draft: ", error);
         const permissionError = new FirestorePermissionError({
-            path: coursesCollection.path,
-            operation: 'create',
-            requestResourceData: newCourseData
+          path: coursesCollection.path,
+          operation: 'create',
+          requestResourceData: newCourseData
         });
         errorEmitter.emit('permission-error', permissionError);
         toast({
@@ -399,57 +415,57 @@ function DashboardClientPage() {
   const fetchCoursesAndProgress = useCallback(async (userIsAdmin?: boolean) => {
     if (!firestore || !user) return; // Guard clause
     setLoadingData(true);
-  
+
     try {
       const coursesRef = collection(firestore, 'courses');
       // Adjust query based on admin status
       const coursesQuery = userIsAdmin ? query(coursesRef) : query(coursesRef, where('status', '==', 'published'));
-      
+
       const coursesSnapshot = await getDocs(coursesQuery);
       const fetchedCourses = coursesSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Course));
-      
+
       setCourses(fetchedCourses);
-  
+
       // Fetch user's explicit course access grants
       const newCourseAccess: CourseAccess = {};
       const accessSnapshot = await getDocs(collection(firestore, `users/${user.uid}/courseAccess`));
       accessSnapshot.docs.forEach(doc => newCourseAccess[doc.id] = true);
-      
+
       // Implicitly grant access for free courses or if user is admin
       fetchedCourses.forEach(course => {
-          if (course.isFree || userIsAdmin) {
-              newCourseAccess[course.id] = true;
-          }
+        if (course.isFree || userIsAdmin) {
+          newCourseAccess[course.id] = true;
+        }
       });
       setCourseAccess(newCourseAccess);
-  
+
       // Fetch progress only for courses the user has access to
       const accessibleCourseIds = Object.keys(newCourseAccess);
       if (accessibleCourseIds.length > 0) {
-          const progressPromises = accessibleCourseIds.map(id => getDoc(doc(firestore, `users/${user.uid}/progress`, id)));
-          const progressSnaps = await Promise.all(progressPromises);
-          const progressData: UserProgress = {};
-          progressSnaps.forEach(snap => {
-              if (snap.exists()) {
-                  progressData[snap.id] = snap.data() as UserProgress[string];
-              }
-          });
-          setUserProgress(progressData);
+        const progressPromises = accessibleCourseIds.map(id => getDoc(doc(firestore, `users/${user.uid}/progress`, id)));
+        const progressSnaps = await Promise.all(progressPromises);
+        const progressData: UserProgress = {};
+        progressSnaps.forEach(snap => {
+          if (snap.exists()) {
+            progressData[snap.id] = snap.data() as UserProgress[string];
+          }
+        });
+        setUserProgress(progressData);
       } else {
         setUserProgress({});
       }
     } catch (error: any) {
-        console.error("Error fetching courses and progress: ", error);
-        if (error.code === 'permission-denied') {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({
-                path: `courses`,
-                operation: 'list'
-            }));
-        }
-        toast({ variant: "destructive", title: "Erro ao Carregar", description: "Não foi possível carregar os cursos." });
-        setCourses([]);
+      console.error("Error fetching courses and progress: ", error);
+      if (error.code === 'permission-denied') {
+        errorEmitter.emit('permission-error', new FirestorePermissionError({
+          path: `courses`,
+          operation: 'list'
+        }));
+      }
+      toast({ variant: "destructive", title: "Erro ao Carregar", description: "Não foi possível carregar os cursos." });
+      setCourses([]);
     } finally {
-        setLoadingData(false);
+      setLoadingData(false);
     }
   }, [firestore, user, toast]);
 
@@ -457,74 +473,74 @@ function DashboardClientPage() {
     if (!firestore || !user) return;
 
     try {
-        const linkRef = doc(firestore, 'premiumLinks', linkId);
-        const linkSnap = await getDoc(linkRef);
+      const linkRef = doc(firestore, 'premiumLinks', linkId);
+      const linkSnap = await getDoc(linkRef);
 
-        if (!linkSnap.exists()) {
-            toast({ variant: "destructive", title: "Link Inválido", description: "O link de acesso premium não foi encontrado." });
-            return;
+      if (!linkSnap.exists()) {
+        toast({ variant: "destructive", title: "Link Inválido", description: "O link de acesso premium não foi encontrado." });
+        return;
+      }
+
+      const linkData = linkSnap.data();
+      if (linkData.active === false) {
+        toast({ variant: "destructive", title: "Link Inativo", description: "Este link de acesso não está mais ativo." });
+        return;
+      }
+
+      if (linkData.maxUses > 0 && linkData.uses >= linkData.maxUses) {
+        toast({ variant: "destructive", title: "Limite Atingido", description: "O limite de usos para este link foi atingido." });
+        return;
+      }
+
+      const courseIdsToGrant: string[] = linkData.courseIds || [];
+      if (courseIdsToGrant.length === 0) {
+        toast({ title: "Nenhum curso no link", description: "Este link premium não contém cursos." });
+        return;
+      }
+
+      const batch = writeBatch(firestore);
+      let grantedCount = 0;
+
+      const currentAccessSnapshot = await getDocs(collection(firestore, `users/${user.uid}/courseAccess`));
+      const currentAccessIds = new Set(currentAccessSnapshot.docs.map(d => d.id));
+
+      courseIdsToGrant.forEach((courseId: string) => {
+        if (!currentAccessIds.has(courseId)) {
+          const accessRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId);
+          batch.set(accessRef, {
+            courseId: courseId,
+            grantedAt: serverTimestamp()
+          });
+          grantedCount++;
         }
+      });
 
-        const linkData = linkSnap.data();
-        if (linkData.active === false) {
-            toast({ variant: "destructive", title: "Link Inativo", description: "Este link de acesso não está mais ativo." });
-            return;
-        }
-
-        if (linkData.maxUses > 0 && linkData.uses >= linkData.maxUses) {
-            toast({ variant: "destructive", title: "Limite Atingido", description: "O limite de usos para este link foi atingido." });
-            return;
-        }
-        
-        const courseIdsToGrant: string[] = linkData.courseIds || [];
-        if (courseIdsToGrant.length === 0) {
-            toast({ title: "Nenhum curso no link", description: "Este link premium não contém cursos." });
-            return;
-        }
-
-        const batch = writeBatch(firestore);
-        let grantedCount = 0;
-        
-        const currentAccessSnapshot = await getDocs(collection(firestore, `users/${user.uid}/courseAccess`));
-        const currentAccessIds = new Set(currentAccessSnapshot.docs.map(d => d.id));
-
-        courseIdsToGrant.forEach((courseId: string) => {
-            if (!currentAccessIds.has(courseId)) {
-                const accessRef = doc(firestore, `users/${user.uid}/courseAccess`, courseId);
-                batch.set(accessRef, {
-                    courseId: courseId,
-                    grantedAt: serverTimestamp()
-                });
-                grantedCount++;
-            }
+      if (grantedCount > 0) {
+        batch.update(linkRef, {
+          uses: increment(1)
         });
-        
-        if (grantedCount > 0) {
-            batch.update(linkRef, {
-                uses: increment(1)
-            });
-            
-            await batch.commit();
-            toast({ title: "Acesso Liberado!", description: `${grantedCount} novo(s) curso(s) foram adicionados à sua conta.` });
-            await fetchCoursesAndProgress(isAdmin);
-        } else {
-            toast({ title: "Tudo Certo!", description: "Você já tem acesso a todos os cursos deste link." });
-        }
+
+        await batch.commit();
+        toast({ title: "Acesso Liberado!", description: `${grantedCount} novo(s) curso(s) foram adicionados à sua conta.` });
+        await fetchCoursesAndProgress(isAdmin);
+      } else {
+        toast({ title: "Tudo Certo!", description: "Você já tem acesso a todos os cursos deste link." });
+      }
 
     } catch (error: any) {
-        console.error("Error redeeming premium link: ", error);
-        const permissionError = new FirestorePermissionError({
-            path: `premiumLinks/${linkId}`,
-            operation: 'get'
-        });
-        errorEmitter.emit('permission-error', permissionError);
-        toast({ variant: "destructive", title: "Erro", description: "Não foi possível resgatar o acesso premium." });
+      console.error("Error redeeming premium link: ", error);
+      const permissionError = new FirestorePermissionError({
+        path: `premiumLinks/${linkId}`,
+        operation: 'get'
+      });
+      errorEmitter.emit('permission-error', permissionError);
+      toast({ variant: "destructive", title: "Erro", description: "Não foi possível resgatar o acesso premium." });
     } finally {
-        router.replace('/dashboard', { scroll: false });
+      router.replace('/dashboard', { scroll: false });
     }
   }, [firestore, user, toast, router, fetchCoursesAndProgress, isAdmin]);
 
- useEffect(() => {
+  useEffect(() => {
     // If auth state is still loading, do nothing.
     if (userLoading || !firestore) {
       return;
@@ -540,28 +556,28 @@ function DashboardClientPage() {
     const checkAdminAndFetch = async () => {
       let userIsAdmin = false;
       if (user.email === 'admin@reidavsl.com') {
-          userIsAdmin = true;
+        userIsAdmin = true;
       } else {
-          try {
-              const userDocRef = doc(firestore, 'users', user.uid);
-              const userDocSnap = await getDoc(userDocRef);
-              userIsAdmin = userDocSnap.exists() && userDocSnap.data().role === 'admin';
-          } catch (e) {
-              console.error("Failed to check admin status", e);
-          }
+        try {
+          const userDocRef = doc(firestore, 'users', user.uid);
+          const userDocSnap = await getDoc(userDocRef);
+          userIsAdmin = userDocSnap.exists() && userDocSnap.data().role === 'admin';
+        } catch (e) {
+          console.error("Failed to check admin status", e);
+        }
       }
       setIsAdmin(userIsAdmin);
       await fetchCoursesAndProgress(userIsAdmin);
-      
+
       // Handle link redemption only after user role and courses are known
       const linkId = searchParams.get('linkId');
       if (linkId) {
-          redeemPremiumLink(linkId);
+        redeemPremiumLink(linkId);
       }
     };
 
     checkAdminAndFetch();
-    
+
   }, [user, userLoading, firestore, router, fetchCoursesAndProgress, redeemPremiumLink, searchParams]);
 
 
@@ -572,7 +588,7 @@ function DashboardClientPage() {
       </div>
     );
   }
-  
+
   const heroContainerClasses = cn(
     "relative z-10 mx-auto flex w-full max-w-4xl flex-col px-4",
     {
@@ -596,234 +612,234 @@ function DashboardClientPage() {
     if (isEditMode) return;
     coursesSectionRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
-  
+
   const heroContentVisible = isEditMode || layoutData.heroTextVisible;
 
   return (
-      <div className="w-full">
-        {/* Hero Section */}
-        <section className={cn(
-          "relative flex h-[60vh] min-h-[500px] w-full flex-col justify-center",
-          isEditMode && "border-2 border-dashed border-primary/50"
-        )}>
-          {layoutData.isLoading ? <Skeleton className="absolute inset-0 z-0" /> : (
-              <div className="absolute inset-0 z-0">
-                <picture>
-                  <source srcSet={isEditMode ? tempHeroImageMobile : layoutData.heroImageMobile} media="(max-width: 768px)" />
-                  <source srcSet={isEditMode ? tempHeroImageDesktop : layoutData.heroImageDesktop} media="(min-width: 769px)" />
-                  <Image
-                    src={isEditMode ? tempHeroImageDesktop : layoutData.heroImageDesktop}
-                    alt="Hero background"
-                    fill
-                    className="object-cover"
-                    data-ai-hint="digital art collage"
-                    priority
-                  />
-                </picture>
-                <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-transparent" />
-              </div>
-          )}
+    <div className="w-full">
+      {/* Hero Section */}
+      <section className={cn(
+        "relative flex h-[60vh] min-h-[500px] w-full flex-col justify-center",
+        isEditMode && "border-2 border-dashed border-primary/50"
+      )}>
+        {layoutData.isLoading ? <Skeleton className="absolute inset-0 z-0" /> : (
+          <div className="absolute inset-0 z-0">
+            <picture>
+              <source srcSet={isEditMode ? tempHeroImageMobile : layoutData.heroImageMobile} media="(max-width: 768px)" />
+              <source srcSet={isEditMode ? tempHeroImageDesktop : layoutData.heroImageDesktop} media="(min-width: 769px)" />
+              <Image
+                src={isEditMode ? tempHeroImageDesktop : layoutData.heroImageDesktop}
+                alt="Hero background"
+                fill
+                className="object-cover"
+                data-ai-hint="digital art collage"
+                priority
+              />
+            </picture>
+            <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-transparent" />
+          </div>
+        )}
 
-          {heroContentVisible && (
-            <div className={heroContainerClasses}>
-                <div className={cn("relative w-full", textContainerClasses)}>
-                  <div
-                      id="hero-title-editor"
-                      contentEditable={isEditMode}
-                      suppressContentEditableWarning={true}
-                      onFocus={() => setActiveEditor('hero-title-editor')}
-                      onBlur={(e) => {
-                        setActiveEditor(null);
-                        setTempHeroTitle(e.currentTarget.innerHTML);
-                      }}
-                      className={cn(
-                          "text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl",
-                          "prose prose-xl prose-invert max-w-none",
-                          isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
-                      )}
-                      dangerouslySetInnerHTML={{ __html: isEditMode ? tempHeroTitle : layoutData.heroTitle }}
-                  />
-                  {isEditMode && activeEditor === 'hero-title-editor' && (
-                    <ActionToolbar
-                      className="absolute -top-14"
-                      buttons={[
-                        { label: "Esquerda", icon: <AlignLeft className="size-4" />, onClick: () => setHeroAlignment('left'), active: heroAlignment === 'left' },
-                        { label: "Centro", icon: <AlignCenter className="size-4" />, onClick: () => setHeroAlignment('center'), active: heroAlignment === 'center' },
-                        { label: "Direita", icon: <AlignRight className="size-4" />, onClick: () => setHeroAlignment('end'), active: heroAlignment === 'end' },
-                        { label: "Bold", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
-                        { label: "Italic", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
-                        { label: "Underline", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
-                        { label: "Cor", icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor') },
-                      ]}
-                    />
-                  )}
+        {heroContentVisible && (
+          <div className={heroContainerClasses}>
+            <div className={cn("relative w-full", textContainerClasses)}>
+              <div
+                id="hero-title-editor"
+                contentEditable={isEditMode}
+                suppressContentEditableWarning={true}
+                onFocus={() => setActiveEditor('hero-title-editor')}
+                onBlur={(e) => {
+                  setActiveEditor(null);
+                  setTempHeroTitle(e.currentTarget.innerHTML);
+                }}
+                className={cn(
+                  "text-4xl font-bold tracking-tight text-white md:text-5xl lg:text-6xl",
+                  "prose prose-xl prose-invert max-w-none",
+                  isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
+                )}
+                dangerouslySetInnerHTML={{ __html: isEditMode ? tempHeroTitle : layoutData.heroTitle }}
+              />
+              {isEditMode && activeEditor === 'hero-title-editor' && (
+                <ActionToolbar
+                  className="absolute -top-14"
+                  buttons={[
+                    { label: "Esquerda", icon: <AlignLeft className="size-4" />, onClick: () => setHeroAlignment('left'), active: heroAlignment === 'left' },
+                    { label: "Centro", icon: <AlignCenter className="size-4" />, onClick: () => setHeroAlignment('center'), active: heroAlignment === 'center' },
+                    { label: "Direita", icon: <AlignRight className="size-4" />, onClick: () => setHeroAlignment('end'), active: heroAlignment === 'end' },
+                    { label: "Bold", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
+                    { label: "Italic", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
+                    { label: "Underline", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
+                    { label: "Cor", icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor') },
+                  ]}
+                />
+              )}
+            </div>
+
+            <div className={cn("relative mt-4 w-full", textContainerClasses)}>
+              <div
+                id="hero-subtitle-editor"
+                contentEditable={isEditMode}
+                suppressContentEditableWarning={true}
+                onFocus={() => setActiveEditor('hero-subtitle-editor')}
+                onBlur={(e) => {
+                  setActiveEditor(null);
+                  setTempHeroSubtitle(e.currentTarget.innerHTML);
+                }}
+                className={cn(
+                  "max-w-2xl text-lg text-muted-foreground md:text-xl",
+                  "prose prose-lg prose-invert max-w-none",
+                  isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
+                )}
+                dangerouslySetInnerHTML={{ __html: isEditMode ? tempHeroSubtitle : layoutData.heroSubtitle }}
+              />
+              {isEditMode && activeEditor === 'hero-subtitle-editor' && (
+                <ActionToolbar
+                  className="absolute -top-14"
+                  buttons={[
+                    { label: "Bold", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
+                    { label: "Italic", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
+                    { label: "Underline", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
+                    { label: "Cor", icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor') },
+                  ]}
+                />
+              )}
+            </div>
+
+            <div className={cn("mt-8", textContainerClasses)}>
+              {isEditMode ? (
+                <div
+                  contentEditable={true}
+                  suppressContentEditableWarning={true}
+                  onBlur={(e) => setTempCtaText(e.currentTarget.innerHTML)}
+                  className="inline-block px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-md text-lg font-semibold outline-none focus:ring-2 focus:ring-ring"
+                  dangerouslySetInnerHTML={{ __html: tempCtaText }}
+                >
                 </div>
+              ) : (
+                <Button onClick={handleCtaClick} size="lg" variant="default" className="bg-primary hover:bg-primary/90 text-primary-foreground">
+                  <span dangerouslySetInnerHTML={{ __html: layoutData.ctaText }} />
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
 
-                <div className={cn("relative mt-4 w-full", textContainerClasses)}>
-                  <div
-                      id="hero-subtitle-editor"
-                      contentEditable={isEditMode}
-                      suppressContentEditableWarning={true}
-                      onFocus={() => setActiveEditor('hero-subtitle-editor')}
-                       onBlur={(e) => {
-                        setActiveEditor(null);
-                        setTempHeroSubtitle(e.currentTarget.innerHTML);
-                      }}
-                      className={cn(
-                          "max-w-2xl text-lg text-muted-foreground md:text-xl",
-                          "prose prose-lg prose-invert max-w-none",
-                          isEditMode && "outline-none focus:ring-2 focus:ring-primary rounded-md p-2 -m-2"
-                      )}
-                      dangerouslySetInnerHTML={{ __html: isEditMode ? tempHeroSubtitle : layoutData.heroSubtitle }}
-                  />
-                  {isEditMode && activeEditor === 'hero-subtitle-editor' && (
-                      <ActionToolbar
-                          className="absolute -top-14"
-                          buttons={[
-                              { label: "Bold", icon: <Bold className="size-4" />, onClick: () => applyFormat('bold') },
-                              { label: "Italic", icon: <Italic className="size-4" />, onClick: () => applyFormat('italic') },
-                              { label: "Underline", icon: <Underline className="size-4" />, onClick: () => applyFormat('underline') },
-                              { label: "Cor", icon: <Palette className="size-4" />, onClick: () => applyFormat('foreColor') },
-                          ]}
-                      />
-                  )}
-                </div>
-
-              <div className={cn("mt-8", textContainerClasses)}>
-                {isEditMode ? (
-                  <div
-                      contentEditable={true}
-                      suppressContentEditableWarning={true}
-                      onBlur={(e) => setTempCtaText(e.currentTarget.innerHTML)}
-                      className="inline-block px-6 py-2.5 bg-primary hover:bg-primary/90 text-primary-foreground rounded-md text-lg font-semibold outline-none focus:ring-2 focus:ring-ring"
-                      dangerouslySetInnerHTML={{ __html: tempCtaText }}
-                  >
+        {isAdmin && !isEditMode && (
+          <div className="absolute top-24 right-8 z-20">
+            <Button onClick={enterEditMode} variant="outline">
+              <Pencil className="mr-2 h-4 w-4" /> Editar Página
+            </Button>
+          </div>
+        )}
+        {isAdmin && isEditMode && (
+          <div className="absolute top-24 right-8 z-20 flex flex-col items-end gap-4">
+            <Collapsible open={openCollapsible === 'banner'} onOpenChange={(isOpen) => setOpenCollapsible(isOpen ? 'banner' : null)} className="w-full max-w-xs">
+              <CollapsibleTrigger asChild>
+                <Button variant="outline"><Pencil className="mr-2 h-4 w-4" /> Editar Banner</Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-2 w-full space-y-4 p-4 rounded-lg bg-background/80 border border-border backdrop-blur-sm">
+                <div className="flex items-center justify-between space-x-2 rounded-lg border p-3 shadow-sm">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="text-visibility" className="text-sm font-medium text-white">
+                      Exibir Textos e Botão
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Desative para exibir apenas a imagem de fundo.
+                    </p>
                   </div>
-                ) : (
-                  <Button onClick={handleCtaClick} size="lg" variant="default" className="bg-primary hover:bg-primary/90 text-primary-foreground">
-                      <span dangerouslySetInnerHTML={{ __html: layoutData.ctaText }} />
-                  </Button>
-                )}
-              </div>
-            </div>
-          )}
-          
-          {isAdmin && !isEditMode && (
-            <div className="absolute top-24 right-8 z-20">
-              <Button onClick={enterEditMode} variant="outline">
-                <Pencil className="mr-2 h-4 w-4" /> Editar Página
-              </Button>
-            </div>
-          )}
-          {isAdmin && isEditMode && (
-             <div className="absolute top-24 right-8 z-20 flex flex-col items-end gap-4">
-                <Collapsible open={openCollapsible === 'banner'} onOpenChange={(isOpen) => setOpenCollapsible(isOpen ? 'banner' : null)} className="w-full max-w-xs">
-                    <CollapsibleTrigger asChild>
-                        <Button variant="outline"><Pencil className="mr-2 h-4 w-4" /> Editar Banner</Button>
-                    </CollapsibleTrigger>
-                    <CollapsibleContent className="mt-2 w-full space-y-4 p-4 rounded-lg bg-background/80 border border-border backdrop-blur-sm">
-                        <div className="flex items-center justify-between space-x-2 rounded-lg border p-3 shadow-sm">
-                            <div className="space-y-0.5">
-                                <Label htmlFor="text-visibility" className="text-sm font-medium text-white">
-                                  Exibir Textos e Botão
-                                </Label>
-                                <p className="text-xs text-muted-foreground">
-                                    Desative para exibir apenas a imagem de fundo.
-                                </p>
-                            </div>
-                            <Switch
-                                id="text-visibility"
-                                checked={tempHeroTextVisible}
-                                onCheckedChange={setTempHeroTextVisible}
-                            />
-                        </div>
-                         <Tabs value={imageInputMode} onValueChange={(value) => setImageInputMode(value as 'desktop' | 'mobile')} className="w-full">
-                            <TabsList className="grid w-full grid-cols-2">
-                                <TabsTrigger value="desktop"><Monitor className="mr-2 h-4 w-4" /> Computador</TabsTrigger>
-                                <TabsTrigger value="mobile"><Smartphone className="mr-2 h-4 w-4" /> Celular</TabsTrigger>
-                            </TabsList>
-                            <TabsContent value="desktop" className="mt-4 space-y-3">
-                                <ImageUploader
-                                    device="desktop"
-                                    file={heroImageDesktopFile}
-                                    onFileChange={handleHeroFileChange}
-                                    url={tempHeroImageUrlInputDesktop}
-                                    onUrlChange={handleHeroUrlChange}
-                                    onRemove={handleRemoveHeroImage}
-                                    uploadProgress={uploadProgress}
-                                    isUploading={isSaving && imageInputMode === 'desktop'}
-                                />
-                            </TabsContent>
-                            <TabsContent value="mobile" className="mt-4 space-y-3">
-                                <ImageUploader
-                                    device="mobile"
-                                    file={heroImageMobileFile}
-                                    onFileChange={handleHeroFileChange}
-                                    url={tempHeroImageUrlInputMobile}
-                                    onUrlChange={handleHeroUrlChange}
-                                    onRemove={handleRemoveHeroImage}
-                                    uploadProgress={uploadProgress}
-                                    isUploading={isSaving && imageInputMode === 'mobile'}
-                                />
-                            </TabsContent>
-                        </Tabs>
-                    </CollapsibleContent>
-                </Collapsible>
-                 <PageEditActions
-                    onSave={handleSaveChanges}
-                    onCancel={cancelEditMode}
-                    isSaving={isSaving}
-                 />
-             </div>
-          )}
-
-        </section>
-
-        {/* All Courses Section */}
-        <section ref={coursesSectionRef} className="container mx-auto px-4 py-16 md:px-8 space-y-12">
-          
-           <div>
-            <div className="flex justify-between items-center mb-4 pt-20">
-                <h2 className="text-2xl font-bold text-white">Meus Cursos</h2>
-                 {isAdmin && (
-                    <Button onClick={handleAddCourse} variant="outline" size="sm">
-                        <Plus className="mr-2 h-4 w-4" /> Adicionar Curso
-                    </Button>
-                )}
-            </div>
-            {loadingData ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                  {Array.from({ length: 4 }).map((_, index) => (
-                      <div key={index}>
-                          <Skeleton className="aspect-[2/3] w-full rounded-lg" />
-                      </div>
-                  ))}
+                  <Switch
+                    id="text-visibility"
+                    checked={tempHeroTextVisible}
+                    onCheckedChange={setTempHeroTextVisible}
+                  />
                 </div>
-            ) : courses.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
-                  {courses.map((course, index) => (
-                    <CourseCard
-                        key={course.id}
-                        course={course}
-                        progress={isAdmin || courseAccess[course.id] ? calculateProgress(course.id) : null}
-                        isLocked={!isAdmin && !courseAccess[course.id]}
-                        priority={index < 4}
-                        isAdmin={isAdmin}
-                        isEditing={isEditMode}
-                        onUpdate={handleCourseUpdate}
-                        onDelete={handleConfirmDelete}
+                <Tabs value={imageInputMode} onValueChange={(value) => setImageInputMode(value as 'desktop' | 'mobile')} className="w-full">
+                  <TabsList className="grid w-full grid-cols-2">
+                    <TabsTrigger value="desktop"><Monitor className="mr-2 h-4 w-4" /> Computador</TabsTrigger>
+                    <TabsTrigger value="mobile"><Smartphone className="mr-2 h-4 w-4" /> Celular</TabsTrigger>
+                  </TabsList>
+                  <TabsContent value="desktop" className="mt-4 space-y-3">
+                    <ImageUploader
+                      device="desktop"
+                      file={heroImageDesktopFile}
+                      onFileChange={handleHeroFileChange}
+                      url={tempHeroImageUrlInputDesktop}
+                      onUrlChange={handleHeroUrlChange}
+                      onRemove={handleRemoveHeroImage}
+                      uploadProgress={uploadProgress}
+                      isUploading={isSaving && imageInputMode === 'desktop'}
                     />
-                  ))}
-              </div>
-            ) : (
-                <div className="text-center py-16 px-4 border-2 border-dashed rounded-lg">
-                    <p className="text-muted-foreground">Você ainda não tem acesso a nenhum curso.</p>
-                    <p className="text-sm text-muted-foreground mt-2">Explore a plataforma ou contate o suporte.</p>
-                </div>
+                  </TabsContent>
+                  <TabsContent value="mobile" className="mt-4 space-y-3">
+                    <ImageUploader
+                      device="mobile"
+                      file={heroImageMobileFile}
+                      onFileChange={handleHeroFileChange}
+                      url={tempHeroImageUrlInputMobile}
+                      onUrlChange={handleHeroUrlChange}
+                      onRemove={handleRemoveHeroImage}
+                      uploadProgress={uploadProgress}
+                      isUploading={isSaving && imageInputMode === 'mobile'}
+                    />
+                  </TabsContent>
+                </Tabs>
+              </CollapsibleContent>
+            </Collapsible>
+            <PageEditActions
+              onSave={handleSaveChanges}
+              onCancel={cancelEditMode}
+              isSaving={isSaving}
+            />
+          </div>
+        )}
+
+      </section>
+
+      {/* All Courses Section */}
+      <section ref={coursesSectionRef} className="container mx-auto px-4 py-16 md:px-8 space-y-12">
+
+        <div>
+          <div className="flex justify-between items-center mb-4 pt-20">
+            <h2 className="text-2xl font-bold text-white">Meus Cursos</h2>
+            {isAdmin && (
+              <Button onClick={handleAddCourse} variant="outline" size="sm">
+                <Plus className="mr-2 h-4 w-4" /> Adicionar Curso
+              </Button>
             )}
           </div>
-        </section>
-      </div>
+          {loadingData ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {Array.from({ length: 4 }).map((_, index) => (
+                <div key={index}>
+                  <Skeleton className="aspect-[2/3] w-full rounded-lg" />
+                </div>
+              ))}
+            </div>
+          ) : courses.length > 0 ? (
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+              {courses.map((course, index) => (
+                <CourseCard
+                  key={course.id}
+                  course={course}
+                  progress={isAdmin || courseAccess[course.id] ? calculateProgress(course.id) : null}
+                  isLocked={!isAdmin && !courseAccess[course.id]}
+                  priority={index < 4}
+                  isAdmin={isAdmin}
+                  isEditing={isEditMode}
+                  onUpdate={handleCourseUpdate}
+                  onDelete={handleConfirmDelete}
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-16 px-4 border-2 border-dashed rounded-lg">
+              <p className="text-muted-foreground">Você ainda não tem acesso a nenhum curso.</p>
+              <p className="text-sm text-muted-foreground mt-2">Explore a plataforma ou contate o suporte.</p>
+            </div>
+          )}
+        </div>
+      </section>
+    </div>
   );
 }
 
